@@ -1,0 +1,6 @@
+{
+  "name": "OmniVectis - Multi-Sector Revenue & Market Arbitrage Engine",
+  "description": "Plateforme d'analyse macro-économique sectorielle et moteur d'exécution d'opportunités de revenus multi-marchés avec intelligence stratégique et simulateur financier.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
