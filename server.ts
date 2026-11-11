@@ -3,6 +3,14 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
+import {
+  harvestRealTimeSignals,
+  getCachedSignals,
+  getCachedRates,
+  getPersistentPipeline,
+  savePersistentPipeline,
+  PersistentPipelineItem,
+} from './src/server/dataService.ts';
 
 dotenv.config();
 
@@ -109,77 +117,147 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.get('/api/signals/live', (req, res) => {
+// Live Signals Harvester (Real External Sources: AllAfrica, Le Figaro, World Bank, BCE/OpenFX)
+app.get('/api/signals/live', async (req, res) => {
+  const region = (req.query.region as string) || 'all';
+  let signals = getCachedSignals();
+
+  // If empty on first request, harvest live
+  if (signals.length === 0) {
+    try {
+      signals = await harvestRealTimeSignals();
+    } catch (e) {
+      console.info('Harvesting error on initial request:', e);
+    }
+  }
+
+  // Filter by region if requested
+  const filtered = region === 'all'
+    ? signals
+    : signals.filter((s) => s.region === region || s.region === 'global');
+
   const now = new Date();
   const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-  
+
   res.json({
     status: 'ok',
     lastSync: timeStr,
     timestamp: now.toISOString(),
-    signals: [
-      {
-        id: 'sig-csrd-audit',
-        category: 'reglementaire',
-        headline: 'Échéance CSRD : 52 000 PME sommées de fournir leur bilan carbone sous-traitant',
-        context: 'Les grands donneurs d ordre exigent désormais les données extra-financières Scope 3 de leurs fournisseurs sous peine de pénalités contractuelles.',
-        immediateArbitragePlay: 'Vendre un audit d empreinte Scope 3 express clé en main à 2 400€ pour les sous-traitants industriels avec délivrance automatisée.',
-        sectorId: 'cleantech',
-        sectorName: 'Énergie & Transition Climat',
-        estimatedMarginImpact: '+82% de marge brute',
-        urgency: 'Immédiat (<48h)',
-        timestamp: `Signal vérifié à ${timeStr}`,
-      },
-      {
-        id: 'sig-energy-spread',
-        category: 'energie_matiere',
-        headline: 'Bourse EPEX SPOT : Écart de 165 € / MWh entre les heures creuses solaires et le pic de 19h',
-        context: 'La surproduction photovoltaïque crée des prix quasi nuls à 13h, suivis de flambées tarifaires à 19h30 sur le réseau européen.',
-        immediateArbitragePlay: 'Connecter les chambres froides d entrepôts logistiques pour sur-refroidir à 13h et couper la charge à 19h contre rémunération d effacement.',
-        sectorId: 'cleantech',
-        sectorName: 'Énergie & Transition Climat',
-        estimatedMarginImpact: '2 800€ à 7 500€ / mois / site',
-        urgency: 'Cette semaine',
-        timestamp: `Signal vérifié à ${timeStr}`,
-      },
-      {
-        id: 'sig-ai-token-drop',
-        category: 'ia_tech',
-        headline: 'Inférence IA : Coût du million de tokens divisé par 4 sur les modèles de raisonnement',
-        context: 'La rentabilité des agents autonomes de traitement de flux B2B explose, permettant des architectures multi-agents complexes à coût négligeable.',
-        immediateArbitragePlay: 'Lancer un micro-SaaS de conciergerie vocale pour professions libérales avec marge brute supérieure à 90%.',
-        sectorId: 'ai_deeptech',
-        sectorName: 'Intelligence Artificielle & DeepTech',
-        estimatedMarginImpact: '+91% marge brute',
-        urgency: 'Immédiat (<48h)',
-        timestamp: `Signal vérifié à ${timeStr}`,
-      },
-      {
-        id: 'sig-fintech-delays',
-        category: 'finance_taux',
-        headline: 'Délais de paiement inter-entreprises : Pression sur le BFR des PME manufacturières',
-        context: 'Les délais moyens atteignent 68 jours, créant une crise d illiquidité chez les fournisseurs de rang 2 et 3.',
-        immediateArbitragePlay: 'Plateforme d escompte dynamique : payer le fournisseur à J+2 contre un rabais de 2.5%, finançable par trésorerie excédentaire.',
-        sectorId: 'fintech',
-        sectorName: 'FinTech & Arbitrage de Flux',
-        estimatedMarginImpact: 'Spread net de 1.2% à 2.0% du volume',
-        urgency: 'Ce mois-ci',
-        timestamp: `Signal vérifié à ${timeStr}`,
-      },
-      {
-        id: 'sig-logistics-tax',
-        category: 'supply_chain',
-        headline: 'Taxes carbone transport : 24% des trajets retour de camions restent non optimisés',
-        context: 'Les transporteurs moyens perdent jusqu à 350€ de marge par trajet retour à vide sur les corridors France-Espagne et Allemagne-Italie.',
-        immediateArbitragePlay: 'Courtage numérique de fret retour via messagerie WhatsApp automatisée avec commission de 12% sur chargement.',
-        sectorId: 'logistics',
-        sectorName: 'Supply Chain & Logistique',
-        estimatedMarginImpact: '350€ net par camion chargé',
-        urgency: 'Cette semaine',
-        timestamp: `Signal vérifié à ${timeStr}`,
-      },
-    ],
+    totalSignals: filtered.length,
+    signals: filtered,
   });
+});
+
+// Force refresh from live external sources
+app.post('/api/signals/refresh', async (req, res) => {
+  try {
+    const refreshed = await harvestRealTimeSignals();
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+    res.json({
+      status: 'ok',
+      message: 'Signaux rafraîchis en direct depuis AllAfrica, Le Figaro, Banque Mondiale et BCE/FX.',
+      lastSync: timeStr,
+      timestamp: now.toISOString(),
+      signals: refreshed,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du rafraîchissement' });
+  }
+});
+
+// Live Currency Rates & Foreign Exchange Parity
+app.get('/api/rates/live', async (req, res) => {
+  const rates = getCachedRates();
+  res.json({
+    status: 'ok',
+    base: 'EUR',
+    rates: {
+      EUR: 1,
+      XOF: rates.XOF, // e.g. 655.957 FCFA (BCEAO fixed peg)
+      USD: rates.USD,
+    },
+    lastUpdate: rates.lastUpdate,
+  });
+});
+
+// Live World Bank Macroeconomic Data
+app.get('/api/worldbank/country/:iso', async (req, res) => {
+  const iso = (req.params.iso || 'NER').toUpperCase();
+  try {
+    const response = await fetch(
+      `https://api.worldbank.org/v2/country/${iso}/indicator/NY.GDP.MKTP.KD.ZG?format=json&per_page=5`,
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (!response.ok) {
+      return res.status(404).json({ error: 'Indicateurs non trouvés' });
+    }
+    const data = await response.json();
+    res.json({
+      status: 'ok',
+      country: iso,
+      metadata: data[0] || {},
+      indicators: data[1] || [],
+    });
+  } catch (e: any) {
+    res.json({
+      status: 'fallback',
+      country: iso,
+      indicators: [{ indicator: { value: 'Croissance PIB' }, date: '2025', value: 7.0 }],
+    });
+  }
+});
+
+// ----------------- MULTI-DEVICE PERSISTENT PIPELINE API -----------------
+
+app.get('/api/pipeline', (req, res) => {
+  const items = getPersistentPipeline();
+  res.json({ status: 'ok', items });
+});
+
+app.post('/api/pipeline', (req, res) => {
+  const newItem = req.body as PersistentPipelineItem;
+  if (!newItem || !newItem.title) {
+    return res.status(400).json({ error: 'Titre requis pour l opportunité' });
+  }
+
+  const items = getPersistentPipeline();
+  const created: PersistentPipelineItem = {
+    ...newItem,
+    id: newItem.id || `pipe-${Date.now()}`,
+    addedAt: newItem.addedAt || new Date().toLocaleDateString('fr-FR'),
+  };
+
+  const updated = [created, ...items.filter((i) => i.id !== created.id)];
+  savePersistentPipeline(updated);
+
+  res.json({ status: 'ok', item: created, items: updated });
+});
+
+app.put('/api/pipeline/:id', (req, res) => {
+  const id = req.params.id;
+  const updates = req.body;
+  const items = getPersistentPipeline();
+
+  const index = items.findIndex((i) => i.id === id);
+  if (index === -1) {
+    return res.status(404).json({ error: 'Élément introuvable' });
+  }
+
+  items[index] = { ...items[index], ...updates };
+  savePersistentPipeline(items);
+
+  res.json({ status: 'ok', item: items[index], items });
+});
+
+app.delete('/api/pipeline/:id', (req, res) => {
+  const id = req.params.id;
+  const items = getPersistentPipeline();
+  const updated = items.filter((i) => i.id !== id);
+  savePersistentPipeline(updated);
+
+  res.json({ status: 'ok', items: updated });
 });
 
 
@@ -725,6 +803,12 @@ async function startServer() {
 
   app.listen(Number(port), '0.0.0.0', () => {
     console.log(`Server listening on port ${port}`);
+    // Run initial live external harvest in background
+    harvestRealTimeSignals().catch((e) => console.info('Initial harvest background notice:', e));
+    // Scheduled background crawl every 30 minutes
+    setInterval(() => {
+      harvestRealTimeSignals().catch((e) => console.info('Scheduled harvest background notice:', e));
+    }, 30 * 60 * 1000);
   });
 }
 

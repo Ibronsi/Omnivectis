@@ -9,20 +9,33 @@ import {
   Layers,
   ArrowUpRight,
   ShieldCheck,
+  Sliders,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  HelpCircle,
+  Globe,
 } from 'lucide-react';
-import { SectorCategory, SimulationInputs } from '../types/market';
+import { SectorCategory, SimulationInputs, CountryCode } from '../types/market';
 import { ECONOMIC_SECTORS } from '../data/sectorsData';
+import { GEO_PROFILES } from '../data/geoProfiles';
 import { calculateSimulation } from '../utils/simulatorEngine';
 
 interface SimulatorViewProps {
   initialSectors?: SectorCategory[];
   onTriggerBlueprint: (sectorId: SectorCategory, targetRevenue: string) => void;
+  countryCode?: CountryCode;
 }
 
 export const SimulatorView: React.FC<SimulatorViewProps> = ({
   initialSectors = ['ai_deeptech', 'b2b_services'],
   onTriggerBlueprint,
+  countryCode = 'NER',
 }) => {
+  const currentGeoProfile = GEO_PROFILES[countryCode] || GEO_PROFILES.NER;
+  const isAfricanUemoa = ['NER', 'SEN', 'CIV'].includes(countryCode);
+
   const [selectedSectorIds, setSelectedSectorIds] = useState<SectorCategory[]>(
     initialSectors.length > 0 ? initialSectors : ['ai_deeptech', 'b2b_services']
   );
@@ -32,6 +45,13 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
   const [automationLevel, setAutomationLevel] = useState<number>(75);
   const [targetMonthlyExpense, setTargetMonthlyExpense] = useState<number>(600);
   const [scenarioMode, setScenarioMode] = useState<'conservative' | 'target' | 'aggressive'>('target');
+
+  // Editable Hypotheses
+  const [showHypotheses, setShowHypotheses] = useState<boolean>(false);
+  const [currencyMode, setCurrencyMode] = useState<'local' | 'eur'>(isAfricanUemoa ? 'local' : 'eur');
+  const [churnRate, setChurnRate] = useState<number>(5); // 5% monthly churn
+  const [variableCostPercent, setVariableCostPercent] = useState<number>(10); // 10% software/API/payment fees
+  const [localTaxRate, setLocalTaxRate] = useState<number>(currentGeoProfile.standardTaxRate); // e.g. 15% Niger BNC vs 21.1% France
 
   const toggleSector = (id: SectorCategory) => {
     if (selectedSectorIds.includes(id)) {
@@ -137,17 +157,138 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
         </div>
       </div>
 
+      {/* Disclaimer Banner: Simulation indicative de modèle, pas une prévision */}
+      <div className="p-4 bg-amber-950/20 border border-amber-500/40 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-start sm:items-center gap-2.5 text-amber-200">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+          <div>
+            <strong className="text-white uppercase font-mono tracking-wider mr-1.5">
+              Simulation indicative de modèle, pas une prévision :
+            </strong>
+            <span className="text-slate-300">
+              Outil de modélisation basé sur des hypothèses unitaires vérifiables. Aucune rentabilité n est garantie sans prospection active.
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Currency Toggle */}
+          {isAfricanUemoa && (
+            <div className="flex items-center gap-1 p-0.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono">
+              <button
+                onClick={() => setCurrencyMode('local')}
+                className={`px-2 py-1 rounded cursor-pointer ${
+                  currencyMode === 'local' ? 'bg-emerald-600 text-white font-bold' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                FCFA (XOF)
+              </button>
+              <button
+                onClick={() => setCurrencyMode('eur')}
+                className={`px-2 py-1 rounded cursor-pointer ${
+                  currencyMode === 'eur' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                EUR (€)
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={() => setShowHypotheses(!showHypotheses)}
+            className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+            <span>{showHypotheses ? 'Masquer' : 'Hypothèses'}</span>
+            {showHypotheses ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Collapsible Hypotheses Editor Panel */}
+      {showHypotheses && (
+        <div className="p-5 bg-slate-900 border border-slate-800 rounded-xl space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+              <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block">
+                Paramètres & Hypothèses Économiques Modifiables
+              </span>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Ajustez les frictions réelles (attrition client, frais de paiement, fiscalité) pour calibrer votre cash-flow net.
+              </p>
+            </div>
+            <span className="text-xs font-mono text-slate-400 bg-slate-950 px-2.5 py-1 rounded border border-slate-800">
+              Zone : {currentGeoProfile.countryName}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-slate-400">Taux d attrition mensuel (Churn) :</span>
+                <span className="font-mono text-white font-bold">{churnRate}% / mois</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={churnRate}
+                onChange={(e) => setChurnRate(Number(e.target.value))}
+                className="w-full accent-indigo-500 cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-500 block mt-0.5">Perte naturelle de clients par mois</span>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-slate-400">Frais d infrastructure & passerelles :</span>
+                <span className="font-mono text-white font-bold">{variableCostPercent}%</span>
+              </div>
+              <input
+                type="range"
+                min="2"
+                max="30"
+                value={variableCostPercent}
+                onChange={(e) => setVariableCostPercent(Number(e.target.value))}
+                className="w-full accent-cyan-500 cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-500 block mt-0.5">Commissions Mobile Money, Stripe, serveurs</span>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-slate-400">Fiscalité locale indicative :</span>
+                <span className="font-mono text-white font-bold">{localTaxRate}%</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="35"
+                value={localTaxRate}
+                onChange={(e) => setLocalTaxRate(Number(e.target.value))}
+                className="w-full accent-emerald-500 cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-500 block mt-0.5">
+                {isAfricanUemoa ? 'Régime ISF forfaitaire UEMOA' : 'Régime Micro-fiscal BNC'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reactive Real-Time Calculation Indicator */}
       <div className="p-3.5 bg-indigo-950/40 border border-indigo-500/30 rounded-xl flex items-center justify-between text-xs text-indigo-200">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
           <span className="font-semibold text-white">Calculateur Réactif Temps Réel :</span>
           <span>
-            Les gains (MRR {result.projectedMrr.toLocaleString()} €, ARR {result.projectedArr.toLocaleString()} €) se recalculent instantanément sur vos ajustements.
+            {currencyMode === 'local' && isAfricanUemoa
+              ? `MRR ${Math.round(result.projectedMrr * currentGeoProfile.fxRateToEur).toLocaleString('fr-FR')} FCFA · ARR ${Math.round(result.projectedArr * currentGeoProfile.fxRateToEur).toLocaleString('fr-FR')} FCFA`
+              : `MRR ${result.projectedMrr.toLocaleString('fr-FR')} € · ARR ${result.projectedArr.toLocaleString('fr-FR')} €`}
           </span>
         </div>
         <span className="text-[11px] font-mono text-slate-400 hidden sm:inline">
-          Modèle d asymétrie de marges V2.4
+          {isAfricanUemoa ? `1 € = ${currentGeoProfile.fxRateToEur} FCFA` : 'Modèle d asymétrie de marges V2.4'}
         </span>
       </div>
 

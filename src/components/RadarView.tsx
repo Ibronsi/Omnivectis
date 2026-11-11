@@ -20,6 +20,10 @@ import {
   Sparkles,
   Sliders,
   AlertTriangle,
+  ExternalLink,
+  ShieldCheck,
+  Globe,
+  Rocket,
 } from 'lucide-react';
 import { EconomicSector, OpportunityNiche, MarketSignal, SectorCategory } from '../types/market';
 import { ECONOMIC_SECTORS, LIVE_MARKET_SIGNALS } from '../data/sectorsData';
@@ -28,12 +32,14 @@ interface RadarViewProps {
   onSelectSector: (sector: EconomicSector, niche?: OpportunityNiche) => void;
   onOpenSimulatorWithSectors: (sectorIds: string[]) => void;
   onTriggerBlueprintForSignal?: (sectorId: SectorCategory, headline: string) => void;
+  onLaunchCircuitForSignal?: (sectorId: SectorCategory, headline: string) => void;
 }
 
 export const RadarView: React.FC<RadarViewProps> = ({
   onSelectSector,
   onOpenSimulatorWithSectors,
   onTriggerBlueprintForSignal,
+  onLaunchCircuitForSignal,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'sectors' | 'live_signals'>('sectors');
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -43,27 +49,30 @@ export const RadarView: React.FC<RadarViewProps> = ({
   // Live signals state
   const [signals, setSignals] = useState<MarketSignal[]>(LIVE_MARKET_SIGNALS);
   const [signalsFilter, setSignalsFilter] = useState<string>('all');
+  const [regionFilter, setRegionFilter] = useState<'all' | 'niger_uemoa' | 'europe' | 'global'>('all');
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('En direct');
 
-  const fetchLiveSignals = async () => {
+  const fetchLiveSignals = async (forceRefresh = false) => {
     setRefreshing(true);
     try {
-      const res = await fetch('/api/signals/live');
+      const endpoint = forceRefresh ? '/api/signals/refresh' : '/api/signals/live';
+      const method = forceRefresh ? 'POST' : 'GET';
+      const res = await fetch(endpoint, { method });
       const data = await res.json();
       if (data?.signals) {
         setSignals(data.signals);
         setLastSyncTime(data.lastSync || 'En direct');
       }
     } catch (e) {
-      console.warn('Using local signals cache:', e);
+      console.info('Using local signals cache:', e);
     } finally {
       setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchLiveSignals();
+    fetchLiveSignals(false);
   }, []);
 
   const getIcon = (name: string) => {
@@ -124,8 +133,12 @@ export const RadarView: React.FC<RadarViewProps> = ({
   });
 
   const filteredSignals = signals.filter((sig) => {
-    if (signalsFilter === 'all') return true;
-    return sig.category === signalsFilter;
+    // "Sans source, il n'est pas publié"
+    if (!sig.sourceName || !sig.sourceUrl) return false;
+
+    const matchesCategory = signalsFilter === 'all' || sig.category === signalsFilter;
+    const matchesRegion = regionFilter === 'all' || sig.region === regionFilter;
+    return matchesCategory && matchesRegion;
   });
 
   return (
@@ -134,14 +147,14 @@ export const RadarView: React.FC<RadarViewProps> = ({
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-800 pb-6">
         <div>
           <div className="text-xs font-semibold text-indigo-400 tracking-wider uppercase mb-1">
-            Intelligence Macro-Économique & Signaux de Marché
+            Intelligence Macro-Économique & Signaux de Marché Vérifiés
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
             Radar des Opportunités Sectorielles
           </h1>
           <p className="text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed">
-            Analysez les asymétries de rentabilité par secteur économique et suivez les catalyseurs de marché
-            qui créent des fenêtres d arbitrage à haute valeur ajoutée.
+            Sources publiques vérifiées (Banque Mondiale, BCEAO, flux économiques officiels) et catalyseurs en temps réel.
+            Chaque opportunité est reliée à sa source légale ou économique certifiée.
           </p>
         </div>
 
@@ -166,7 +179,7 @@ export const RadarView: React.FC<RadarViewProps> = ({
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Radio className="w-3.5 h-3.5 text-cyan-300" />
+              <Radio className="w-3.5 h-3.5 text-cyan-300 animate-pulse" />
               <span>Signaux en Direct ({signals.length})</span>
             </button>
           </div>
@@ -176,17 +189,18 @@ export const RadarView: React.FC<RadarViewProps> = ({
       {/* Explanation Banner on Real-Time vs Structural Data */}
       <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-300">
         <div className="flex items-center gap-2.5">
-          <span className="font-mono text-cyan-400 font-semibold uppercase tracking-wider text-[11px]">
-            Mode de Données :
+          <span className="font-mono text-cyan-400 font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            Protocole Données Réelles :
           </span>
           <span>
             {activeSubTab === 'live_signals'
-              ? 'Catalyseurs macro et spreads d arbitrage actualisés en direct avec horodatage.'
-              : 'Données structurelles vérifiées (TAM, CAGR, marges brutes observées) combinées à la simulation réactive en temps réel.'}
+              ? 'Flux d actualités, taux de change et indicateurs macroélectriques aspirés côté serveur. Aucun signal sans source externe vérifiable.'
+              : 'Données structurelles (TAM, marges, CAGR) avec sources publiques citées (Banque Mondiale, GSMA, BCEAO).'}
           </span>
         </div>
-        <div className="text-[11px] text-slate-400 font-mono shrink-0">
-          Dernière synchronisation : {lastSyncTime}
+        <div className="text-[11px] text-slate-400 font-mono shrink-0 bg-slate-950 px-2.5 py-1 rounded border border-slate-800">
+          Sync serveur : {lastSyncTime}
         </div>
       </div>
 
@@ -298,6 +312,14 @@ export const RadarView: React.FC<RadarViewProps> = ({
                       {sector.tagline}
                     </p>
 
+                    {/* Verified Source Citation Tag */}
+                    {sector.tamSource && (
+                      <div className="mt-2.5 inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
+                        <ShieldCheck className="w-3 h-3 text-cyan-400" />
+                        <span>Source : <strong className="text-slate-300">{sector.tamSource}</strong></span>
+                      </div>
+                    )}
+
                     {/* Unit Economics Highlight Strip */}
                     <div className="grid grid-cols-2 gap-2 my-4 p-3 bg-slate-950/70 rounded-lg border border-slate-800/80">
                       <div>
@@ -354,131 +376,222 @@ export const RadarView: React.FC<RadarViewProps> = ({
       {/* VIEW 2: LIVE SIGNALS & CATALYSTS STREAM */}
       {activeSubTab === 'live_signals' && (
         <div className="space-y-6">
-          {/* Controls Bar for Live Signals */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-3 bg-slate-900 border border-slate-800 rounded-xl">
-            <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-lg border border-slate-800 overflow-x-auto text-xs">
-              <button
-                onClick={() => setSignalsFilter('all')}
-                className={`cursor-pointer px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
-                  signalsFilter === 'all' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Tous les signaux ({signals.length})
-              </button>
-              <button
-                onClick={() => setSignalsFilter('reglementaire')}
-                className={`cursor-pointer px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
-                  signalsFilter === 'reglementaire' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Réglementation & Lois
-              </button>
-              <button
-                onClick={() => setSignalsFilter('energie_matiere')}
-                className={`cursor-pointer px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
-                  signalsFilter === 'energie_matiere' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Énergie & Spreads
-              </button>
-              <button
-                onClick={() => setSignalsFilter('ia_tech')}
-                className={`cursor-pointer px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
-                  signalsFilter === 'ia_tech' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                IA & Inférence
-              </button>
-              <button
-                onClick={() => setSignalsFilter('finance_taux')}
-                className={`cursor-pointer px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
-                  signalsFilter === 'finance_taux' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Finance & BFR
-              </button>
+          {/* Controls Bar for Live Signals with Geographic and Category Filters */}
+          <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
+            {/* Row 1: Geographic Region Selector */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-indigo-400" />
+                <span className="text-xs font-semibold text-white uppercase tracking-wider">
+                  Zone Géographique :
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-lg border border-slate-800 text-xs overflow-x-auto">
+                <button
+                  onClick={() => setRegionFilter('all')}
+                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap font-medium ${
+                    regionFilter === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Toutes les zones ({signals.length})
+                </button>
+                <button
+                  onClick={() => setRegionFilter('niger_uemoa')}
+                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap font-medium flex items-center gap-1.5 ${
+                    regionFilter === 'niger_uemoa' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-emerald-300'
+                  }`}
+                >
+                  <span>🇳🇪 Niger & UEMOA / Afrique</span>
+                </button>
+                <button
+                  onClick={() => setRegionFilter('europe')}
+                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap font-medium ${
+                    regionFilter === 'europe' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🇪🇺 Europe (CSRD, ENTSO-E)
+                </button>
+                <button
+                  onClick={() => setRegionFilter('global')}
+                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap font-medium ${
+                    regionFilter === 'global' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🌐 Global (Taux, Devises)
+                </button>
+              </div>
             </div>
 
-            <button
-              onClick={fetchLiveSignals}
-              disabled={refreshing}
-              className="cursor-pointer px-3.5 py-1.5 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-400' : ''}`} />
-              <span>Actualiser les signaux</span>
-            </button>
+            {/* Row 2: Category Filters and Refresh Button */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+              <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-lg border border-slate-800 overflow-x-auto text-xs">
+                <button
+                  onClick={() => setSignalsFilter('all')}
+                  className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                    signalsFilter === 'all' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Tous thèmes
+                </button>
+                <button
+                  onClick={() => setSignalsFilter('reglementaire')}
+                  className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                    signalsFilter === 'reglementaire' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Réglementation & Lois
+                </button>
+                <button
+                  onClick={() => setSignalsFilter('energie_matiere')}
+                  className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                    signalsFilter === 'energie_matiere' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Énergie & Matières
+                </button>
+                <button
+                  onClick={() => setSignalsFilter('ia_tech')}
+                  className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                    signalsFilter === 'ia_tech' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  IA & Inférence
+                </button>
+                <button
+                  onClick={() => setSignalsFilter('finance_taux')}
+                  className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                    signalsFilter === 'finance_taux' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Finance, Taux & Devises
+                </button>
+              </div>
+
+              <button
+                onClick={() => fetchLiveSignals(true)}
+                disabled={refreshing}
+                className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-400' : ''}`} />
+                <span>{refreshing ? 'Aspiration en cours...' : 'Recharger les flux en direct'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Signals Cards Feed */}
           <div className="space-y-4">
-            {filteredSignals.map((signal) => (
-              <div
-                key={signal.id}
-                className="p-5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl space-y-4 transition-all"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <span className="font-semibold text-indigo-400 uppercase tracking-wider text-[11px]">
-                      {signal.sectorName}
-                    </span>
-                    <span aria-hidden="true">·</span>
-                    <span className="font-mono text-cyan-300">{signal.urgency}</span>
-                    <span aria-hidden="true">·</span>
-                    <span className="text-slate-500">{signal.timestamp}</span>
-                  </div>
-
-                  <div className="font-mono text-emerald-400 font-bold tabular-nums">
-                    Impact estimé : {signal.estimatedMarginImpact}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-base font-bold text-white leading-snug">
-                    {signal.headline}
-                  </h3>
-                  <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
-                    {signal.context}
-                  </p>
-                </div>
-
-                {/* Direct Action Arbitrage Strip */}
-                <div className="p-3.5 bg-slate-950/80 rounded-lg border border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div className="text-xs">
-                    <span className="font-semibold text-indigo-300 block mb-0.5">
-                      Opportunité d Arbitrage Immédiate :
-                    </span>
-                    <span className="text-slate-200 leading-relaxed">
-                      {signal.immediateArbitragePlay}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0">
-                    <button
-                      onClick={() => onOpenSimulatorWithSectors([signal.sectorId])}
-                      className="cursor-pointer px-3 py-1.5 text-xs text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
-                    >
-                      <Sliders className="w-3.5 h-3.5" />
-                      <span>Simuler les gains</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        if (onTriggerBlueprintForSignal) {
-                          onTriggerBlueprintForSignal(signal.sectorId, signal.headline);
-                        }
-                      }}
-                      className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Générer le Blueprint</span>
-                    </button>
-                  </div>
-                </div>
+            {filteredSignals.length === 0 ? (
+              <div className="p-10 bg-slate-900 border border-slate-800 rounded-xl text-center space-y-2">
+                <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
+                <div className="text-sm font-semibold text-white">Aucun signal trouvé pour ce filtre</div>
+                <p className="text-xs text-slate-400">
+                  Ajustez les filtres géographiques ou thématiques pour afficher les flux disponibles.
+                </p>
               </div>
-            ))}
+            ) : (
+              filteredSignals.map((signal) => (
+                <div
+                  key={signal.id}
+                  className="p-5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl space-y-4 transition-all"
+                >
+                  {/* Top metadata strip: Sector, Urgency, and Source Badge */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="flex flex-wrap items-center gap-2 text-slate-400">
+                      <span className="font-semibold text-indigo-400 uppercase tracking-wider text-[11px]">
+                        {signal.sectorName}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-mono text-cyan-300">{signal.urgency}</span>
+                      <span aria-hidden="true">·</span>
+
+                      {/* Visible Source Badge with Relative Time */}
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[11px] text-slate-200">
+                        <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
+                        <span>Source : <strong className="text-white">{signal.sourceName}</strong></span>
+                        <span className="text-slate-500 font-mono">
+                          {signal.relativeTime ? `(${signal.relativeTime})` : signal.timestamp}
+                        </span>
+                      </span>
+
+                      {/* Clickable Source Link */}
+                      {signal.sourceUrl && (
+                        <a
+                          href={signal.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 underline underline-offset-2 ml-1"
+                          title="Vérifier la publication officielle"
+                        >
+                          <span>Voir la source</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="font-mono text-emerald-400 font-bold tabular-nums">
+                      Impact estimé : {signal.estimatedMarginImpact}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-white leading-snug">
+                      {signal.headline}
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                      {signal.context}
+                    </p>
+                  </div>
+
+                  {/* Direct Action Arbitrage Strip */}
+                  <div className="p-3.5 bg-slate-950/80 rounded-lg border border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="text-xs">
+                      <span className="font-semibold text-indigo-300 block mb-0.5">
+                        Opportunité d Arbitrage Immédiate :
+                      </span>
+                      <span className="text-slate-200 leading-relaxed">
+                        {signal.immediateArbitragePlay}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 md:pt-0">
+                      <button
+                        onClick={() => onOpenSimulatorWithSectors([signal.sectorId])}
+                        className="cursor-pointer px-3 py-1.5 text-xs text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                      >
+                        <Sliders className="w-3.5 h-3.5" />
+                        <span>Simuler les gains</span>
+                      </button>
+
+                      {onLaunchCircuitForSignal && (
+                        <button
+                          onClick={() => onLaunchCircuitForSignal(signal.sectorId, signal.headline)}
+                          className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-500/40 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                        >
+                          <Rocket className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Lancer le Circuit</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          if (onTriggerBlueprintForSignal) {
+                            onTriggerBlueprintForSignal(signal.sectorId, signal.headline);
+                          }
+                        }}
+                        className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Générer Blueprint</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
     </div>
   );
 };
+

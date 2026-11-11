@@ -23,14 +23,20 @@ import {
   ArrowUpRight,
   CheckCircle2,
   HelpCircle,
+  Smartphone,
+  PhoneCall,
+  QrCode,
+  MapPin,
 } from 'lucide-react';
-import { LaunchpadCircuit, SectorCategory, EconomicSector } from '../types/market';
+import { LaunchpadCircuit, SectorCategory, EconomicSector, CountryCode } from '../types/market';
 import { ECONOMIC_SECTORS } from '../data/sectorsData';
+import { GEO_PROFILES } from '../data/geoProfiles';
 
 interface LaunchpadViewProps {
   initialSectorId?: SectorCategory;
   initialOpportunityTitle?: string;
   onAddToPipeline: (title: string, sectorId: SectorCategory, targetMrr: number) => void;
+  countryCode?: CountryCode;
 }
 
 function getDefaultCircuit(sectorName: string, opportunityTitle: string): LaunchpadCircuit {
@@ -140,7 +146,11 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
   initialSectorId = 'ai_deeptech',
   initialOpportunityTitle = 'Agents IA Spécialisés Conformité & Due Diligence B2B',
   onAddToPipeline,
+  countryCode = 'NER',
 }) => {
+  const currentGeoProfile = GEO_PROFILES[countryCode] || GEO_PROFILES.NER;
+  const isAfricanUemoa = ['NER', 'SEN', 'CIV'].includes(countryCode);
+
   const [selectedSectorId, setSelectedSectorId] = useState<SectorCategory>(initialSectorId);
   const [opportunityTitle, setOpportunityTitle] = useState<string>(initialOpportunityTitle);
   const currentSector = ECONOMIC_SECTORS.find((s) => s.id === selectedSectorId) || ECONOMIC_SECTORS[0];
@@ -151,12 +161,26 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
   const [activeStep, setActiveStep] = useState<'offer' | 'outreach' | 'contract' | 'landing' | 'delivery' | 'cash_in'>('offer');
 
   // Cash-in interactive tool states
+  const [activePaymentRail, setActivePaymentRail] = useState<'mobile_money' | 'bank_transfer' | 'transfer_agency' | 'stripe'>(
+    isAfricanUemoa ? 'mobile_money' : 'stripe'
+  );
   const [cashInType, setCashInType] = useState<'recurring' | 'oneoff'>('recurring');
-  const [cashInAmount, setCashInAmount] = useState<number>(2500);
-  const [clientCompanyName, setClientCompanyName] = useState<string>('Groupe Horizon & Associés');
-  const [clientContactEmail, setClientContactEmail] = useState<string>('direction@groupe-horizon.fr');
-  const [userIban, setUserIban] = useState<string>('FR76 1680 7000 4512 3456 7890 123');
-  const [userCompanyName, setUserCompanyName] = useState<string>('Studio OmniVectis Solutions');
+  const [cashInAmount, setCashInAmount] = useState<number>(() => (isAfricanUemoa ? 650000 : 2500));
+  const [clientCompanyName, setClientCompanyName] = useState<string>(
+    isAfricanUemoa ? 'Société Sahélienne des Travaux & Logistique' : 'Groupe Horizon & Associés'
+  );
+  const [clientContactEmail, setClientContactEmail] = useState<string>(
+    isAfricanUemoa ? 'direction@sahel-logistics.ne' : 'direction@groupe-horizon.fr'
+  );
+  const [userPhone, setUserPhone] = useState<string>('+227 90 24 58 12');
+  const [selectedMobileOperator, setSelectedMobileOperator] = useState<string>('Airtel Money Niger (*400#)');
+  const [selectedBank, setSelectedBank] = useState<string>('SONIBANK (Société Nigérienne de Banque)');
+  const [selectedAgency, setSelectedAgency] = useState<string>('NITA Transfert d Argent');
+  const [userIban, setUserIban] = useState<string>(
+    isAfricanUemoa ? 'NE58 NE05 7010 0112 3456 7890 12' : 'FR76 1680 7000 4512 3456 7890 123'
+  );
+  const [userCompanyName, setUserCompanyName] = useState<string>('OmniVectis Solutions Niger');
+  const [userNif, setUserNif] = useState<string>('NIF 48219/R · RCCM NI-NIA-2025-A-142');
 
   // Copy feedbacks
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
@@ -818,11 +842,16 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                 </div>
               </div>
 
-              {/* 1. Visuel du Circuit Financier (Timeline 4 Étapes) */}
+              {/* 1. Visuel du Circuit Financier (Timeline 4 Étapes Localisée) */}
               <div className="space-y-3">
-                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
-                  1. Le Parcours Financier Complet (De la Signature au Compte en Banque)
-                </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+                    1. Le Parcours Financier Complet (De la Signature au Retrait d Argent Réel)
+                  </span>
+                  <span className="text-[11px] text-cyan-400 font-mono bg-slate-950 px-2.5 py-1 rounded border border-slate-800">
+                    Profil Actif : {currentGeoProfile.countryName} ({currentGeoProfile.currencySymbol}) · 1 € = {currentGeoProfile.fxRateToEur} {currentGeoProfile.currencySymbol}
+                  </span>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
@@ -830,9 +859,9 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                       <span>ÉTAPE 01</span>
                       <FileText className="w-4 h-4" />
                     </div>
-                    <h4 className="text-sm font-bold text-white">Accord & Signature</h4>
+                    <h4 className="text-sm font-bold text-white">Accord & Devis Signé</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Le client signe le contrat généré (étape 3) ou valide le devis/bon de commande par e-mail avec mention d accord.
+                      Le client valide le bon de commande, la facture pro-forma ou l accord contractuel OHADA/B2B par signature ou échange WhatsApp/Email d accord.
                     </p>
                     <div className="text-[11px] text-slate-500 font-mono">Délai : Immédiat</div>
                   </div>
@@ -842,11 +871,11 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                       <span>ÉTAPE 02</span>
                       <CreditCard className="w-4 h-4" />
                     </div>
-                    <h4 className="text-sm font-bold text-white">Émission du Paiement</h4>
+                    <h4 className="text-sm font-bold text-white">Choix du Rail de Règlement</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Vous envoyez soit votre <strong>Lien Stripe Payment Link</strong> (CB, Apple Pay) soit une <strong>Facture avec votre IBAN</strong> pour virement direct.
+                      Vous transmettez soit vos coordonnées <strong>Mobile Money (Airtel, Moov Flooz, Wave)</strong>, soit votre <strong>RIB Banque (SONIBANK, ECOBANK)</strong>, soit un <strong>Lien Stripe CB</strong>.
                     </p>
-                    <div className="text-[11px] text-indigo-400 font-mono">Lien direct ou IBAN</div>
+                    <div className="text-[11px] text-indigo-400 font-mono">Mobile Money / Banque / CB</div>
                   </div>
 
                   <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
@@ -854,11 +883,11 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                       <span>ÉTAPE 03</span>
                       <Zap className="w-4 h-4" />
                     </div>
-                    <h4 className="text-sm font-bold text-white">Validation Sécurisée</h4>
+                    <h4 className="text-sm font-bold text-white">Validation & Notification Instantanée</h4>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Le client règle. Les fonds sont validés et séquestrés immédiatement par Stripe ou reçus par virement SEPA instantané.
+                      Le client effectue le transfert. Vous recevez un <strong>SMS officiel de confirmation opérateur</strong> (ex: Airtel Money ou Moov Flooz) ou un avis de crédit bancaire.
                     </p>
-                    <div className="text-[11px] text-emerald-400 font-mono">Notification push directe</div>
+                    <div className="text-[11px] text-emerald-400 font-mono">Notification SMS immédiate</div>
                   </div>
 
                   <div className="p-4 bg-slate-950 border border-emerald-500/30 bg-emerald-950/10 rounded-xl space-y-2">
@@ -866,27 +895,28 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                       <span>ÉTAPE 04</span>
                       <Wallet className="w-4 h-4" />
                     </div>
-                    <h4 className="text-sm font-bold text-white">Virement sur Votre Banque</h4>
+                    <h4 className="text-sm font-bold text-white">Encaissement & Retrait Cash</h4>
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      Stripe transfère automatiquement les fonds sur votre IBAN professionnel sous <strong>48 heures</strong> (Payouts quotidiens programmés).
+                      L argent est disponible sur votre solde. Vous pouvez le retirer en espèces dans un point agréé (NITA, Al Izza, kiosque), l utiliser par carte ou le virer sur votre compte bancaire.
                     </p>
                     <div className="text-[11px] text-emerald-400 font-mono font-bold">Argent réel disponible</div>
                   </div>
                 </div>
               </div>
 
-              {/* 2. Outil Interactif : Générateur de Lien Stripe & Email de Facturation */}
+              {/* 2. Outil Interactif Multi-Rails : Mobile Money, Banques Locales, NITA/Al Izza, Stripe */}
               <div className="p-6 bg-slate-950 border border-slate-800 rounded-xl space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
                   <div className="space-y-0.5">
-                    <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block">
-                      Outil 1 · Générateur de Lien de Règlement Stripe & Email Client
+                    <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider block">
+                      Générateur Multi-Rails d Encaissement Réel
                     </span>
                     <h4 className="text-base font-bold text-white">
-                      Configurer l Encaissement pour {opportunityTitle}
+                      Adaptez le Moyen d Encaissement à Votre Situation Géographique ({currentGeoProfile.countryName})
                     </h4>
                   </div>
 
+                  {/* Mode Abonnement vs Forfait */}
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setCashInType('recurring')}
@@ -896,7 +926,7 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                           : 'bg-slate-900 text-slate-400 hover:text-white'
                       }`}
                     >
-                      Abonnement Mensuel (MRR)
+                      Abonnement Mensuel
                     </button>
                     <button
                       onClick={() => setCashInType('oneoff')}
@@ -906,284 +936,443 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                           : 'bg-slate-900 text-slate-400 hover:text-white'
                       }`}
                     >
-                      Acompte / Forfait Unique
+                      Forfait Unique
                     </button>
                   </div>
                 </div>
 
-                {/* Configuration form */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Rail Selection Buttons */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    onClick={() => setActivePaymentRail('mobile_money')}
+                    className={`cursor-pointer p-3 rounded-lg border text-left transition-all ${
+                      activePaymentRail === 'mobile_money'
+                        ? 'bg-emerald-950/40 border-emerald-500 text-white shadow-sm'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Smartphone className="w-4 h-4 text-emerald-400 mb-1" />
+                    <div className="text-xs font-bold">1. Mobile Money</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                      {isAfricanUemoa ? 'Airtel Money, Moov Flooz, Wave' : 'Apple Pay, Google Pay'}
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setActivePaymentRail('bank_transfer')}
+                    className={`cursor-pointer p-3 rounded-lg border text-left transition-all ${
+                      activePaymentRail === 'bank_transfer'
+                        ? 'bg-emerald-950/40 border-emerald-500 text-white shadow-sm'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4 text-cyan-400 mb-1" />
+                    <div className="text-xs font-bold">2. Banques Locales</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                      {isAfricanUemoa ? 'SONIBANK, ECOBANK, BOA Niger' : 'Virement SEPA Direct'}
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setActivePaymentRail('transfer_agency')}
+                    className={`cursor-pointer p-3 rounded-lg border text-left transition-all ${
+                      activePaymentRail === 'transfer_agency'
+                        ? 'bg-emerald-950/40 border-emerald-500 text-white shadow-sm'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Wallet className="w-4 h-4 text-amber-400 mb-1" />
+                    <div className="text-xs font-bold">3. Agences & Cartes</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                      {isAfricanUemoa ? 'NITA, Al Izza, Carte Visa NITA' : 'Cartes Virtuelles & Wise'}
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setActivePaymentRail('stripe')}
+                    className={`cursor-pointer p-3 rounded-lg border text-left transition-all ${
+                      activePaymentRail === 'stripe'
+                        ? 'bg-emerald-950/40 border-emerald-500 text-white shadow-sm'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Globe className="w-4 h-4 text-indigo-400 mb-1" />
+                    <div className="text-xs font-bold">4. International / Stripe</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                      Paiement CB & Clients Mondiaux
+                    </div>
+                  </button>
+                </div>
+
+                {/* Common client & amount parameters */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                   <div>
                     <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                      Montant à Encaisser (€ HT) :
+                      Montant ({currentGeoProfile.currencySymbol}) :
                     </label>
                     <div className="relative">
                       <input
                         type="number"
                         value={cashInAmount}
                         onChange={(e) => setCashInAmount(Math.max(100, Number(e.target.value) || 0))}
-                        className="w-full bg-slate-900 border border-slate-800 text-white font-mono text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 tabular-nums"
+                        className="w-full bg-slate-900 border border-slate-800 text-white font-mono text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500 tabular-nums"
                       />
                       <span className="absolute right-3 top-2 text-xs text-slate-500 font-mono">
-                        {cashInType === 'recurring' ? '€ / mois' : '€ net'}
+                        {currentGeoProfile.currencySymbol}
                       </span>
                     </div>
+                    {isAfricanUemoa && (
+                      <div className="text-[10px] text-slate-400 font-mono mt-1">
+                        ≈ {(cashInAmount / currentGeoProfile.fxRateToEur).toFixed(0)} € EUR (parité fixe 1€ = 655,957 F)
+                      </div>
+                    )}
                   </div>
 
                   <div>
                     <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                      Entreprise Cliente :
+                      Entreprise ou Client Facturé :
                     </label>
                     <input
                       type="text"
                       value={clientCompanyName}
                       onChange={(e) => setClientCompanyName(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 text-white text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-900 border border-slate-800 text-white text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-emerald-500"
                     />
                   </div>
 
                   <div>
                     <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                      Email Destinataire (Comptabilité Client) :
-                    </label>
-                    <input
-                      type="email"
-                      value={clientContactEmail}
-                      onChange={(e) => setClientContactEmail(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 text-white text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Financial Breakdown (Gross -> Stripe Fee -> Net Bank Payout) */}
-                <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-lg">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                    <div>
-                      <div className="text-[11px] text-slate-400 uppercase tracking-wider">Montant Facturé</div>
-                      <div className="text-xl font-bold font-mono text-white tabular-nums mt-0.5">
-                        {cashInAmount.toLocaleString('fr-FR')} € {cashInType === 'recurring' && <span className="text-xs text-slate-400">/ mois</span>}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] text-slate-400 uppercase tracking-wider">Frais Stripe UE (1,5% + 0,25€)</div>
-                      <div className="text-xl font-bold font-mono text-rose-400 tabular-nums mt-0.5">
-                        -{(cashInAmount * 0.015 + 0.25).toFixed(2)} €
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] text-emerald-400 uppercase tracking-wider font-semibold">Net Viré sur Votre Banque (J+2)</div>
-                      <div className="text-xl font-extrabold font-mono text-emerald-400 tabular-nums mt-0.5">
-                        {(cashInAmount - (cashInAmount * 0.015 + 0.25)).toFixed(2)} €
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Simulated Stripe Payment Link */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-300">
-                      Lien de Paiement Stripe Sécurisé Généré :
-                    </span>
-                    <button
-                      onClick={() => {
-                        const link = `https://buy.stripe.com/live_omni_${circuit.opportunityTitle.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10)}?amount=${cashInAmount}&prefilled_email=${encodeURIComponent(clientContactEmail)}`;
-                        copyToClipboard(link, 'stripelink');
-                      }}
-                      className="cursor-pointer px-3 py-1 text-xs text-indigo-300 hover:text-white bg-indigo-950/60 border border-indigo-500/30 rounded-md transition-colors flex items-center gap-1.5"
-                    >
-                      <Copy className="w-3 h-3" />
-                      <span>{copiedSection === 'stripelink' ? 'Lien Copié !' : 'Copier le Lien Stripe'}</span>
-                    </button>
-                  </div>
-
-                  <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg font-mono text-xs text-cyan-300 truncate">
-                    https://buy.stripe.com/live_omni_{circuit.opportunityTitle.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10)}?amount={cashInAmount}&prefilled_email={clientContactEmail}
-                  </div>
-                </div>
-
-                {/* Ready to send Email with Payment Link */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-300">
-                      Email de Demande de Règlement Prêt à Envoyer au Client :
-                    </span>
-                    <button
-                      onClick={() => {
-                        const emailContent = `Objet : Règlement de votre accès - ${opportunityTitle} (${clientCompanyName})\n\n` +
-                          `Bonjour,\n\n` +
-                          `Faisant suite à notre accord concernant le déploiement de : ${opportunityTitle},\n` +
-                          `vous trouverez ci-dessous le lien de règlement sécurisé par carte bancaire professionnelle ou prélèvement SEPA :\n\n` +
-                          `Lien de paiement sécurisé Stripe : https://buy.stripe.com/live_omni_${circuit.opportunityTitle.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10)}?amount=${cashInAmount}&prefilled_email=${clientContactEmail}\n\n` +
-                          `Montant : ${cashInAmount.toLocaleString('fr-FR')} € HT (${cashInType === 'recurring' ? 'Abonnement mensuel renouvelable' : 'Règlement forfaitaire'})\n` +
-                          `Une facture acquittée vous sera automatiquement transmise dès validation.\n\n` +
-                          `Dès confirmation, vos accès et les livrables opérationnels seront immédiatement déployés.\n\n` +
-                          `Bien cordialement,\n` +
-                          `${userCompanyName}`;
-                        copyToClipboard(emailContent, 'emailpayment');
-                      }}
-                      className="cursor-pointer px-3 py-1 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-md transition-colors flex items-center gap-1.5"
-                    >
-                      <Copy className="w-3 h-3" />
-                      <span>{copiedSection === 'emailpayment' ? 'Email Copié !' : 'Copier l Email de Paiement'}</span>
-                    </button>
-                  </div>
-
-                  <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-lg font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-line">
-                    {`Objet : Règlement de votre accès - ${opportunityTitle} (${clientCompanyName})
-
-Bonjour,
-
-Faisant suite à notre accord concernant le déploiement de : ${opportunityTitle}, vous trouverez ci-dessous le lien de règlement sécurisé par carte bancaire ou prélèvement SEPA :
-
-🔗 Lien de paiement sécurisé Stripe : https://buy.stripe.com/live_omni_${circuit.opportunityTitle.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10)}?amount=${cashInAmount}&prefilled_email=${clientContactEmail}
-
-Montant : ${cashInAmount.toLocaleString('fr-FR')} € HT (${cashInType === 'recurring' ? 'Abonnement mensuel renouvelable sans engagement' : 'Règlement forfaitaire complet'})
-Une facture acquittée avec TVA vous sera transmise automatiquement dès validation.
-
-Dès confirmation, vos accès et livrables sont immédiatement déployés.
-
-Bien cordialement,
-${userCompanyName}`}
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Outil 2 : Générateur de Facture B2B & Virement Bancaire Direct (0% de Frais) */}
-              <div className="p-6 bg-slate-950 border border-slate-800 rounded-xl space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
-                  <div className="space-y-0.5">
-                    <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider block">
-                      Outil 2 · Facture B2B & Virement Bancaire Direct (IBAN)
-                    </span>
-                    <h4 className="text-base font-bold text-white">
-                      Pour les Clients Préférant le Virement Direct (0% de Frais)
-                    </h4>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      const invoiceText = `=== FACTURE B2B N° FAC-2025-014 ===\n` +
-                        `Émetteur : ${userCompanyName}\n` +
-                        `Client : ${clientCompanyName} (${clientContactEmail})\n` +
-                        `Date d émission : ${new Date().toLocaleDateString('fr-FR')}\n` +
-                        `Délai de règlement : À réception (Virement sous 48h)\n\n` +
-                        `DÉSIGNATION :\n` +
-                        `- Prestation : ${opportunityTitle}\n` +
-                        `- Modalité : ${cashInType === 'recurring' ? 'Abonnement mensuel' : 'Forfait de déploiement'}\n` +
-                        `- Total Net à Payer : ${cashInAmount.toLocaleString('fr-FR')} €\n\n` +
-                        `COORDONNÉES BANCAIRES POUR VIREMENT :\n` +
-                        `Titulaire : ${userCompanyName}\n` +
-                        `IBAN : ${userIban}\n` +
-                        `BIC : TRWFR21XXX\n` +
-                        `Banque : Qonto / Revolut Business\n` +
-                        `Motif du virement obligatoire : FAC-2025-014\n\n` +
-                        `Mentions légales : Dispensé d immatriculation en application de l article L 123-1-1 du code de commerce. TVA non applicable, art. 293 B du CGI (ou TVA 20%). Pénalités de retard : 3 fois le taux légal + indemnité forfaitaire pour frais de recouvrement de 40€.`;
-                      copyToClipboard(invoiceText, 'invoice');
-                    }}
-                    className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    <Receipt className="w-4 h-4 text-emerald-400" />
-                    <span>{copiedSection === 'invoice' ? 'Facture & IBAN Copiés !' : 'Copier la Facture & IBAN'}</span>
-                  </button>
-                </div>
-
-                {/* Invoice inputs */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                      Votre Entreprise ou Nom Commercial :
+                      Votre Raison Sociale ou Nom :
                     </label>
                     <input
                       type="text"
                       value={userCompanyName}
                       onChange={(e) => setUserCompanyName(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 text-white text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                      Votre IBAN Professionnel :
-                    </label>
-                    <input
-                      type="text"
-                      value={userIban}
-                      onChange={(e) => setUserIban(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 text-white font-mono text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500"
+                      className="w-full bg-slate-900 border border-slate-800 text-white text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-emerald-500"
                     />
                   </div>
                 </div>
 
-                {/* Visual Invoice Card */}
-                <div className="p-5 bg-slate-900/70 border border-slate-800 rounded-lg space-y-4 font-mono text-xs text-slate-300">
-                  <div className="flex justify-between items-start border-b border-slate-800 pb-3">
-                    <div>
-                      <div className="font-bold text-white text-sm">{userCompanyName}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">Prestataire de Services B2B & Solutions Numériques</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-white font-bold">FACTURE N° FAC-2025-014</div>
-                      <div className="text-[11px] text-slate-400">Date : {new Date().toLocaleDateString('fr-FR')}</div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-[11px]">
-                    <div>
-                      <span className="text-slate-500 uppercase tracking-wider block">Facturé à :</span>
-                      <strong className="text-white text-xs">{clientCompanyName}</strong>
-                      <div className="text-slate-400">{clientContactEmail}</div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-slate-500 uppercase tracking-wider block">Modalité de paiement :</span>
-                      <strong className="text-emerald-400">Virement bancaire SEPA sous 48h</strong>
-                    </div>
-                  </div>
-
-                  <div className="border border-slate-800 rounded-lg overflow-hidden">
-                    <div className="bg-slate-950 px-3 py-2 text-[11px] font-bold text-slate-300 flex justify-between">
-                      <span>DÉSIGNATION DE LA PRESTATION</span>
-                      <span>TOTAL HT</span>
-                    </div>
-                    <div className="p-3 bg-slate-900/40 flex justify-between items-center text-xs">
+                {/* SPECIFIC RAIL VIEW 1: MOBILE MONEY (AIRTEL, MOOV FLOOZ, WAVE) */}
+                {activePaymentRail === 'mobile_money' && (
+                  <div className="p-5 bg-slate-900/80 border border-emerald-500/30 rounded-xl space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
                       <div>
-                        <div className="text-white font-semibold">{opportunityTitle}</div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
-                          {cashInType === 'recurring' ? 'Mensualité récurrente M+1' : 'Déploiement complet & intégration'}
+                        <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider block">
+                          Encaissement Direct par Mobile Money
+                        </span>
+                        <div className="text-xs text-slate-300">
+                          Le canal le plus rapide et le plus universel au Niger et en zone UEMOA. 0 délai d attente.
                         </div>
                       </div>
-                      <div className="font-bold text-white font-mono text-sm tabular-nums">
-                        {cashInAmount.toLocaleString('fr-FR')} €
+                      <div className="text-[11px] font-mono text-emerald-300 bg-emerald-950/60 px-2.5 py-1 rounded border border-emerald-500/30">
+                        Frais de réception : 0% à 1%
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                          Opérateur Mobile Money :
+                        </label>
+                        <select
+                          value={selectedMobileOperator}
+                          onChange={(e) => setSelectedMobileOperator(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 text-white text-xs rounded-lg p-2.5 cursor-pointer focus:outline-none focus:border-emerald-500"
+                        >
+                          {currentGeoProfile.mobileMoney.map((op) => (
+                            <option key={op} value={op}>
+                              {op}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                          Votre Numéro Mobile Money Récepteur :
+                        </label>
+                        <input
+                          type="text"
+                          value={userPhone}
+                          onChange={(e) => setUserPhone(e.target.value)}
+                          placeholder="+227 90 00 00 00"
+                          className="w-full bg-slate-950 border border-slate-800 text-white font-mono text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Ready to send WhatsApp & SMS template */}
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-300">
+                          Message WhatsApp / SMS de Demande de Règlement Prêt à Transmettre :
+                        </span>
+                        <button
+                          onClick={() => {
+                            const mmMsg = `Bonjour,\n\n` +
+                              `Faisant suite à notre accord concernant : ${opportunityTitle},\n` +
+                              `voici les coordonnées pour effectuer le règlement sécurisé par Mobile Money :\n\n` +
+                              `📱 Opérateur : ${selectedMobileOperator}\n` +
+                              `📞 Numéro récepteur : ${userPhone}\n` +
+                              `👤 Titulaire du compte : ${userCompanyName}\n` +
+                              `💰 Montant net à transférer : ${cashInAmount.toLocaleString('fr-FR')} ${currentGeoProfile.currencySymbol} (${cashInType === 'recurring' ? 'Abonnement mensuel' : 'Forfait complet'})\n` +
+                              `📝 Référence obligatoire à inscrire : ACC-${Date.now().toString().slice(-4)}\n\n` +
+                              `Dès confirmation de la transaction par SMS de l opérateur, nous activons immédiatement vos livrables.\n\n` +
+                              `Merci pour votre confiance,\n${userCompanyName}`;
+                            copyToClipboard(mmMsg, 'mmMessage');
+                          }}
+                          className="cursor-pointer px-3 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors flex items-center gap-1.5"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>{copiedSection === 'mmMessage' ? 'Message Copié !' : 'Copier le Message WhatsApp'}</span>
+                        </button>
+                      </div>
+
+                      <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-line">
+                        {`Bonjour,
+
+Faisant suite à notre accord concernant : ${opportunityTitle}, voici les coordonnées pour effectuer le règlement sécurisé par Mobile Money :
+
+📱 Opérateur : ${selectedMobileOperator}
+📞 Numéro récepteur : ${userPhone}
+👤 Titulaire du compte : ${userCompanyName}
+💰 Montant net à transférer : ${cashInAmount.toLocaleString('fr-FR')} ${currentGeoProfile.currencySymbol} (${cashInType === 'recurring' ? 'Abonnement mensuel renouvelable' : 'Forfait complet d intégration'})
+📝 Référence obligatoire : ACC-${Date.now().toString().slice(-4)}
+
+Dès réception du SMS de notification de l opérateur, vos accès et livrables sont déployés sous 2h.
+
+Merci pour votre confiance,
+${userCompanyName}`}
                       </div>
                     </div>
                   </div>
+                )}
 
-                  {/* Banking coordinates box */}
-                  <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-lg space-y-1 text-[11px]">
-                    <div className="text-emerald-400 font-bold uppercase tracking-wider">
-                      Coordonnées pour le virement bancaire :
+                {/* SPECIFIC RAIL VIEW 2: BANQUES LOCALES & VIREMENT B2B */}
+                {activePaymentRail === 'bank_transfer' && (
+                  <div className="p-5 bg-slate-900/80 border border-cyan-500/30 rounded-xl space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                      <div>
+                        <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider block">
+                          Virement Bancaire Direct B2B (Compte Professionnel)
+                        </span>
+                        <div className="text-xs text-slate-300">
+                          Recommandé pour les PME, institutions, ONG et grands comptes. 0% de frais d intermédiaire.
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const invoiceText = `=== FACTURE PRO-FORMA B2B N° FAC-${new Date().getFullYear()}-${Date.now().toString().slice(-3)} ===\n` +
+                            `ÉMETTEUR :\n` +
+                            `Raison Sociale : ${userCompanyName}\n` +
+                            `Identifiant Légal : ${userNif}\n` +
+                            `Localisation : Niamey, Niger (Zone UEMOA)\n\n` +
+                            `CLIENT :\n` +
+                            `Raison Sociale : ${clientCompanyName}\n` +
+                            `Email Contact : ${clientContactEmail}\n` +
+                            `Date d émission : ${new Date().toLocaleDateString('fr-FR')}\n\n` +
+                            `DÉSIGNATION DE LA PRESTATION :\n` +
+                            `- Service : ${opportunityTitle}\n` +
+                            `- Nature : ${cashInType === 'recurring' ? 'Prestation mensuelle récurrente' : 'Déploiement opérationnel clé en main'}\n` +
+                            `- Montant Net à Régler : ${cashInAmount.toLocaleString('fr-FR')} ${currentGeoProfile.currencySymbol}\n\n` +
+                            `COORDONNÉES BANCAIRES POUR LE VIREMENT :\n` +
+                            `Banque Domiciliataire : ${selectedBank}\n` +
+                            `Titulaire : ${userCompanyName}\n` +
+                            `RIB / IBAN UEMOA : ${userIban}\n` +
+                            `Référence à inscrire impérativement : FAC-${new Date().getFullYear()}-${Date.now().toString().slice(-3)}\n\n` +
+                            `Dispositions légales : Facture conforme aux règles de l OHADA et du Code Général des Impôts.`;
+                          copyToClipboard(invoiceText, 'bankInvoice');
+                        }}
+                        className="cursor-pointer px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <Receipt className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>{copiedSection === 'bankInvoice' ? 'Facture Copiée !' : 'Copier la Facture & RIB'}</span>
+                      </button>
                     </div>
-                    <div className="text-slate-200">
-                      IBAN : <strong className="font-mono text-white">{userIban}</strong>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                          Votre Banque Locale :
+                        </label>
+                        <select
+                          value={selectedBank}
+                          onChange={(e) => setSelectedBank(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 text-white text-xs rounded-lg p-2.5 cursor-pointer focus:outline-none focus:border-cyan-500"
+                        >
+                          {currentGeoProfile.banks.map((bank) => (
+                            <option key={bank} value={bank}>
+                              {bank}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                          Votre RIB / IBAN Professionnel :
+                        </label>
+                        <input
+                          type="text"
+                          value={userIban}
+                          onChange={(e) => setUserIban(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 text-white font-mono text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-cyan-500"
+                        />
+                      </div>
                     </div>
-                    <div className="text-slate-400">
-                      BIC : <span className="font-mono text-slate-300">TRWFR21XXX</span> · Banque : <span className="text-slate-300">Qonto / Revolut Pro</span>
-                    </div>
-                    <div className="text-[10px] text-emerald-300/80">
-                      Indiquer impérativement en référence du virement : <strong>FAC-2025-014</strong>
+
+                    {/* Visual Pro-forma Card */}
+                    <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-3 font-mono text-xs">
+                      <div className="flex justify-between items-start border-b border-slate-800 pb-2.5">
+                        <div>
+                          <div className="font-bold text-white text-sm">{userCompanyName}</div>
+                          <div className="text-[11px] text-slate-400">{userNif}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-white font-bold">FACTURE PRO-FORMA</div>
+                          <div className="text-[11px] text-slate-400">Date : {new Date().toLocaleDateString('fr-FR')}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs py-1">
+                        <div>
+                          <span className="text-slate-400 block text-[11px]">Désignation :</span>
+                          <strong className="text-white">{opportunityTitle}</strong>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-slate-400 block text-[11px]">Total Net à Payer :</span>
+                          <strong className="text-base text-cyan-400 font-bold tabular-nums">
+                            {cashInAmount.toLocaleString('fr-FR')} {currentGeoProfile.currencySymbol}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-cyan-950/20 border border-cyan-500/20 rounded-md text-[11px] space-y-1">
+                        <div className="text-cyan-300 font-bold uppercase">Coordonnées de Virement :</div>
+                        <div className="text-slate-300">Banque : <span className="text-white font-semibold">{selectedBank}</span></div>
+                        <div className="text-slate-300">RIB/IBAN : <span className="text-white font-mono">{userIban}</span></div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* SPECIFIC RAIL VIEW 3: TRANSFER AGENCIES & VIRTUAL CARDS */}
+                {activePaymentRail === 'transfer_agency' && (
+                  <div className="p-5 bg-slate-900/80 border border-amber-500/30 rounded-xl space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                      <div>
+                        <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider block">
+                          Agences de Transfert (NITA, Al Izza, Amana) & Cartes Virtuelles
+                        </span>
+                        <div className="text-xs text-slate-300">
+                          Encaissement physique en agence dans toutes les villes du Niger (Niamey, Zinder, Maradi, Tahoua, Agadez) ou chargement sur carte Visa prépayée.
+                        </div>
+                      </div>
+                      <div className="text-[11px] font-mono text-amber-300 bg-amber-950/60 px-2.5 py-1 rounded border border-amber-500/30">
+                        Retrait Espèces Instantané
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                          Réseau d Agence ou Carte :
+                        </label>
+                        <select
+                          value={selectedAgency}
+                          onChange={(e) => setSelectedAgency(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 text-white text-xs rounded-lg p-2.5 cursor-pointer focus:outline-none focus:border-amber-500"
+                        >
+                          {currentGeoProfile.transferAgencies.map((agency) => (
+                            <option key={agency} value={agency}>
+                              {agency}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                          Nom & Prénoms du Bénéficiaire (Sur Pièce d Identité) :
+                        </label>
+                        <input
+                          type="text"
+                          value={userCompanyName}
+                          onChange={(e) => setUserCompanyName(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 text-white text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2 text-xs">
+                      <div className="font-bold text-white flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-amber-400" />
+                        <span>Procédure pour le Client :</span>
+                      </div>
+                      <p className="text-slate-300 leading-relaxed">
+                        Le client se présente à n importe quel guichet {selectedAgency} ou effectue un envoi depuis l application mobile {selectedAgency}.
+                        Il mentionne votre nom complet et votre numéro de téléphone (<strong>{userPhone}</strong>).
+                        Vous recevez instantanément le code de retrait par SMS et pouvez retirer les espèces ou les créditer sur votre carte Visa NITA / Djamo.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* SPECIFIC RAIL VIEW 4: STRIPE & INTERNATIONAL */}
+                {activePaymentRail === 'stripe' && (
+                  <div className="p-5 bg-slate-900/80 border border-indigo-500/30 rounded-xl space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                      <div>
+                        <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block">
+                          Paiement en Ligne Sécurisé par Carte Bancaire (Clients Internationaux)
+                        </span>
+                        <div className="text-xs text-slate-300">
+                          Permet d encaisser des clients en Europe, USA ou diaspora via Carte Bancaire, Apple Pay ou SEPA.
+                        </div>
+                      </div>
+                      <div className="text-[11px] font-mono text-indigo-300 bg-indigo-950/60 px-2.5 py-1 rounded border border-indigo-500/30">
+                        Stripe Billing & Payout J+2
+                      </div>
+                    </div>
+
+                    {/* Simulated Stripe Payment Link */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-300">
+                          Lien de Paiement Stripe Sécurisé Généré :
+                        </span>
+                        <button
+                          onClick={() => {
+                            const eurAmount = Math.round(cashInAmount / (isAfricanUemoa ? currentGeoProfile.fxRateToEur : 1));
+                            const link = `https://buy.stripe.com/live_omni_${circuit.opportunityTitle.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10)}?amount=${eurAmount}&prefilled_email=${encodeURIComponent(clientContactEmail)}`;
+                            copyToClipboard(link, 'stripelink');
+                          }}
+                          className="cursor-pointer px-3 py-1 text-xs text-indigo-300 hover:text-white bg-indigo-950/60 border border-indigo-500/30 rounded-md transition-colors flex items-center gap-1.5"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>{copiedSection === 'stripelink' ? 'Lien Copié !' : 'Copier le Lien Stripe'}</span>
+                        </button>
+                      </div>
+
+                      <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg font-mono text-xs text-cyan-300 truncate">
+                        https://buy.stripe.com/live_omni_{circuit.opportunityTitle.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10)}?amount={Math.round(cashInAmount / (isAfricanUemoa ? currentGeoProfile.fxRateToEur : 1))}eur&client={encodeURIComponent(clientCompanyName)}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* 4. Les 3 Démarches Officielles pour Démarrer à 0 € (Sans Capital) */}
+              {/* 3. Démarches Officielles Adaptées au Contexte Géographique */}
               <div className="space-y-4">
                 <div>
                   <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
-                    3. Les 3 Démarches Gratuites pour Être en Règle & Prêt à Encaisser
+                    3. Les 3 Démarches Réelles pour Être en Règle & Prêt à Encaisser ({currentGeoProfile.countryName})
                   </span>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Aucun apport financier requis. Tout se fait en ligne depuis votre ordinateur en moins de 30 minutes.
+                    {isAfricanUemoa
+                      ? 'Formalisation simple au Niger et en Afrique de l Ouest : démarches à la Maison de l Entreprise, RCCM et compte bancaire professionnel.'
+                      : 'Création en ligne sans apport de capital en moins de 30 minutes.'}
                   </p>
                 </div>
 
@@ -1194,16 +1383,22 @@ ${userCompanyName}`}
                       01
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-white">Statut Juridique Gratuit (15 min)</h4>
-                      <div className="text-[11px] text-slate-400 mt-0.5">Sur formalites.entreprises.gouv.fr</div>
+                      <h4 className="text-sm font-bold text-white">
+                        {isAfricanUemoa ? 'RCCM & NIF au Guichet Unique' : 'Statut Juridique Gratuit (15 min)'}
+                      </h4>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {isAfricanUemoa ? 'Maison de l Entreprise du Niger (CCIN Niamey)' : 'formalites.entreprises.gouv.fr'}
+                      </div>
                     </div>
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      Créez votre <strong>Micro-entreprise</strong> (BNC Prestation de services).
-                      Coût : <strong>0 €</strong>. Capital requis : <strong>0 €</strong>.
-                      Vous obtenez votre numéro SIRET officiel en 3 à 7 jours.
+                      {isAfricanUemoa
+                        ? 'Enregistrez votre Entreprise Individuelle (Établissement). Coût très faible, capital minimum : 0 FCFA. Vous obtenez votre N° RCCM et NIF en 48h à 72h.'
+                        : 'Créez votre Micro-entreprise en BNC Prestation de services. 0 € de capital requis. SIRET délivré en 3 à 7 jours.'}
                     </p>
                     <div className="p-2.5 bg-slate-900 rounded-lg text-[11px] text-slate-400 border border-slate-800/80">
-                      <strong className="text-white">Règle d or :</strong> Si vous encaissez 0 €, vous payez 0 € de charges sociales ou d impôt. Aucun risque financier.
+                      {isAfricanUemoa
+                        ? 'Régime de l Impôt Synthétique (ISF) : pas de comptabilité lourde pour démarrer.'
+                        : 'Si 0 € encaissé = 0 € de cotisations à payer.'}
                     </div>
                   </div>
 
@@ -1213,14 +1408,20 @@ ${userCompanyName}`}
                       02
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-white">Compte Bancaire Pro en Ligne (10 min)</h4>
-                      <div className="text-[11px] text-slate-400 mt-0.5">Qonto, Shine, Revolut Pro ou BoursoBank</div>
+                      <h4 className="text-sm font-bold text-white">
+                        {isAfricanUemoa ? 'Compte Bancaire Pro & Compte Marchand' : 'Compte Bancaire Pro en Ligne'}
+                      </h4>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {isAfricanUemoa ? 'SONIBANK, ECOBANK Niger ou Airtel Business' : 'Qonto, Shine ou BoursoBank'}
+                      </div>
                     </div>
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      Ouvrez un compte dédié avec votre pièce d identité. Vous obtenez un <strong>IBAN français (FR76)</strong> immédiatement et une carte Mastercard.
+                      {isAfricanUemoa
+                        ? 'Ouvrez un compte professionnel à la SONIBANK, ECOBANK Niger ou BOA Niger avec votre RCCM et NIF, et activez une ligne Airtel Money Marchand pour encaisser vos clients.'
+                        : 'Ouvrez un compte dédié en ligne. Vous obtenez un IBAN immédiatement avec carte Mastercard pro.'}
                     </p>
                     <div className="p-2.5 bg-slate-900 rounded-lg text-[11px] text-slate-400 border border-slate-800/80">
-                      Notifications push en temps réel sur smartphone à chaque paiement client reçu.
+                      Notifications SMS instantanées à chaque encaissement client reçu.
                     </div>
                   </div>
 
@@ -1230,87 +1431,67 @@ ${userCompanyName}`}
                       03
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-white">Compte Stripe & Virements Automatiques</h4>
-                      <div className="text-[11px] text-slate-400 mt-0.5">Sur stripe.com (gratuit, sans abonnement)</div>
+                      <h4 className="text-sm font-bold text-white">
+                        {isAfricanUemoa ? 'Cartes Visa Virtuelles & Passerelles' : 'Passerelle Stripe & Payouts Automatiques'}
+                      </h4>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {isAfricanUemoa ? 'Carte NITA Visa, Djamo, FedaPay, PayTech' : 'Sur stripe.com (gratuit)'}
+                      </div>
                     </div>
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      Créez un compte Stripe gratuit et liez votre IBAN. Activez les <strong>Payment Links</strong>.
-                      Stripe vire automatiquement les encaissements sur votre banque sous 48h.
+                      {isAfricanUemoa
+                        ? 'Obtenez une carte Visa virtuelle (NITA Transfert ou Djamo) pour lier vos outils internationaux ou utilisez un agrégateur de paiement UEMOA (FedaPay, CinetPay) pour encaisser en ligne.'
+                        : 'Créez un compte Stripe gratuit et liez votre compte bancaire pour des virements quotidiens sous 48h.'}
                     </p>
                     <div className="p-2.5 bg-slate-900 rounded-lg text-[11px] text-slate-400 border border-slate-800/80">
-                      Vous pouvez accepter Carte Bancaire, Apple Pay, Google Pay et Prélèvement SEPA dans 135 pays.
+                      Permet d encaisser des fonds locaux et internationaux sans blocage géographique.
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* 5. Comparateur : Quel Moyen pour Quel Montant ? */}
-              <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
-                  4. Quel Moyen d Encaissement Choisir Selon le Montant ?
-                </span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                  <div className="p-3.5 bg-slate-900/70 border border-slate-800 rounded-lg space-y-1">
-                    <div className="font-bold text-white flex items-center gap-1.5">
-                      <CreditCard className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>Lien Stripe CB (500 € à 3 000 €)</span>
-                    </div>
-                    <p className="text-slate-400 text-[11px] leading-relaxed">
-                      Recommandé pour les PME et indépendants. Conversion instantanée, aucune barrière, paiement par carte d entreprise en 10 secondes.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-900/70 border border-slate-800 rounded-lg space-y-1">
-                    <div className="font-bold text-white flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Virement SEPA Direct (&gt; 3 000 €)</span>
-                    </div>
-                    <p className="text-slate-400 text-[11px] leading-relaxed">
-                      Recommandé pour les ETI, grands comptes et forfaits annuels. 0% de frais Stripe. Le client effectue un virement direct sur votre IBAN.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-900/70 border border-slate-800 rounded-lg space-y-1">
-                    <div className="font-bold text-white flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>Prélèvement SEPA Stripe (MRR)</span>
-                    </div>
-                    <p className="text-slate-400 text-[11px] leading-relaxed">
-                      Recommandé pour les abonnements mensuels récurrents sans risque d expiration de carte bancaire. Débit automatique chaque mois.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 6. Ce qu il Vous Reste Réellement Net en Poche */}
+              {/* 4. Ce qu il Vous Reste Réellement Net en Poche */}
               <div className="p-5 bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950/30 border border-slate-800 rounded-xl space-y-3">
                 <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider block">
-                  5. Combien d Argent Réel Vous Reste-t-il dans la Poche ?
+                  4. Combien d Argent Réel Vous Reste-t-il dans la Poche ?
                 </span>
 
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs font-mono">
                   <div className="p-3 bg-slate-900/80 rounded-lg border border-slate-800">
-                    <div className="text-[10px] text-slate-400 uppercase">Pour 5 000 € Encaissés</div>
-                    <div className="text-lg font-bold text-white tabular-nums mt-0.5">5 000 €</div>
+                    <div className="text-[10px] text-slate-400 uppercase">Pour {cashInAmount.toLocaleString('fr-FR')} {currentGeoProfile.currencySymbol} Encaissés</div>
+                    <div className="text-lg font-bold text-white tabular-nums mt-0.5">
+                      {cashInAmount.toLocaleString('fr-FR')} {currentGeoProfile.currencySymbol}
+                    </div>
                     <div className="text-[10px] text-slate-500">Chiffre d affaires brut</div>
                   </div>
 
                   <div className="p-3 bg-slate-900/80 rounded-lg border border-slate-800">
-                    <div className="text-[10px] text-slate-400 uppercase">Frais Stripe (1.5%)</div>
-                    <div className="text-lg font-bold text-rose-400 tabular-nums mt-0.5">-75 €</div>
-                    <div className="text-[10px] text-slate-500">Ou 0€ si virement direct</div>
+                    <div className="text-[10px] text-slate-400 uppercase">Frais d Encaissement</div>
+                    <div className="text-lg font-bold text-rose-400 tabular-nums mt-0.5">
+                      {activePaymentRail === 'bank_transfer'
+                        ? '0 FCFA'
+                        : `-${Math.round(cashInAmount * 0.015).toLocaleString('fr-FR')} ${currentGeoProfile.currencySymbol}`}
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      {activePaymentRail === 'bank_transfer' ? 'Virement bancaire direct' : '1% à 1.5% opérateur'}
+                    </div>
                   </div>
 
                   <div className="p-3 bg-slate-900/80 rounded-lg border border-slate-800">
-                    <div className="text-[10px] text-slate-400 uppercase">Cotisations URSSAF (21.1%)</div>
-                    <div className="text-lg font-bold text-rose-400 tabular-nums mt-0.5">-1 055 €</div>
-                    <div className="text-[10px] text-emerald-400/80">-530 € la 1ère année avec ACRE</div>
+                    <div className="text-[10px] text-slate-400 uppercase">Fiscalité Indicative ({currentGeoProfile.standardTaxRate}%)</div>
+                    <div className="text-lg font-bold text-rose-400 tabular-nums mt-0.5">
+                      -{Math.round(cashInAmount * (currentGeoProfile.standardTaxRate / 100)).toLocaleString('fr-FR')} {currentGeoProfile.currencySymbol}
+                    </div>
+                    <div className="text-[10px] text-emerald-400/80">
+                      {isAfricanUemoa ? 'Régime ISF forfaitaire BNC' : 'Cotisations URSSAF'}
+                    </div>
                   </div>
 
                   <div className="p-3 bg-emerald-950/40 rounded-lg border border-emerald-500/30">
                     <div className="text-[10px] text-emerald-400 uppercase font-semibold">Net Direct Pour Vous</div>
-                    <div className="text-lg font-extrabold text-emerald-400 tabular-nums mt-0.5">3 870 € à 4 395 €</div>
+                    <div className="text-lg font-extrabold text-emerald-400 tabular-nums mt-0.5">
+                      {Math.round(cashInAmount * (1 - (currentGeoProfile.standardTaxRate / 100) - (activePaymentRail === 'bank_transfer' ? 0 : 0.015))).toLocaleString('fr-FR')} {currentGeoProfile.currencySymbol}
+                    </div>
                     <div className="text-[10px] text-emerald-300">Net disponible sur votre compte</div>
                   </div>
                 </div>

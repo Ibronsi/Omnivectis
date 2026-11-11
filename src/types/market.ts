@@ -45,6 +45,26 @@ export interface EconomicSector {
   niches: OpportunityNiche[];
   macroTailwinds: string[];
   arbitragePotential: string;
+  tamSource?: string;
+  sourceType?: 'verified_public' | 'model_hypothesis';
+  methodologyNote?: string;
+}
+
+export type CountryCode = 'NER' | 'SEN' | 'CIV' | 'FRA' | 'USA';
+export type CurrencyCode = 'XOF' | 'EUR' | 'USD';
+
+export interface GeoProfile {
+  countryCode: CountryCode;
+  countryName: string;
+  currency: CurrencyCode;
+  currencySymbol: string;
+  fxRateToEur: number; // e.g. 655.957 for XOF, 1 for EUR, 1.12 for USD
+  regionLabel: string;
+  banks: string[];
+  mobileMoney: string[];
+  transferAgencies: string[];
+  averageB2bTicket: number;
+  standardTaxRate: number;
 }
 
 export interface SimulationInputs {
@@ -54,6 +74,11 @@ export interface SimulationInputs {
   timeHorizonMonths: number;
   automationLevel: number; // 0 to 100
   targetMonthlyExpense: number;
+  countryCode?: CountryCode;
+  currency?: CurrencyCode;
+  churnRatePercent?: number;
+  customerAcquisitionCost?: number;
+  variableCostsPercent?: number;
 }
 
 export interface SimulationResult {
@@ -116,6 +141,9 @@ export interface PipelineItem {
   notes: string;
   addedAt: string;
   checklists: { text: string; done: boolean }[];
+  countryCode?: CountryCode;
+  currency?: CurrencyCode;
+  paymentMethod?: string;
 }
 
 export interface MarketSignal {
@@ -129,6 +157,12 @@ export interface MarketSignal {
   estimatedMarginImpact: string;
   urgency: 'Immédiat (<48h)' | 'Cette semaine' | 'Ce mois-ci';
   timestamp: string;
+  sourceName: string;
+  sourceUrl: string;
+  publishedAt: string;
+  relativeTime?: string;
+  region: 'niger_uemoa' | 'europe' | 'global';
+  isVerifiedSource: boolean;
 }
 
 export interface LaunchpadCircuit {

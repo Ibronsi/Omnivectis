@@ -14,6 +14,7 @@ import {
   PipelineItem,
   SectorCategory,
   AIExecutionBlueprint,
+  CountryCode,
 } from './types/market';
 import { ECONOMIC_SECTORS } from './data/sectorsData';
 import { calculateSimulation } from './utils/simulatorEngine';
@@ -22,6 +23,7 @@ const STORAGE_KEY = 'omnivectis_pipeline_v1';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [countryCode, setCountryCode] = useState<CountryCode>('NER');
   const [selectedSectorForModal, setSelectedSectorForModal] = useState<EconomicSector | null>(null);
   const [selectedNicheForModal, setSelectedNicheForModal] = useState<OpportunityNiche | null>(null);
 
@@ -46,7 +48,7 @@ export default function App() {
     });
   }, [simulatorSectors]);
 
-  // Pipeline items state with localStorage
+  // Pipeline items state with server persistence + localStorage fallback
   const [pipelineItems, setPipelineItems] = useState<PipelineItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -93,9 +95,29 @@ export default function App() {
     ];
   });
 
+  // Fetch persistent pipeline from server on mount
+  useEffect(() => {
+    fetch('/api/pipeline')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.items && Array.isArray(data.items) && data.items.length > 0) {
+          setPipelineItems(data.items);
+        }
+      })
+      .catch((err) => {
+        console.info('Using local pipeline cache:', err);
+      });
+  }, []);
+
+  // Save to localStorage and sync to server
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(pipelineItems));
+      fetch('/api/pipeline/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: pipelineItems }),
+      }).catch(() => {});
     } catch (e) {
       console.error(e);
     }
@@ -187,6 +209,8 @@ export default function App() {
           setActiveTab('launchpad');
         }}
         savedCount={pipelineItems.length}
+        countryCode={countryCode}
+        onCountryChange={setCountryCode}
       />
 
       {/* Main Content Viewport */}
@@ -208,6 +232,11 @@ export default function App() {
           <RadarView
             onSelectSector={handleSelectSector}
             onOpenSimulatorWithSectors={handleOpenSimulatorWithSectors}
+            onLaunchCircuitForSignal={(sectorId, headline) => {
+              setLaunchpadSectorId(sectorId);
+              setLaunchpadTitle(headline);
+              setActiveTab('launchpad');
+            }}
             onTriggerBlueprintForSignal={(sectorId, headline) => {
               setBlueprintSectorId(sectorId);
               setBlueprintTargetRevenue('20 000 € / mois');
@@ -220,6 +249,7 @@ export default function App() {
           <SimulatorView
             initialSectors={simulatorSectors}
             onTriggerBlueprint={handleTriggerBlueprintFromSimulator}
+            countryCode={countryCode}
           />
         )}
 
@@ -235,6 +265,7 @@ export default function App() {
           <LaunchpadView
             initialSectorId={launchpadSectorId}
             initialOpportunityTitle={launchpadTitle}
+            countryCode={countryCode}
             onAddToPipeline={(title, sectorId, targetMrr) => {
               const secObj = ECONOMIC_SECTORS.find((s) => s.id === sectorId) || ECONOMIC_SECTORS[0];
               const newItem: PipelineItem = {
