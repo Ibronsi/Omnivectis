@@ -1,0 +1,24 @@
+[
+  {
+    "id": "val-1",
+    "title": "Message de prospection WhatsApp - Directeurs de Cliniques & Pharmacies Niamey",
+    "category": "prospection_message",
+    "targetRecipient": "Gérants d officines et pharmacies de garde",
+    "contentPayload": "Bonjour Dr [Nom], nous avons déployé un connecteur direct avec Airtel Money et Moov Flooz permettant d éliminer les écarts de caisse du soir et d encaisser instantanément vos patients. Seriez-vous ouvert à une démonstration de 10 min ce jeudi ?",
+    "sourceOpportunityTitle": "Passerelle Marchande Mobile Money B2B",
+    "countryCode": "NER",
+    "createdAt": "2026-11-11T11:00:00.000Z",
+    "status": "en_attente"
+  },
+  {
+    "id": "val-2",
+    "title": "Dossier de formalité RCCM & NIF - Maison de l Entreprise (CCIN Niamey)",
+    "category": "administrative_step",
+    "targetRecipient": "Guichet Unique de Formalités d Entreprise Niamey",
+    "contentPayload": "Dépôt des statuts pour l établissement commercial d exploitation agricole et chaîne du froid solaire. Régime de l Impôt Synthétique Forfaitaire (ISF).",
+    "sourceOpportunityTitle": "Unité Sahélienne de Conservation Frigorifique Solaire",
+    "countryCode": "NER",
+    "createdAt": "2026-11-11T11:30:00.000Z",
+    "status": "en_attente"
+  }
+]

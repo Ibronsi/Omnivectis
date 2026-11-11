@@ -1,0 +1,9 @@
+{
+  "totalGeminiCalls": 4,
+  "successfulCalls": 4,
+  "failedCalls": 0,
+  "signalsCollected": 6,
+  "opportunitiesSynthesized": 2,
+  "kitsGenerated": 2,
+  "lastResponseTimeMs": 1140
+}

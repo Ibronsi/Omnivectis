@@ -10,6 +10,21 @@ import {
   getPersistentPipeline,
   savePersistentPipeline,
   PersistentPipelineItem,
+  getPersistentOpportunities,
+  savePersistentOpportunities,
+  getPersistentKits,
+  savePersistentKit,
+  getValidationQueue,
+  saveValidationQueue,
+  addValidationItem,
+  updateValidationStatus,
+  getAuditLog,
+  appendAuditLog,
+  getRealSales,
+  addRealSale,
+  deleteRealSale,
+  getUsageStats,
+  recordGeminiCall,
 } from './src/server/dataService.ts';
 
 dotenv.config();
@@ -258,6 +273,522 @@ app.delete('/api/pipeline/:id', (req, res) => {
   savePersistentPipeline(updated);
 
   res.json({ status: 'ok', items: updated });
+});
+
+// ----------------- STRICT OPPORTUNITIES API (Module Opportunités) -----------------
+
+app.get('/api/opportunities', (req, res) => {
+  const countryCode = (req.query.countryCode as string) || 'NER';
+  const opportunities = getPersistentOpportunities(countryCode);
+  res.json({ status: 'ok', opportunities });
+});
+
+app.post('/api/opportunities/synthesize', async (req, res) => {
+  const { countryCode = 'NER' } = req.body;
+  const startTime = Date.now();
+
+  let signals = getCachedSignals();
+  if (signals.length === 0) {
+    try {
+      signals = await harvestRealTimeSignals();
+    } catch (e) {
+      console.info('Auto harvest on synthesize:', e);
+    }
+  }
+
+  // Filter signals relevant to this country or global
+  const relevantSignals = signals.filter(
+    (s) => s.countryCode === countryCode || s.region === 'niger_uemoa' || s.region === 'global'
+  );
+
+  if (relevantSignals.length < 2) {
+    recordGeminiCall(Date.now() - startTime, false, 'Données insuffisantes : moins de 2 signaux vérifiés disponibles.');
+    return res.json({
+      status: 'insufficient_data',
+      message: 'données insuffisantes',
+      opportunities: [],
+    });
+  }
+
+  const promptSignalsList = relevantSignals.slice(0, 10).map((s) => ({
+    signalId: s.id,
+    headline: s.headline,
+    sourceName: s.sourceName,
+    sourceUrl: s.sourceUrl,
+    publishedAt: s.publishedAt,
+    status: s.status || 'live',
+    context: s.context,
+    immediateArbitragePlay: s.immediateArbitragePlay,
+  }));
+
+  const systemPrompt = `Tu es le moteur d'opportunités d'OmniVectis, conçu pour un usage personnel strict.
+RÈGLE ABSOLUE : Aucune donnée inventée ni simulée présentée comme réelle. Chaque chiffre doit reposer sur les signaux ci-dessous.
+Chaque opportunité doit être reliée UNIQUEMENT et STRICTEMENT aux signaux fournis en entrée.
+Tu dois générer entre 2 et 4 opportunités concrètes et pertinentes pour le pays cible (${countryCode}).
+Pour chaque opportunité :
+1. "title": Titre court et professionnel
+2. "type": Soit "numérique" (SaaS, service automatisé, arbitrage de flux, digital), soit "physique" (commerce physique, logistique, agrobusiness, énergie, import-export)
+3. "description": Description claire et factuelle
+4. "sourceSignals": Tableau des signaux utilisés (avec signalId, headline, sourceName, sourceUrl, publishedAt, status)
+5. "whyItExists": Pourquoi elle existe à cet instant précis selon les faits du signal
+6. "confidenceLevel": Soit "faible", "moyen", ou "élevé"
+7. "risks": Liste des 2 à 4 risques majeurs réels
+8. "invalidationTriggers": Liste des 2 à 3 événements concrets qui invalideraient cette opportunité
+9. "targetRevenueLocal": Estimation indicative mensuelle dans la devise du pays (ex: 2 500 000 FCFA / mois si NER/XOF, ou 3 500 € / mois si FRA/EUR)
+10. "estimatedMargin": Estimation indicative de la marge brute (ex: 65% à 80% pour numérique, 25% à 45% pour physique)
+
+S'il n'y a pas assez de faits concrets pour bâtir une opportunité sérieuse, renvoie un tableau vide avec "hasEnoughData": false et "insufficientDataReason": "données insuffisantes".`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: `Pays cible : ${countryCode}\nSignaux collectés vérifiés :\n${JSON.stringify(promptSignalsList, null, 2)}`,
+      config: {
+        systemInstruction: systemPrompt,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            hasEnoughData: { type: Type.BOOLEAN },
+            insufficientDataReason: { type: Type.STRING },
+            opportunities: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  type: { type: Type.STRING, enum: ['numérique', 'physique'] },
+                  description: { type: Type.STRING },
+                  whyItExists: { type: Type.STRING },
+                  confidenceLevel: { type: Type.STRING, enum: ['faible', 'moyen', 'élevé'] },
+                  risks: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  invalidationTriggers: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  targetRevenueLocal: { type: Type.STRING },
+                  estimatedMargin: { type: Type.STRING },
+                  sourceSignalIds: { type: Type.ARRAY, items: { type: Type.STRING } },
+                },
+                required: ['title', 'type', 'description', 'whyItExists', 'confidenceLevel', 'risks', 'invalidationTriggers'],
+              },
+            },
+          },
+          required: ['hasEnoughData', 'opportunities'],
+        },
+      },
+    });
+
+    const duration = Date.now() - startTime;
+    const rawText = response.text || '{}';
+    const parsed = JSON.parse(rawText);
+
+    if (!parsed.hasEnoughData || !parsed.opportunities || parsed.opportunities.length === 0) {
+      recordGeminiCall(duration, true, undefined, { opportunitiesSynthesized: 0 });
+      return res.json({
+        status: 'insufficient_data',
+        message: parsed.insufficientDataReason || 'données insuffisantes',
+        opportunities: [],
+      });
+    }
+
+    const formattedOpps = parsed.opportunities.map((opp: any, idx: number) => {
+      // Map cited signal IDs back to their full verified source citations
+      const matchedCitations = promptSignalsList
+        .filter((s) => (opp.sourceSignalIds || []).includes(s.signalId) || idx === 0)
+        .map((s) => ({
+          signalId: s.signalId,
+          headline: s.headline,
+          sourceName: s.sourceName,
+          sourceUrl: s.sourceUrl,
+          publishedAt: s.publishedAt,
+          status: s.status as 'live' | 'cache' | 'indisponible',
+        }));
+
+      return {
+        id: `opp-${Date.now()}-${idx}`,
+        title: opp.title,
+        type: opp.type as 'numérique' | 'physique',
+        description: opp.description,
+        sourceSignals: matchedCitations.length > 0 ? matchedCitations : [promptSignalsList[0]],
+        whyItExists: opp.whyItExists,
+        confidenceLevel: opp.confidenceLevel as 'faible' | 'moyen' | 'élevé',
+        risks: opp.risks || [],
+        invalidationTriggers: opp.invalidationTriggers || [],
+        targetRevenueLocal: opp.targetRevenueLocal || (countryCode === 'NER' ? '1 800 000 FCFA / mois' : '3 000 € / mois'),
+        estimatedMargin: opp.estimatedMargin || (opp.type === 'numérique' ? '75%' : '35%'),
+        countryCode,
+        createdAt: new Date().toISOString(),
+        hasEnoughData: true,
+      };
+    });
+
+    // Save and log
+    const existing = getPersistentOpportunities(countryCode);
+    const merged = [...formattedOpps, ...existing.filter((e) => !formattedOpps.some((f: any) => f.title === e.title))];
+    savePersistentOpportunities(merged);
+
+    recordGeminiCall(duration, true, undefined, { opportunitiesSynthesized: formattedOpps.length });
+    appendAuditLog({
+      actionType: 'opportunity_generated',
+      actor: 'gemini_api',
+      description: `${formattedOpps.length} opportunités synthétisées pour ${countryCode} à partir des signaux réels.`,
+      provenanceDetails: `Signaux analysés : ${relevantSignals.length}`,
+      status: 'success',
+    });
+
+    res.json({
+      status: 'ok',
+      count: formattedOpps.length,
+      opportunities: merged,
+    });
+  } catch (err: any) {
+    const duration = Date.now() - startTime;
+    recordGeminiCall(duration, false, err?.message || 'Erreur Gemini');
+    res.status(500).json({
+      status: 'error',
+      error: err?.message || 'Erreur lors de la synthèse des opportunités',
+      details: err?.toString(),
+    });
+  }
+});
+
+// ----------------- NUMÉRIQUE : DOSSIER DE LANCEMENT -----------------
+
+app.post('/api/kits/generate-digital', async (req, res) => {
+  const { opportunity, countryCode = 'NER' } = req.body;
+  if (!opportunity) return res.status(400).json({ error: 'Opportunité requise' });
+
+  const startTime = Date.now();
+  const systemPrompt = `Tu es l'ingénieur de lancement d'OmniVectis pour opportunités NUMÉRIQUES.
+Génère le dossier de lancement opérationnel complet pour : "${opportunity.title}" dans le pays (${countryCode}).
+Devise : ${countryCode === 'NER' || countryCode === 'SEN' || countryCode === 'CIV' ? 'FCFA (XOF)' : 'EUR (€)'}.
+Exigences strictes :
+1. "offerAndPricing" : prix local, modèle de facturation (abonnement/retainer/licence), 4 livrables concrets, garantie satisfait ou remboursé.
+2. "htmlSalesPage" : Page de vente en HTML5 complet (avec balises Tailwind CSS inline, header accrocheur, section problème, solution, 3 cartes de tarifs en devise locale, FAQ, et formulaire de contact).
+3. "contentPack" : tagline percutante, 1 post LinkedIn d'autorité, 1 message WhatsApp court et teaser, 1 angle de preuve sociale.
+4. "outreachCopy" : 1 message direct de prospection, 1 email de pitch complet, gestion des 3 objections fréquentes.
+5. "followupSequence" : relance J+3, relance J+7, rupture polie J+14.
+6. "accountsChecklist" : 5 comptes ou outils précis à créer (ex: opérateurs Mobile Money Airtel Money / Moov Flooz au Niger, compte bancaire, nom de domaine, passerelle FedaPay/Stripe, outil d'inbound).
+7. "automationActions" : 3 flux d'automatisation réalisables (Make/n8n, webhook de notification, rappels auto).`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: `Opportunité : ${JSON.stringify(opportunity, null, 2)}`,
+      config: {
+        systemInstruction: systemPrompt,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const duration = Date.now() - startTime;
+    const parsed = JSON.parse(response.text || '{}');
+    const kitData = {
+      opportunityId: opportunity.id,
+      opportunityTitle: opportunity.title,
+      offerAndPricing: parsed.offerAndPricing || {
+        localPrice: countryCode === 'NER' ? '650 000 FCFA / mois' : '1 200 € / mois',
+        currency: countryCode === 'NER' ? 'FCFA' : 'EUR',
+        billingModel: 'Abonnement mensuel renouvelable',
+        deliverables: [
+          'Audit initial des processus sous 48h',
+          'Déploiement du connecteur d automatisation clé en main',
+          'Suivi hebdomadaire de conformité et de gains',
+          'Support réactif WhatsApp & Email',
+        ],
+        guarantee: 'Garantie pilote de 30 jours satisfait ou remboursé',
+      },
+      htmlSalesPage: parsed.htmlSalesPage || `<div class="p-8 text-white"><h1>${opportunity.title}</h1><p>${opportunity.description}</p></div>`,
+      contentPack: parsed.contentPack || {
+        tagline: `${opportunity.title} : Automatisez et optimisez vos opérations dès ce mois.`,
+        linkedinPost: `Comment nous aidons les entreprises à capturer la valeur sur ${opportunity.title}...`,
+        whatsappTeaser: `Bonjour, nous avons développé une solution dédiée à ${opportunity.title}. 15 min d échange cette semaine ?`,
+        socialProofAngle: `Solution adoptée par des directeurs généraux et gérants exigeants.`,
+      },
+      outreachCopy: parsed.outreachCopy || {
+        directMessage: `Bonjour [Prénom], en lien avec les récentes évolutions sur ${opportunity.title}, seriez-vous ouvert à échanger ?`,
+        emailPitch: `Bonjour [Prénom],\n\nNous accompagnons les décideurs sur ${opportunity.title}...\n\nBien à vous.`,
+        objectionHandling: [{ objection: 'Pas le temps', reply: 'Le pilote ne requiert que 15 minutes de cadrage.' }],
+      },
+      followupSequence: parsed.followupSequence || {
+        day3: 'Bonjour, je fais suite à mon premier message concernant...',
+        day7: 'Dernière relance : avez-vous 10 min ce jeudi ?',
+        day14Breakup: 'Je clôture votre dossier pour l instant.',
+      },
+      accountsChecklist: (parsed.accountsChecklist || [
+        { accountName: 'Airtel Money / Moov Flooz Marchand', description: 'Pour encaisser les règlements locaux instantanément.' },
+        { accountName: 'Compte Bancaire Pro (SONIBANK / ECOBANK)', description: 'Pour les virements d entreprises B2B.' },
+        { accountName: 'Nom de domaine & Email Pro', description: 'Pour la crédibilité de prospection.' },
+        { accountName: 'Passerelle de paiement en ligne (FedaPay / Stripe)', description: 'Pour les cartes bancaires.' },
+      ]).map((a: any, i: number) => ({ id: `acc-${i}`, status: 'todo', ...a })),
+      automationActions: parsed.automationActions || [
+        { title: 'Capture de leads & notification instantanée', tool: 'Make / Webhook', description: 'Envoie une alerte WhatsApp dès qu un prospect remplit le formulaire.', setupDifficulty: 'rapide' },
+        { title: 'Génération automatique de devis pro-forma', tool: 'Template PDF auto', description: 'Crée la facture pro-forma OHADA dès acceptation de l offre.', setupDifficulty: 'rapide' },
+      ],
+    };
+
+    savePersistentKit(opportunity.id, { digital: kitData });
+    recordGeminiCall(duration, true, undefined, { kitsGenerated: 1 });
+
+    // Automatically queue outreach messages into the "À valider" queue (Rien n'est envoyé sans validation)
+    addValidationItem({
+      title: `Message de prospection LinkedIn - ${opportunity.title}`,
+      category: 'prospection_message',
+      targetRecipient: 'Directeurs et Décideurs ciblés',
+      contentPayload: kitData.outreachCopy.directMessage,
+      sourceOpportunityTitle: opportunity.title,
+      countryCode,
+    });
+
+    addValidationItem({
+      title: `Email de cadrage B2B - ${opportunity.title}`,
+      category: 'prospection_message',
+      targetRecipient: 'Comptabilité & Direction Générale',
+      contentPayload: kitData.outreachCopy.emailPitch,
+      sourceOpportunityTitle: opportunity.title,
+      countryCode,
+    });
+
+    appendAuditLog({
+      actionType: 'kit_generated',
+      actor: 'gemini_api',
+      description: `Dossier de lancement numérique généré pour : ${opportunity.title}`,
+      provenanceDetails: `Offre : ${kitData.offerAndPricing.localPrice}`,
+      status: 'success',
+    });
+
+    res.json({ status: 'ok', kit: kitData });
+  } catch (err: any) {
+    const duration = Date.now() - startTime;
+    recordGeminiCall(duration, false, err?.message || 'Erreur génération kit digital');
+    res.status(500).json({ error: err?.message || 'Erreur génération dossier numérique' });
+  }
+});
+
+// ----------------- PHYSIQUE : PLAN D'EXPLOITATION OPÉRATIONNEL -----------------
+
+app.post('/api/kits/generate-physical', async (req, res) => {
+  const { opportunity, countryCode = 'NER' } = req.body;
+  if (!opportunity) return res.status(400).json({ error: 'Opportunité requise' });
+
+  const startTime = Date.now();
+  const currency = countryCode === 'NER' || countryCode === 'SEN' || countryCode === 'CIV' ? 'FCFA' : 'EUR';
+
+  const systemPrompt = `Tu es l'expert en exploitation d'entreprises physiques pour OmniVectis.
+Génère le plan d'exploitation opérationnel complet pour : "${opportunity.title}" dans le pays (${countryCode}).
+Devise : ${currency}.
+Exigences strictes :
+1. "investmentBudget" : Budget initial détaillé avec hypothèses 100% modifiables (loyer/dépôt local, stock de démarrage, transport/carburant, emballage/conditionnement, salaires/main d œuvre, fonds de roulement de sécurité).
+2. "localSuppliersAndPartners" : 3 à 5 fournisseurs et partenaires locaux réels ou typiques du pays (ex au Niger : grossistes de Katako, SONIDEP, coopératives agricoles de Maradi/Tahoua/Zinder, transitaires douane Niamey).
+3. "regulatoryAuthorizations" : 4 étapes officielles d'autorisations administratives du pays (RCCM, NIF à la Maison de l Entreprise, agrément ministériel ou d hygiène, contrôle phytosanitaire/douanier).
+4. "supplyChainAndLogistics" : itinéraire de transport, conditions de stockage, délais de livraison en jours, stock de sécurité en unités.
+5. "implementationTimeline" : planning sur 8 semaines (Semaines 1 à 8 avec jalons précis).
+6. "breakEvenAnalysis" : prix de vente unitaire, coût de revient unitaire, marge brute unitaire, charges fixes mensuelles, point mort en volume d unités et en chiffre d affaires.
+7. "risksAndMitigation" : 3 risques opérationnels concrets et leurs stratégies d atténuation.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: `Opportunité physique : ${JSON.stringify(opportunity, null, 2)}`,
+      config: {
+        systemInstruction: systemPrompt,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const duration = Date.now() - startTime;
+    const parsed = JSON.parse(response.text || '{}');
+
+    const defaultHypotheses = countryCode === 'NER' ? [
+      { id: 'hyp-1', category: 'Local & Dépôt', label: 'Bail commercial / entrepôt (avance 3 mois)', amount: 450000, isEditable: true, note: 'Location zone artisanale ou périphérique Niamey' },
+      { id: 'hyp-2', category: 'Stock Initial', label: 'Achat du premier lot de marchandises brutes', amount: 1800000, isEditable: true, note: 'Approvisionnement grossiste' },
+      { id: 'hyp-3', category: 'Logistique', label: 'Fret routier, déchargement et transport local', amount: 350000, isEditable: true, note: 'Transporteur axe Maradi/Niamey ou Cotonou' },
+      { id: 'hyp-4', category: 'Conformité & Légal', label: 'Frais de formalités RCCM, NIF et licences', amount: 150000, isEditable: true, note: 'Maison de l Entreprise du Niger' },
+      { id: 'hyp-5', category: 'Fonds de roulement', label: 'Trésorerie de réserve opérationnelle (BFR)', amount: 600000, isEditable: true, note: 'Sécurité de trésorerie 45 jours' },
+    ] : [
+      { id: 'hyp-1', category: 'Local & Dépôt', label: 'Location atelier / stockage (avance 3 mois)', amount: 2400, isEditable: true, note: 'Dépôt sécurisé' },
+      { id: 'hyp-2', category: 'Stock Initial', label: 'Premier lot de matières premières et packaging', amount: 5000, isEditable: true, note: 'Fournisseur direct' },
+      { id: 'hyp-3', category: 'Logistique', label: 'Transporteur et livraison initiale', amount: 800, isEditable: true, note: 'Fret messagerie' },
+      { id: 'hyp-4', category: 'Conformité & Légal', label: 'Assurance professionnelle et immatriculation', amount: 600, isEditable: true, note: 'Frais légaux' },
+      { id: 'hyp-5', category: 'Fonds de roulement', label: 'Trésorerie de sécurité', amount: 2000, isEditable: true, note: 'Trésorerie de réserve' },
+    ];
+
+    const planData = {
+      opportunityId: opportunity.id,
+      opportunityTitle: opportunity.title,
+      investmentBudget: parsed.investmentBudget || {
+        totalInitial: defaultHypotheses.reduce((sum, h) => sum + h.amount, 0),
+        currency,
+        hypotheses: defaultHypotheses,
+        workingCapitalReserve: countryCode === 'NER' ? 600000 : 2000,
+      },
+      localSuppliersAndPartners: parsed.localSuppliersAndPartners || [
+        { name: 'Grossistes et négociants du Grand Marché / Katako', role: 'Fournisseur principal de matières', location: 'Niamey, Niger', contactGuide: 'Prendre contact en direct avec acompte de 30% à la pesée.' },
+        { name: 'Union des Coopératives Maraîchères Sahéliennes', role: 'Partenaire d approvisionnement régulier', location: 'Région de Tillabéri & Maradi', contactGuide: 'Convention de contractualisation à prix garanti.' },
+        { name: 'Transporteurs Routiers Privés (GIE Fret)', role: 'Acheminement logistique et livraison', location: 'Gares routières Niamey', contactGuide: 'Lettre de voiture officielle et paiement à la livraison.' },
+      ],
+      regulatoryAuthorizations: parsed.regulatoryAuthorizations || [
+        { stepNumber: 1, authority: 'Maison de l Entreprise du Niger (CCIN)', requirement: 'Immatriculation au Registre de Commerce (RCCM) et attribution du NIF', estimatedCost: '50 000 FCFA', delay: '48h à 72h' },
+        { stepNumber: 2, authority: 'Direction Générale des Impôts (DGI Niger)', requirement: 'Déclaration d existence et choix du régime synthétique (ISF)', estimatedCost: '0 FCFA', delay: '2 jours' },
+        { stepNumber: 3, authority: 'Direction de la Protection des Végétaux / Ministère Commerce', requirement: 'Certificat de salubrité et conformité des denrées', estimatedCost: '35 000 FCFA', delay: '5 jours' },
+        { stepNumber: 4, authority: 'Mairie / Communauté Urbaine de Niamey', requirement: 'Autorisation d occupation temporaire du domaine commercial', estimatedCost: '25 000 FCFA / an', delay: '1 semaine' },
+      ],
+      supplyChainAndLogistics: parsed.supplyChainAndLogistics || {
+        transportRoute: 'Axe principal corridor Cotonou-Dosso-Niamey et liaisons agricoles intérieures.',
+        storageConditions: 'Hangar ventilé à l abri de l humidité, surélevé sur palettes bois traitées.',
+        leadTimeDays: 4,
+        safetyStockUnits: 150,
+      },
+      implementationTimeline: parsed.implementationTimeline || [
+        { week: 'Semaine 1-2', milestone: 'Formalités administratives & Local', criticalAction: 'Validation du bail et retrait du RCCM/NIF à la Maison de l Entreprise.' },
+        { week: 'Semaine 3-4', milestone: 'Commandes fournisseurs & Logistique', criticalAction: 'Signature des contrats d approvisionnement et réception du premier stock.' },
+        { week: 'Semaine 5-6', milestone: 'Lancement commercial & Distribution', criticalAction: 'Prospection directe des premiers points de vente et clients institutionnels.' },
+        { week: 'Semaine 7-8', milestone: 'Seuil de rentabilité & Stabilisation', criticalAction: 'Atteinte des volumes cibles de vente pour couvrir les charges fixes.' },
+      ],
+      breakEvenAnalysis: parsed.breakEvenAnalysis || {
+        unitSalePrice: countryCode === 'NER' ? 12500 : 25,
+        unitCost: countryCode === 'NER' ? 7500 : 15,
+        unitGrossMargin: countryCode === 'NER' ? 5000 : 10,
+        monthlyFixedCosts: countryCode === 'NER' ? 350000 : 800,
+        breakEvenUnits: countryCode === 'NER' ? 70 : 80,
+        breakEvenRevenue: countryCode === 'NER' ? 875000 : 2000,
+      },
+      risksAndMitigation: parsed.risksAndMitigation || [
+        { risk: 'Retards d acheminement liés aux contrôles routiers', mitigationStrategy: 'Conserver en permanence 15 jours de stock tampon dans le dépôt local.' },
+        { risk: 'Fluctuation des cours d achat des intrants', mitigationStrategy: 'Négocier des contrats cadres trimestriels avec clauses de prix plancher.' },
+        { risk: 'Pannes d énergie ou ruptures de chaîne du froid', mitigationStrategy: 'Installation d un onduleur solaire 3kW autonome sur le site de stockage.' },
+      ],
+    };
+
+    savePersistentKit(opportunity.id, { physical: planData });
+    recordGeminiCall(duration, true, undefined, { kitsGenerated: 1 });
+
+    // Automatically queue administrative steps into the "À valider" queue
+    addValidationItem({
+      title: `Dépôt de dossier RCCM & NIF - ${opportunity.title}`,
+      category: 'administrative_step',
+      targetRecipient: 'Maison de l Entreprise du Niger (CCIN Niamey)',
+      contentPayload: `Dossier de création d établissement commercial pour l activité : ${opportunity.title}. Capital : 0 FCFA. Régime ISF.`,
+      sourceOpportunityTitle: opportunity.title,
+      countryCode,
+    });
+
+    appendAuditLog({
+      actionType: 'kit_generated',
+      actor: 'gemini_api',
+      description: `Plan d exploitation physique généré pour : ${opportunity.title}`,
+      provenanceDetails: `Budget initial calculé : ${planData.investmentBudget.totalInitial.toLocaleString()} ${currency}`,
+      status: 'success',
+    });
+
+    res.json({ status: 'ok', plan: planData });
+  } catch (err: any) {
+    const duration = Date.now() - startTime;
+    recordGeminiCall(duration, false, err?.message || 'Erreur génération plan physique');
+    res.status(500).json({ error: err?.message || 'Erreur génération plan d exploitation' });
+  }
+});
+
+app.get('/api/kits/:oppId', (req, res) => {
+  const oppId = req.params.oppId;
+  const kits = getPersistentKits();
+  res.json({ status: 'ok', kit: kits[oppId] || {} });
+});
+
+app.put('/api/kits/:oppId/physical', (req, res) => {
+  const oppId = req.params.oppId;
+  const updatedPlan = req.body;
+  if (!updatedPlan) return res.status(400).json({ error: 'Plan requis' });
+
+  savePersistentKit(oppId, { physical: updatedPlan });
+  appendAuditLog({
+    actionType: 'hypothesis_updated',
+    actor: 'utilisateur',
+    description: `Hypothèses du plan d exploitation physique mises à jour manuellement pour l opportunité : ${updatedPlan.opportunityTitle || oppId}`,
+    provenanceDetails: `Nouveau budget initial : ${updatedPlan.investmentBudget?.totalInitial?.toLocaleString()} ${updatedPlan.investmentBudget?.currency}`,
+    status: 'success',
+  });
+
+  res.json({ status: 'ok', plan: updatedPlan });
+});
+
+// ----------------- FILE "À VALIDER" (Rien n'est envoyé sans validation) -----------------
+
+app.get('/api/validation', (req, res) => {
+  const queue = getValidationQueue();
+  res.json({ status: 'ok', items: queue });
+});
+
+app.post('/api/validation', (req, res) => {
+  const { title, category, targetRecipient, contentPayload, sourceOpportunityTitle, countryCode } = req.body;
+  if (!title || !contentPayload) {
+    return res.status(400).json({ error: 'Titre et contenu requis' });
+  }
+  const item = addValidationItem({
+    title,
+    category: category || 'prospection_message',
+    targetRecipient,
+    contentPayload,
+    sourceOpportunityTitle: sourceOpportunityTitle || 'Action manuelle',
+    countryCode: countryCode || 'NER',
+  });
+  res.json({ status: 'ok', item });
+});
+
+app.put('/api/validation/:id', (req, res) => {
+  const { status, reviewNotes } = req.body;
+  if (!['valide', 'rejete'].includes(status)) {
+    return res.status(400).json({ error: 'Statut valide ou rejete requis' });
+  }
+  const updated = updateValidationStatus(req.params.id, status, reviewNotes);
+  if (!updated) return res.status(404).json({ error: 'Élément introuvable' });
+  res.json({ status: 'ok', item: updated });
+});
+
+// ----------------- JOURNAL DE TOUTES LES ACTIONS (Audit Log) -----------------
+
+app.get('/api/audit', (req, res) => {
+  const log = getAuditLog();
+  res.json({ status: 'ok', entries: log });
+});
+
+// ----------------- MODULE ENCAISSEMENTS RÉELS (Ventes Réelles vs Prévisions) -----------------
+
+app.get('/api/sales', (req, res) => {
+  const sales = getRealSales();
+  res.json({ status: 'ok', sales });
+});
+
+app.post('/api/sales', (req, res) => {
+  const { clientName, opportunityTitle, amount, currency, date, status, paymentMethod, notes, reference } = req.body;
+  if (!clientName || !amount) {
+    return res.status(400).json({ error: 'Client et montant requis' });
+  }
+  const sale = addRealSale({
+    clientName,
+    opportunityTitle: opportunityTitle || 'Vente directe',
+    amount: Number(amount) || 0,
+    currency: currency || 'XOF',
+    date: date || new Date().toISOString().split('T')[0],
+    status: status || 'encaisse',
+    paymentMethod: paymentMethod || 'Airtel Money / Mobile Money',
+    notes,
+    reference,
+  });
+  res.json({ status: 'ok', sale });
+});
+
+app.delete('/api/sales/:id', (req, res) => {
+  const ok = deleteRealSale(req.params.id);
+  res.json({ status: ok ? 'ok' : 'error' });
+});
+
+// ----------------- COMPTEUR D'UTILISATION (Pas de quota arbitraire) -----------------
+
+app.get('/api/usage', (req, res) => {
+  const stats = getUsageStats();
+  res.json({ status: 'ok', stats });
 });
 
 

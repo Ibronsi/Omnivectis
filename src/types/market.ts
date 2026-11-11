@@ -163,6 +163,195 @@ export interface MarketSignal {
   relativeTime?: string;
   region: 'niger_uemoa' | 'europe' | 'global';
   isVerifiedSource: boolean;
+  status: 'live' | 'cache' | 'indisponible';
+  countryCode?: CountryCode;
+}
+
+export interface SourceCitation {
+  signalId: string;
+  headline: string;
+  sourceName: string;
+  sourceUrl: string;
+  publishedAt: string;
+  status: 'live' | 'cache' | 'indisponible';
+}
+
+export interface StrictOpportunity {
+  id: string;
+  title: string;
+  type: 'numérique' | 'physique';
+  description: string;
+  sourceSignals: SourceCitation[];
+  whyItExists: string;
+  confidenceLevel: 'faible' | 'moyen' | 'élevé';
+  risks: string[];
+  invalidationTriggers: string[];
+  targetRevenueLocal: string;
+  estimatedMargin: string;
+  countryCode: CountryCode;
+  createdAt: string;
+  hasEnoughData: boolean;
+  insufficientDataReason?: string;
+}
+
+export interface DigitalLaunchKit {
+  opportunityId: string;
+  opportunityTitle: string;
+  offerAndPricing: {
+    localPrice: string;
+    currency: string;
+    billingModel: string;
+    deliverables: string[];
+    guarantee: string;
+  };
+  htmlSalesPage: string;
+  contentPack: {
+    tagline: string;
+    linkedinPost: string;
+    whatsappTeaser: string;
+    socialProofAngle: string;
+  };
+  outreachCopy: {
+    directMessage: string;
+    emailPitch: string;
+    objectionHandling: { objection: string; reply: string }[];
+  };
+  followupSequence: {
+    day3: string;
+    day7: string;
+    day14Breakup: string;
+  };
+  accountsChecklist: {
+    id: string;
+    accountName: string;
+    description: string;
+    status: 'todo' | 'done';
+    link?: string;
+  }[];
+  automationActions: {
+    title: string;
+    tool: string;
+    description: string;
+    setupDifficulty: 'rapide' | 'moyen';
+  }[];
+}
+
+export interface PhysicalHypothesis {
+  id: string;
+  category: string;
+  label: string;
+  amount: number;
+  isEditable: boolean;
+  note: string;
+}
+
+export interface PhysicalExploitationPlan {
+  opportunityId: string;
+  opportunityTitle: string;
+  investmentBudget: {
+    totalInitial: number;
+    currency: string;
+    hypotheses: PhysicalHypothesis[];
+    workingCapitalReserve: number;
+  };
+  localSuppliersAndPartners: {
+    name: string;
+    role: string;
+    location: string;
+    contactGuide: string;
+  }[];
+  regulatoryAuthorizations: {
+    stepNumber: number;
+    authority: string;
+    requirement: string;
+    estimatedCost: string;
+    delay: string;
+  }[];
+  supplyChainAndLogistics: {
+    transportRoute: string;
+    storageConditions: string;
+    leadTimeDays: number;
+    safetyStockUnits: number;
+  };
+  implementationTimeline: {
+    week: string;
+    milestone: string;
+    criticalAction: string;
+  }[];
+  breakEvenAnalysis: {
+    unitSalePrice: number;
+    unitCost: number;
+    unitGrossMargin: number;
+    monthlyFixedCosts: number;
+    breakEvenUnits: number;
+    breakEvenRevenue: number;
+  };
+  risksAndMitigation: {
+    risk: string;
+    mitigationStrategy: string;
+  }[];
+}
+
+export interface ValidationItem {
+  id: string;
+  title: string;
+  category: 'prospection_message' | 'marketing_post' | 'contract_offer' | 'administrative_step' | 'order_placement';
+  targetRecipient?: string;
+  contentPayload: string;
+  sourceOpportunityTitle: string;
+  countryCode: CountryCode;
+  createdAt: string;
+  status: 'en_attente' | 'valide' | 'rejete';
+  reviewedAt?: string;
+  reviewNotes?: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  actionType:
+    | 'signal_harvested'
+    | 'opportunity_generated'
+    | 'kit_generated'
+    | 'item_queued'
+    | 'item_validated'
+    | 'item_rejected'
+    | 'sale_recorded'
+    | 'hypothesis_updated'
+    | 'api_error';
+  actor: 'utilisateur' | 'agent_serveur' | 'gemini_api';
+  description: string;
+  provenanceDetails?: string;
+  status: 'success' | 'warning' | 'error';
+}
+
+export interface RealSaleRecord {
+  id: string;
+  clientName: string;
+  opportunityId?: string;
+  opportunityTitle: string;
+  amount: number;
+  currency: CurrencyCode;
+  date: string;
+  status: 'encaisse' | 'en_attente' | 'annule';
+  paymentMethod: string;
+  notes?: string;
+  reference?: string;
+}
+
+export interface UsageCounterStats {
+  totalGeminiCalls: number;
+  successfulCalls: number;
+  failedCalls: number;
+  signalsCollected: number;
+  opportunitiesSynthesized: number;
+  kitsGenerated: number;
+  lastResponseTimeMs: number;
+  lastGeminiError?: {
+    message: string;
+    timestamp: string;
+    code?: string | number;
+  };
 }
 
 export interface LaunchpadCircuit {
@@ -212,5 +401,6 @@ export interface LaunchpadCircuit {
     timeSavedHoursPerClient: number;
   };
 }
+
 
 

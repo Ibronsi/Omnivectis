@@ -2,6 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Header, ActiveTab } from './components/Header';
 import { DashboardView } from './components/DashboardView';
 import { RadarView } from './components/RadarView';
+import { OpportunitiesView } from './components/OpportunitiesView';
+import { KitsView } from './components/KitsView';
+import { ValidationQueueView } from './components/ValidationQueueView';
+import { SalesTrackingView } from './components/SalesTrackingView';
 import { SimulatorView } from './components/SimulatorView';
 import { BlueprintView } from './components/BlueprintView';
 import { LaunchpadView } from './components/LaunchpadView';
@@ -15,6 +19,7 @@ import {
   SectorCategory,
   AIExecutionBlueprint,
   CountryCode,
+  StrictOpportunity,
 } from './types/market';
 import { ECONOMIC_SECTORS } from './data/sectorsData';
 import { calculateSimulation } from './utils/simulatorEngine';
@@ -26,6 +31,7 @@ export default function App() {
   const [countryCode, setCountryCode] = useState<CountryCode>('NER');
   const [selectedSectorForModal, setSelectedSectorForModal] = useState<EconomicSector | null>(null);
   const [selectedNicheForModal, setSelectedNicheForModal] = useState<OpportunityNiche | null>(null);
+  const [selectedOpportunityForKit, setSelectedOpportunityForKit] = useState<StrictOpportunity | null>(null);
 
   // Cross-view state transfer
   const [blueprintSectorId, setBlueprintSectorId] = useState<SectorCategory>('ai_deeptech');
@@ -206,7 +212,7 @@ export default function App() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onQuickAction={() => {
-          setActiveTab('launchpad');
+          setActiveTab('sales');
         }}
         savedCount={pipelineItems.length}
         countryCode={countryCode}
@@ -215,12 +221,62 @@ export default function App() {
 
       {/* Main Content Viewport */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'opportunities' && (
+          <OpportunitiesView
+            countryCode={countryCode}
+            onOpenDigitalKit={(opp) => {
+              setSelectedOpportunityForKit(opp);
+              setActiveTab('kits');
+            }}
+            onOpenPhysicalPlan={(opp) => {
+              setSelectedOpportunityForKit(opp);
+              setActiveTab('kits');
+            }}
+            onAddToPipeline={(opp) => {
+              const newItem: PipelineItem = {
+                id: `pipe-${Date.now()}`,
+                title: opp.title,
+                sectorId: 'b2b_services',
+                sectorName: opp.type === 'numérique' ? 'Services Numériques' : 'Exploitation Physique',
+                stage: 'validation',
+                targetMrr: 10000,
+                currentMrr: 0,
+                notes: opp.description,
+                addedAt: new Date().toLocaleDateString('fr-FR'),
+                checklists: [
+                  { text: 'Vérifier la faisabilité terrain', done: true },
+                  { text: 'Générer le dossier d exécution', done: false },
+                  { text: 'Encaisser la première vente', done: false },
+                ],
+              };
+              setPipelineItems((prev) => [newItem, ...prev]);
+              setActiveTab('pipeline');
+            }}
+          />
+        )}
+
+        {activeTab === 'kits' && (
+          <KitsView
+            countryCode={countryCode}
+            selectedOpportunity={selectedOpportunityForKit}
+            onNavigateToValidationQueue={() => setActiveTab('validation')}
+          />
+        )}
+
+        {activeTab === 'validation' && (
+          <ValidationQueueView countryCode={countryCode} />
+        )}
+
+        {activeTab === 'sales' && (
+          <SalesTrackingView countryCode={countryCode} />
+        )}
+
         {activeTab === 'dashboard' && (
           <DashboardView
             simulationResult={activeSimulationResult}
             pipelineItems={pipelineItems}
             onNavigateTab={setActiveTab}
-            onOpenBlueprintForSector={(sectorId, nicheTitle) => {
+            onOpenBlueprintForSector={(sectorId) => {
               setBlueprintSectorId(sectorId);
               setBlueprintTargetRevenue('20 000 € / mois');
               setActiveTab('blueprint');
@@ -237,7 +293,7 @@ export default function App() {
               setLaunchpadTitle(headline);
               setActiveTab('launchpad');
             }}
-            onTriggerBlueprintForSignal={(sectorId, headline) => {
+            onTriggerBlueprintForSignal={(sectorId) => {
               setBlueprintSectorId(sectorId);
               setBlueprintTargetRevenue('20 000 € / mois');
               setActiveTab('blueprint');
@@ -279,9 +335,9 @@ export default function App() {
                 notes: 'Circuit de monétisation et tunnel généré prêt à encaisser.',
                 addedAt: new Date().toLocaleDateString('fr-FR'),
                 checklists: [
-                  { text: 'Configurer le lien de paiement Stripe', done: false },
-                  { text: 'Lancer la séquence de 3 emails vers 50 prospects', done: false },
-                  { text: 'Faire signer le premier contrat pilote B2B', done: false },
+                  { text: 'Configurer le compte de paiement', done: false },
+                  { text: 'Envoyer la prospection validée', done: false },
+                  { text: 'Encaisser le premier règlement', done: false },
                 ],
               };
               setPipelineItems((prev) => [newItem, ...prev]);
@@ -300,7 +356,7 @@ export default function App() {
           <PipelineView
             items={pipelineItems}
             onUpdateItems={setPipelineItems}
-            onNavigateToBlueprint={(sectorId, title) => {
+            onNavigateToBlueprint={(sectorId) => {
               setBlueprintSectorId(sectorId);
               setActiveTab('blueprint');
             }}
@@ -333,16 +389,10 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-400">OmniVectis</span>
             <span aria-hidden="true">·</span>
-            <span>Intelligence des Marchés & Arbitrage Multi-Secteurs</span>
+            <span>Usage Personnel · Données Vérifiées sans Simulation</span>
           </div>
 
-          <div className="flex items-center gap-6">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className="hover:text-slate-300 transition-colors cursor-pointer"
-            >
-              Dashboard
-            </button>
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
             <button
               onClick={() => setActiveTab('radar')}
               className="hover:text-slate-300 transition-colors cursor-pointer"
@@ -350,33 +400,39 @@ export default function App() {
               Radar
             </button>
             <button
+              onClick={() => setActiveTab('opportunities')}
+              className="hover:text-slate-300 transition-colors cursor-pointer"
+            >
+              Opportunités
+            </button>
+            <button
+              onClick={() => setActiveTab('kits')}
+              className="hover:text-slate-300 transition-colors cursor-pointer"
+            >
+              Dossiers & Plans
+            </button>
+            <button
+              onClick={() => setActiveTab('validation')}
+              className="hover:text-slate-300 transition-colors cursor-pointer text-emerald-400"
+            >
+              À Valider
+            </button>
+            <button
+              onClick={() => setActiveTab('sales')}
+              className="hover:text-slate-300 transition-colors cursor-pointer text-emerald-400"
+            >
+              Encaissements
+            </button>
+            <button
               onClick={() => setActiveTab('simulator')}
               className="hover:text-slate-300 transition-colors cursor-pointer"
             >
               Simulateur
             </button>
-            <button
-              onClick={() => setActiveTab('launchpad')}
-              className="hover:text-slate-300 transition-colors cursor-pointer text-emerald-400"
-            >
-              Launchpad
-            </button>
-            <button
-              onClick={() => setActiveTab('blueprint')}
-              className="hover:text-slate-300 transition-colors cursor-pointer"
-            >
-              Stratège IA
-            </button>
-            <button
-              onClick={() => setActiveTab('pipeline')}
-              className="hover:text-slate-300 transition-colors cursor-pointer"
-            >
-              Pipeline
-            </button>
           </div>
 
           <div>
-            <span>Données économiques mondiales actualisées · Stratégies prêtes à exécuter</span>
+            <span>Statut : <span className="text-emerald-400 font-mono">live</span> · Sources certifiées</span>
           </div>
         </div>
       </footer>

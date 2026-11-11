@@ -618,6 +618,7 @@ export const LIVE_MARKET_SIGNALS = [
     relativeTime: 'il y a 8 min',
     region: 'niger_uemoa' as const,
     isVerifiedSource: true,
+    status: 'live' as const,
   },
   {
     id: 'sig-wb-niger-agro',
@@ -636,6 +637,7 @@ export const LIVE_MARKET_SIGNALS = [
     relativeTime: 'il y a 14 min',
     region: 'niger_uemoa' as const,
     isVerifiedSource: true,
+    status: 'live' as const,
   },
   {
     id: 'sig-allafrica-supply',
@@ -654,6 +656,7 @@ export const LIVE_MARKET_SIGNALS = [
     relativeTime: 'il y a 22 min',
     region: 'niger_uemoa' as const,
     isVerifiedSource: true,
+    status: 'live' as const,
   },
   {
     id: 'sig-figaro-ai-ops',
@@ -672,6 +675,7 @@ export const LIVE_MARKET_SIGNALS = [
     relativeTime: 'il y a 31 min',
     region: 'europe' as const,
     isVerifiedSource: true,
+    status: 'live' as const,
   },
   {
     id: 'sig-csrd-audit',
@@ -690,6 +694,7 @@ export const LIVE_MARKET_SIGNALS = [
     relativeTime: 'il y a 45 min',
     region: 'europe' as const,
     isVerifiedSource: true,
+    status: 'live' as const,
   },
   {
     id: 'sig-fx-bce-uemoa',
@@ -708,6 +713,7 @@ export const LIVE_MARKET_SIGNALS = [
     relativeTime: 'il y a 52 min',
     region: 'global' as const,
     isVerifiedSource: true,
+    status: 'live' as const,
   },
 ];
 

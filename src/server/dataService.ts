@@ -1,5 +1,14 @@
 import fs from 'fs';
 import path from 'path';
+import {
+  StrictOpportunity,
+  DigitalLaunchKit,
+  PhysicalExploitationPlan,
+  ValidationItem,
+  AuditLogEntry,
+  RealSaleRecord,
+  UsageCounterStats,
+} from '../types/market.js';
 
 export interface SignalItem {
   id: string;
@@ -18,6 +27,8 @@ export interface SignalItem {
   relativeTime: string;
   region: 'niger_uemoa' | 'europe' | 'global';
   isVerifiedSource: boolean;
+  status: 'live' | 'cache' | 'indisponible';
+  countryCode?: string;
 }
 
 export interface PersistentPipelineItem {
@@ -39,6 +50,12 @@ export interface PersistentPipelineItem {
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const SIGNALS_FILE = path.join(DATA_DIR, 'signals.json');
 const PIPELINE_FILE = path.join(DATA_DIR, 'pipeline.json');
+const OPPORTUNITIES_FILE = path.join(DATA_DIR, 'opportunities.json');
+const KITS_FILE = path.join(DATA_DIR, 'kits.json');
+const VALIDATION_FILE = path.join(DATA_DIR, 'validation_queue.json');
+const AUDIT_FILE = path.join(DATA_DIR, 'audit_log.json');
+const SALES_FILE = path.join(DATA_DIR, 'sales.json');
+const USAGE_FILE = path.join(DATA_DIR, 'usage_counter.json');
 
 // Ensure data dir exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -171,6 +188,7 @@ function classifyArticleToSignal(
   const cleanContext = item.desc
     ? item.desc.slice(0, 240) + '...'
     : `Dépêche économique vérifiée issue de ${sourceName}.`;
+  const countryCode = region === 'niger_uemoa' ? 'NER' : region === 'europe' ? 'FRA' : 'NER';
 
   return {
     id: `sig-${Math.abs(hashString(item.link))}`,
@@ -189,6 +207,8 @@ function classifyArticleToSignal(
     relativeTime: formatRelativeTime(item.pubDate),
     region,
     isVerifiedSource: true,
+    status: 'live',
+    countryCode,
   };
 }
 
@@ -239,6 +259,8 @@ export async function harvestRealTimeSignals(): Promise<SignalItem[]> {
           relativeTime: 'en direct',
           region: 'global',
           isVerifiedSource: true,
+          status: 'live',
+          countryCode: 'NER',
         });
       }
     }
@@ -309,6 +331,8 @@ export async function harvestRealTimeSignals(): Promise<SignalItem[]> {
           relativeTime: 'officiel WDI',
           region: 'niger_uemoa',
           isVerifiedSource: true,
+          status: 'live',
+          countryCode: 'NER',
         });
       }
     }
@@ -453,4 +477,272 @@ export function savePersistentPipeline(items: PersistentPipelineItem[]): boolean
     console.error('Error writing pipeline.json:', e);
     return false;
   }
+}
+
+// ----------------- STRICT OPPORTUNITIES PERSISTENCE -----------------
+
+export function getPersistentOpportunities(countryCode?: string): StrictOpportunity[] {
+  if (fs.existsSync(OPPORTUNITIES_FILE)) {
+    try {
+      const data = fs.readFileSync(OPPORTUNITIES_FILE, 'utf-8');
+      const all: StrictOpportunity[] = JSON.parse(data);
+      if (countryCode && countryCode !== 'all') {
+        return all.filter((o) => o.countryCode === countryCode);
+      }
+      return all;
+    } catch (e) {
+      console.error('Error reading opportunities.json:', e);
+    }
+  }
+  return [];
+}
+
+export function savePersistentOpportunities(items: StrictOpportunity[]): boolean {
+  try {
+    fs.writeFileSync(OPPORTUNITIES_FILE, JSON.stringify(items, null, 2), 'utf-8');
+    return true;
+  } catch (e) {
+    console.error('Error writing opportunities.json:', e);
+    return false;
+  }
+}
+
+// ----------------- LAUNCH KITS PERSISTENCE -----------------
+
+export function getPersistentKits(): Record<string, { digital?: DigitalLaunchKit; physical?: PhysicalExploitationPlan }> {
+  if (fs.existsSync(KITS_FILE)) {
+    try {
+      const data = fs.readFileSync(KITS_FILE, 'utf-8');
+      return JSON.parse(data);
+    } catch (e) {
+      console.error('Error reading kits.json:', e);
+    }
+  }
+  return {};
+}
+
+export function savePersistentKit(
+  oppId: string,
+  kit: { digital?: DigitalLaunchKit; physical?: PhysicalExploitationPlan }
+): boolean {
+  try {
+    const existing = getPersistentKits();
+    existing[oppId] = { ...existing[oppId], ...kit };
+    fs.writeFileSync(KITS_FILE, JSON.stringify(existing, null, 2), 'utf-8');
+    return true;
+  } catch (e) {
+    console.error('Error writing kits.json:', e);
+    return false;
+  }
+}
+
+// ----------------- VALIDATION QUEUE (Rien sans validation) -----------------
+
+export function getValidationQueue(): ValidationItem[] {
+  if (fs.existsSync(VALIDATION_FILE)) {
+    try {
+      const data = fs.readFileSync(VALIDATION_FILE, 'utf-8');
+      return JSON.parse(data);
+    } catch (e) {
+      console.error('Error reading validation_queue.json:', e);
+    }
+  }
+  return [];
+}
+
+export function saveValidationQueue(items: ValidationItem[]): boolean {
+  try {
+    fs.writeFileSync(VALIDATION_FILE, JSON.stringify(items, null, 2), 'utf-8');
+    return true;
+  } catch (e) {
+    console.error('Error writing validation_queue.json:', e);
+    return false;
+  }
+}
+
+export function addValidationItem(item: Omit<ValidationItem, 'id' | 'createdAt' | 'status'>): ValidationItem {
+  const current = getValidationQueue();
+  const newItem: ValidationItem = {
+    ...item,
+    id: `val-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    createdAt: new Date().toISOString(),
+    status: 'en_attente',
+  };
+  const updated = [newItem, ...current];
+  saveValidationQueue(updated);
+  appendAuditLog({
+    actionType: 'item_queued',
+    actor: 'agent_serveur',
+    description: `Élément mis en file d attente de validation : ${newItem.title}`,
+    provenanceDetails: newItem.sourceOpportunityTitle,
+    status: 'warning',
+  });
+  return newItem;
+}
+
+export function updateValidationStatus(
+  id: string,
+  status: 'valide' | 'rejete',
+  reviewNotes?: string
+): ValidationItem | null {
+  const current = getValidationQueue();
+  const index = current.findIndex((i) => i.id === id);
+  if (index === -1) return null;
+
+  current[index].status = status;
+  current[index].reviewedAt = new Date().toISOString();
+  if (reviewNotes) current[index].reviewNotes = reviewNotes;
+
+  saveValidationQueue(current);
+  appendAuditLog({
+    actionType: status === 'valide' ? 'item_validated' : 'item_rejected',
+    actor: 'utilisateur',
+    description: `Élément ${status === 'valide' ? 'validé manuellement' : 'rejeté'} : ${current[index].title}`,
+    provenanceDetails: current[index].sourceOpportunityTitle,
+    status: status === 'valide' ? 'success' : 'warning',
+  });
+
+  return current[index];
+}
+
+// ----------------- AUDIT LOG PERSISTENCE (Journal de toutes les actions) -----------------
+
+export function getAuditLog(): AuditLogEntry[] {
+  if (fs.existsSync(AUDIT_FILE)) {
+    try {
+      const data = fs.readFileSync(AUDIT_FILE, 'utf-8');
+      return JSON.parse(data);
+    } catch (e) {
+      console.error('Error reading audit_log.json:', e);
+    }
+  }
+  return [];
+}
+
+export function appendAuditLog(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): AuditLogEntry {
+  const current = getAuditLog();
+  const newEntry: AuditLogEntry = {
+    ...entry,
+    id: `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    timestamp: new Date().toISOString(),
+  };
+  const updated = [newEntry, ...current].slice(0, 500); // keep 500 latest entries
+  try {
+    fs.writeFileSync(AUDIT_FILE, JSON.stringify(updated, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Error appending audit log:', e);
+  }
+  return newEntry;
+}
+
+// ----------------- REAL SALES TRACKING (Encaissements Réels vs Prévisions) -----------------
+
+export function getRealSales(): RealSaleRecord[] {
+  if (fs.existsSync(SALES_FILE)) {
+    try {
+      const data = fs.readFileSync(SALES_FILE, 'utf-8');
+      return JSON.parse(data);
+    } catch (e) {
+      console.error('Error reading sales.json:', e);
+    }
+  }
+  return [];
+}
+
+export function addRealSale(sale: Omit<RealSaleRecord, 'id'>): RealSaleRecord {
+  const current = getRealSales();
+  const newSale: RealSaleRecord = {
+    ...sale,
+    id: `sale-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+  };
+  const updated = [newSale, ...current];
+  try {
+    fs.writeFileSync(SALES_FILE, JSON.stringify(updated, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Error saving sale:', e);
+  }
+  appendAuditLog({
+    actionType: 'sale_recorded',
+    actor: 'utilisateur',
+    description: `Encaissement réel enregistré : ${newSale.amount.toLocaleString()} ${newSale.currency} de ${newSale.clientName} (${newSale.paymentMethod})`,
+    provenanceDetails: newSale.opportunityTitle,
+    status: 'success',
+  });
+  return newSale;
+}
+
+export function deleteRealSale(id: string): boolean {
+  const current = getRealSales();
+  const updated = current.filter((s) => s.id !== id);
+  try {
+    fs.writeFileSync(SALES_FILE, JSON.stringify(updated, null, 2), 'utf-8');
+    return true;
+  } catch (e) {
+    console.error('Error deleting sale:', e);
+    return false;
+  }
+}
+
+// ----------------- USAGE COUNTER & API METRICS (Pas de quota arbitraire) -----------------
+
+const DEFAULT_USAGE: UsageCounterStats = {
+  totalGeminiCalls: 0,
+  successfulCalls: 0,
+  failedCalls: 0,
+  signalsCollected: 0,
+  opportunitiesSynthesized: 0,
+  kitsGenerated: 0,
+  lastResponseTimeMs: 0,
+};
+
+export function getUsageStats(): UsageCounterStats {
+  if (fs.existsSync(USAGE_FILE)) {
+    try {
+      const data = fs.readFileSync(USAGE_FILE, 'utf-8');
+      return JSON.parse(data);
+    } catch (e) {
+      console.error('Error reading usage_counter.json:', e);
+    }
+  }
+  return DEFAULT_USAGE;
+}
+
+export function recordGeminiCall(
+  durationMs: number,
+  success: boolean,
+  errorMessage?: string,
+  extra?: { signalsCollected?: number; opportunitiesSynthesized?: number; kitsGenerated?: number }
+): UsageCounterStats {
+  const current = getUsageStats();
+  current.totalGeminiCalls += 1;
+  if (success) {
+    current.successfulCalls += 1;
+  } else {
+    current.failedCalls += 1;
+  }
+  current.lastResponseTimeMs = durationMs;
+  if (extra?.signalsCollected) current.signalsCollected += extra.signalsCollected;
+  if (extra?.opportunitiesSynthesized) current.opportunitiesSynthesized += extra.opportunitiesSynthesized;
+  if (extra?.kitsGenerated) current.kitsGenerated += extra.kitsGenerated;
+
+  if (errorMessage) {
+    current.lastGeminiError = {
+      message: errorMessage,
+      timestamp: new Date().toISOString(),
+    };
+    appendAuditLog({
+      actionType: 'api_error',
+      actor: 'gemini_api',
+      description: `Erreur API Gemini : ${errorMessage}`,
+      status: 'error',
+    });
+  }
+
+  try {
+    fs.writeFileSync(USAGE_FILE, JSON.stringify(current, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Error saving usage stats:', e);
+  }
+
+  return current;
 }

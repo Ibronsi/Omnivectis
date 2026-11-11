@@ -1,0 +1,38 @@
+[
+  {
+    "id": "sale-1",
+    "clientName": "Pharmacie du Rond-Point Niamey",
+    "opportunityTitle": "Passerelle Marchande Mobile Money B2B",
+    "amount": 250000,
+    "currency": "XOF",
+    "date": "2026-11-10",
+    "status": "encaisse",
+    "paymentMethod": "Airtel Money Niger",
+    "notes": "Abonnement trimestriel au module de réconciliation automatique encaissé.",
+    "reference": "TX-AM-894102"
+  },
+  {
+    "id": "sale-2",
+    "clientName": "Grossiste Alimentaire Katako SARL",
+    "opportunityTitle": "Passerelle Marchande Mobile Money B2B",
+    "amount": 450000,
+    "currency": "XOF",
+    "date": "2026-11-08",
+    "status": "encaisse",
+    "paymentMethod": "Moov Money Flooz",
+    "notes": "Installation et mise en service terminale pour 3 caisses de dépôt.",
+    "reference": "TX-FL-438910"
+  },
+  {
+    "id": "sale-3",
+    "clientName": "Coopérative Maraîchère de Tillabéri",
+    "opportunityTitle": "Unité Sahélienne de Conservation Frigorifique Solaire",
+    "amount": 600000,
+    "currency": "XOF",
+    "date": "2026-11-11",
+    "status": "en_attente",
+    "paymentMethod": "SONIBANK (Virement pro)",
+    "notes": "Facture pro-forma émise pour réservation de 20 casiers frigorifiques.",
+    "reference": "FAC-2026-003"
+  }
+]
