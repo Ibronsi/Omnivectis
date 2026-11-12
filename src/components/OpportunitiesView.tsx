@@ -133,7 +133,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
             Module Opportunités · {currentProfile.countryName}
           </h1>
           <p className="text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed">
-            Opportunités dérivées <strong className="text-white">exclusivement</strong> des signaux vérifiés stockés dans la table.
+            Opportunités dérivées <strong className="text-white">exclusivement</strong> des signaux collectés stockés dans la table.
             Chaque fait cite sa source officielle, sa date et son statut (<span className="text-emerald-400 font-mono">live</span>, <span className="text-amber-400 font-mono">cache</span>, <span className="text-rose-400 font-mono">indisponible</span>).
           </p>
         </div>
@@ -260,7 +260,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
       {loading ? (
         <div className="py-20 text-center text-slate-400 space-y-3">
           <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-400" />
-          <p className="text-sm">Chargement des opportunités vérifiées...</p>
+          <p className="text-sm">Chargement des opportunités issues des signaux collectés...</p>
         </div>
       ) : filteredOpportunities.length === 0 ? (
         <div className="py-16 text-center bg-slate-900/30 border border-slate-800 rounded-xl space-y-4">
@@ -270,7 +270,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
           <div>
             <h3 className="text-base font-semibold text-white">Aucune opportunité active pour ce filtre</h3>
             <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-              Cliquez sur "Synthétiser depuis signaux stockés" pour générer les opportunités de marché vérifiées à partir des données en table.
+              Cliquez sur "Synthétiser depuis signaux stockés" pour générer les opportunités de marché à partir des signaux collectés en table.
             </p>
           </div>
           <button
@@ -344,22 +344,22 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
                   </p>
                 </div>
 
-                {/* Financial Projections - Mandatory Label "Estimation indicative" */}
+                {/* Financial Projections - Mandatory Label "Estimation indicative (non issue des sources)" */}
                 <div className="p-3.5 rounded-xl bg-slate-950/40 border border-slate-800/50 space-y-2">
                   <div className="flex items-center justify-between text-[11px] text-slate-400">
                     <span className="font-semibold text-slate-300">Modèle Économique :</span>
-                    <span className="font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                      Estimation indicative
+                    <span className="font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 text-[10px]">
+                      Estimation indicative (non issue des sources)
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
                       <span className="text-slate-400 block text-[11px]">Objectif Mensuel</span>
-                      <span className="text-white font-mono font-bold">{opp.targetRevenueLocal}</span>
+                      <span className="text-white font-mono font-bold">{opp.targetRevenueLocal || 'Estimation non fournie'}</span>
                     </div>
                     <div>
                       <span className="text-slate-400 block text-[11px]">Marge Brute Indicative</span>
-                      <span className="text-emerald-400 font-mono font-bold">{opp.estimatedMargin}</span>
+                      <span className="text-emerald-400 font-mono font-bold">{opp.estimatedMargin || 'Estimation non fournie'}</span>
                     </div>
                   </div>
                 </div>
@@ -367,7 +367,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
                 {/* Source Signals & Citations */}
                 <div className="space-y-2 border-t border-slate-800 pt-3">
                   <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>Signaux Sources Certifiés</span>
+                    <span>Signaux sources collectés</span>
                     <span className="text-slate-400 font-mono text-[10px]">
                       {opp.sourceSignals?.length || 0} source(s)
                     </span>

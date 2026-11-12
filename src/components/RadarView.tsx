@@ -147,13 +147,13 @@ export const RadarView: React.FC<RadarViewProps> = ({
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-800 pb-6">
         <div>
           <div className="text-xs font-semibold text-indigo-400 tracking-wider uppercase mb-1">
-            Intelligence Macro-Économique & Signaux de Marché Vérifiés
+            Intelligence Macro-Économique & Signaux de Marché Collectés
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
             Radar des Opportunités Sectorielles
           </h1>
           <p className="text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed">
-            Sources publiques vérifiées (Banque Mondiale, BCEAO, flux économiques officiels) et catalyseurs en temps réel.
+            Sources publiques collectées (Banque Mondiale, BCEAO, flux économiques officiels) et catalyseurs en temps réel.
             Chaque opportunité est reliée à sa source légale ou économique certifiée.
           </p>
         </div>
@@ -528,30 +528,40 @@ export const RadarView: React.FC<RadarViewProps> = ({
                       )}
                     </div>
 
-                    <div className="font-mono text-emerald-400 font-bold tabular-nums">
-                      Impact estimé : {signal.estimatedMarginImpact}
-                    </div>
+                    {signal.estimatedMarginImpact && (
+                      <div className="font-mono text-emerald-400 font-bold tabular-nums">
+                        Impact estimé : {signal.estimatedMarginImpact}
+                      </div>
+                    )}
                   </div>
 
                   <div>
                     <h3 className="text-base font-bold text-white leading-snug">
                       {signal.headline}
                     </h3>
-                    <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
-                      {signal.context}
-                    </p>
+                    {signal.context && (
+                      <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                        {signal.context}
+                      </p>
+                    )}
                   </div>
 
                   {/* Direct Action Arbitrage Strip */}
                   <div className="p-3.5 bg-slate-950/80 rounded-lg border border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                    <div className="text-xs">
-                      <span className="font-semibold text-indigo-300 block mb-0.5">
-                        Opportunité d Arbitrage Immédiate :
-                      </span>
-                      <span className="text-slate-200 leading-relaxed">
-                        {signal.immediateArbitragePlay}
-                      </span>
-                    </div>
+                    {signal.immediateArbitragePlay ? (
+                      <div className="text-xs">
+                        <span className="font-semibold text-indigo-300 block mb-0.5">
+                          Opportunité d Arbitrage Immédiate :
+                        </span>
+                        <span className="text-slate-200 leading-relaxed">
+                          {signal.immediateArbitragePlay}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-400">
+                        Signal brut collecté · Exploitez-le via le module Opportunités ou le Simulateur.
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 md:pt-0">
                       <button

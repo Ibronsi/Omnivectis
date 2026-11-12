@@ -29,6 +29,7 @@ export interface SignalItem {
   isVerifiedSource: boolean;
   status: 'live' | 'cache' | 'indisponible';
   countryCode?: string;
+  isGlobal?: boolean;
 }
 
 export interface PersistentPipelineItem {
@@ -124,7 +125,7 @@ function extractXmlItems(xml: string): { title: string; link: string; pubDate: s
   return items;
 }
 
-// Classify and build arbitrage play
+// Classify and build signal from real RSS excerpt
 function classifyArticleToSignal(
   item: { title: string; link: string; pubDate: string; desc: string },
   sourceName: string,
@@ -138,69 +139,48 @@ function classifyArticleToSignal(
   let sectorId = 'b2b_services';
   let sectorName = 'B2B Services & Conseil';
   let category: SignalItem['category'] = 'reglementaire';
-  let immediateArbitragePlay = `Proposer aux entreprises impactées une solution d accompagnement rapide pour transformer cette actualité en avantage commercial.`;
-  let estimatedMarginImpact = '+35% de marge brute';
-  let urgency: SignalItem['urgency'] = 'Cette semaine';
 
   if (text.includes('ia') || text.includes('intelligence') || text.includes('tech') || text.includes('logiciel') || text.includes('numérique')) {
     sectorId = 'ai_deeptech';
     sectorName = 'Intelligence Artificielle & DeepTech';
     category = 'ia_tech';
-    immediateArbitragePlay = `Déployer un agent d inférence IA spécialisé pour automatiser le traitement documentaire et réduire les coûts opérationnels de 40%.`;
-    estimatedMarginImpact = '+85% de marge brute';
-    urgency = 'Immédiat (<48h)';
   } else if (text.includes('banque') || text.includes('finance') || text.includes('monnaie') || text.includes('paiement') || text.includes('taux') || text.includes('fcfa') || text.includes('cfa') || text.includes('crédit')) {
     sectorId = 'fintech';
     sectorName = 'FinTech & Arbitrage de Flux';
     category = 'finance_taux';
-    immediateArbitragePlay = region === 'niger_uemoa'
-      ? `Mettre en place une passerelle d encaissement marchande (Airtel Money, Moov Money, Wave) pour digitaliser les règlements B2B sans retard.`
-      : `Proposer des facilités d escompte dynamique de factures et sécurisation de flux inter-entreprises.`;
-    estimatedMarginImpact = 'Spread net de 1.8% à 3.2%';
-    urgency = 'Immédiat (<48h)';
   } else if (text.includes('climat') || text.includes('énergie') || text.includes('solaire') || text.includes('carbone') || text.includes('électricité') || text.includes('pétrole')) {
     sectorId = 'cleantech';
     sectorName = 'Énergie & Transition Climat';
     category = 'energie_matiere';
-    immediateArbitragePlay = region === 'niger_uemoa'
-      ? `Installer des kits solaires de pompage et d électrification pour entreprises et coopératives avec contrat de leasing.`
-      : `Audit express de conformité extra-financière Scope 3 pour sous-traitants sous pression réglementaire.`;
-    estimatedMarginImpact = '+60% de marge nette';
-    urgency = 'Cette semaine';
   } else if (text.includes('agri') || text.includes('agricole') || text.includes('céréale') || text.includes('alimentaire') || text.includes('récolte')) {
     sectorId = 'agritech';
     sectorName = 'AgriTech & Souveraineté Alimentaire';
     category = 'energie_matiere';
-    immediateArbitragePlay = `Commercialiser des micro-chambres froides solaires ou systèmes d irrigation connectés pour préserver les récoltes à haute valeur.`;
-    estimatedMarginImpact = '+55% de marge sur matériel & service';
-    urgency = 'Cette semaine';
   } else if (text.includes('transport') || text.includes('port') || text.includes('camion') || text.includes('fret') || text.includes('corridor') || text.includes('logistique')) {
     sectorId = 'logistics';
     sectorName = 'Supply Chain & Logistique';
     category = 'supply_chain';
-    immediateArbitragePlay = region === 'niger_uemoa'
-      ? `Centraliser le courtage de fret retour sur les corridors Cotonou/Lomé vers Niamey avec notification WhatsApp automatisée.`
-      : `Optimiser le taux de remplissage des trajets retours de transporteurs avec commission d intermédiation.`;
-    estimatedMarginImpact = '150 000 à 450 000 FCFA par chargement';
-    urgency = 'Cette semaine';
   }
 
-  const cleanContext = item.desc
-    ? item.desc.slice(0, 240) + '...'
-    : `Dépêche économique vérifiée issue de ${sourceName}.`;
-  const countryCode = region === 'niger_uemoa' ? 'NER' : region === 'europe' ? 'FRA' : 'NER';
+  // Real excerpt from the RSS item without artificial placeholder text
+  const cleanContext = item.desc ? item.desc.replace(/<[^>]+>/g, '').trim().slice(0, 300) : '';
+  let countryCode: string | undefined = undefined;
+  if (text.includes('niger') || text.includes('niamey')) countryCode = 'NER';
+  else if (text.includes('sénégal') || text.includes('senegal') || text.includes('dakar')) countryCode = 'SEN';
+  else if (text.includes('côte d\'ivoire') || text.includes('cote d\'ivoire') || text.includes('abidjan') || text.includes('ivory coast')) countryCode = 'CIV';
+  else if (region === 'europe' || text.includes('france') || text.includes('paris')) countryCode = 'FRA';
 
   return {
     id: `sig-${Math.abs(hashString(item.link))}`,
     category,
     headline: item.title,
     context: cleanContext,
-    immediateArbitragePlay,
+    immediateArbitragePlay: '',
     sectorId,
     sectorName,
-    estimatedMarginImpact,
-    urgency,
-    timestamp: `Vérifié ${formatRelativeTime(item.pubDate)}`,
+    estimatedMarginImpact: '',
+    urgency: 'Cette semaine',
+    timestamp: `Collecté ${formatRelativeTime(item.pubDate)}`,
     sourceName,
     sourceUrl: item.link,
     publishedAt: item.pubDate,
@@ -209,6 +189,7 @@ function classifyArticleToSignal(
     isVerifiedSource: true,
     status: 'live',
     countryCode,
+    isGlobal: region === 'global',
   };
 }
 
@@ -241,26 +222,26 @@ export async function harvestRealTimeSignals(): Promise<SignalItem[]> {
           lastUpdate: new Date().toISOString(),
         };
 
-        // Add verified FX parity signal
+        // Add collected FX parity signal (strictly collected rates, no handwritten commentary)
         harvested.push({
           id: 'sig-fx-live-bceao',
           category: 'finance_taux',
-          headline: `Taux de change en direct : 1 EUR = ${cachedFxRates.XOF.toFixed(2)} FCFA · 1 USD = ${(cachedFxRates.XOF / cachedFxRates.USD).toFixed(0)} FCFA`,
-          context: `Les flux de devises internationaux confirment la parité fixe UEMOA/Euro. Opportunité d arbitrage pour les prestataires africains facturant en devises fortes (EUR/USD) ou payant des outils en ligne.`,
-          immediateArbitragePlay: `Ouvrir des comptes multi-devises et cartes prépayées (Nita, Djamo, PayQin) pour encaisser les virements internationaux sans frais de change abusifs.`,
+          headline: `Taux de change collecté : 1 EUR = ${cachedFxRates.XOF.toFixed(2)} XOF · 1 USD = ${(cachedFxRates.XOF / cachedFxRates.USD).toFixed(2)} XOF`,
+          context: `Relevé Open Exchange Rates : 1 EUR = ${cachedFxRates.XOF.toFixed(2)} XOF, 1 EUR = ${cachedFxRates.USD.toFixed(4)} USD (date : ${cachedFxRates.lastUpdate}).`,
+          immediateArbitragePlay: '',
           sectorId: 'fintech',
           sectorName: 'FinTech & Arbitrage de Flux',
-          estimatedMarginImpact: '+2.8% de gain sur le change net',
-          urgency: 'Immédiat (<48h)',
-          timestamp: 'Vérifié en direct',
-          sourceName: 'Open Exchange Rates (Parité BCE / BCEAO)',
+          estimatedMarginImpact: '',
+          urgency: 'Cette semaine',
+          timestamp: 'Collecté en direct',
+          sourceName: 'Open Exchange Rates',
           sourceUrl: 'https://open.er-api.com',
-          publishedAt: new Date().toISOString(),
+          publishedAt: cachedFxRates.lastUpdate,
           relativeTime: 'en direct',
           region: 'global',
+          isGlobal: true,
           isVerifiedSource: true,
           status: 'live',
-          countryCode: 'NER',
         });
       }
     }
@@ -317,14 +298,14 @@ export async function harvestRealTimeSignals(): Promise<SignalItem[]> {
         harvested.push({
           id: 'sig-wb-niger-gdp',
           category: 'reglementaire',
-          headline: `Banque Mondiale : Croissance du PIB du Niger projetée à ${Number(latest.value).toFixed(1)}% (Rapport WDI)`,
-          context: `Les indicateurs macro-économiques de la Banque Mondiale mettent en avant une reprise dynamique tirée par l agro-industrie, l énergie et les investissements d infrastructures au Niger.`,
-          immediateArbitragePlay: `Cibler les sous-traitants des projets d énergie et d agro-business avec des offres d automatisation de gestion et de conformité.`,
+          headline: `Banque Mondiale (WDI) : Croissance du PIB du Niger à ${Number(latest.value).toFixed(2)}% (indicateur NY.GDP.MKTP.KD.ZG, référence ${latest.date || 'récente'})`,
+          context: `Indicateur brut Banque Mondiale NY.GDP.MKTP.KD.ZG : valeur de ${Number(latest.value).toFixed(2)}% enregistrée pour le Niger.`,
+          immediateArbitragePlay: '',
           sectorId: 'agritech',
           sectorName: 'AgriTech & Souveraineté Alimentaire',
-          estimatedMarginImpact: '+50% d opportunités d appels d offres',
+          estimatedMarginImpact: '',
           urgency: 'Ce mois-ci',
-          timestamp: 'Vérifié Banque Mondiale',
+          timestamp: 'Collecté Banque Mondiale',
           sourceName: 'Banque Mondiale (Open Data WDI Niger)',
           sourceUrl: 'https://api.worldbank.org/v2/country/NER',
           publishedAt: new Date().toISOString(),
@@ -340,7 +321,7 @@ export async function harvestRealTimeSignals(): Promise<SignalItem[]> {
     console.info('World Bank live fetch notice:', e);
   }
 
-  // Filter out any duplicates and ensure strictly verified sources
+  // Filter out any duplicates and ensure strictly valid sources
   const validSignals = harvested.filter((s) => s.sourceUrl && s.sourceName && s.isVerifiedSource);
 
   if (validSignals.length > 0) {
@@ -362,7 +343,7 @@ export function getCachedSignals(): SignalItem[] {
     return cachedSignals.map((s) => ({
       ...s,
       relativeTime: formatRelativeTime(s.publishedAt),
-      timestamp: `Vérifié ${formatRelativeTime(s.publishedAt)}`,
+      timestamp: `Collecté ${formatRelativeTime(s.publishedAt)}`,
     }));
   }
 
@@ -373,7 +354,7 @@ export function getCachedSignals(): SignalItem[] {
       return cachedSignals.map((s) => ({
         ...s,
         relativeTime: formatRelativeTime(s.publishedAt),
-        timestamp: `Vérifié ${formatRelativeTime(s.publishedAt)}`,
+        timestamp: `Collecté ${formatRelativeTime(s.publishedAt)}`,
       }));
     } catch (e) {
       console.error('Error reading signals.json:', e);
@@ -459,14 +440,7 @@ export function getPersistentPipeline(): PersistentPipelineItem[] {
     }
   }
 
-  // Seed default pipeline
-  try {
-    fs.writeFileSync(PIPELINE_FILE, JSON.stringify(DEFAULT_PIPELINE, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Error seeding pipeline.json:', e);
-  }
-
-  return DEFAULT_PIPELINE;
+  return [];
 }
 
 export function savePersistentPipeline(items: PersistentPipelineItem[]): boolean {

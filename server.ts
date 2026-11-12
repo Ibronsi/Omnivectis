@@ -357,13 +357,24 @@ app.post('/api/opportunities/synthesize', async (req, res) => {
     }
   }
 
-  // Filter signals relevant to this country or global
-  const relevantSignals = signals.filter(
-    (s) => s.countryCode === countryCode || s.region === 'niger_uemoa' || s.region === 'global'
-  );
+  // 4. Filtre par pays réel (countryCode) ou par région du pays choisi
+  // N'ajoute les signaux "global" que s'ils sont clairement marqués globaux
+  const getRegionForCountry = (code: string): 'niger_uemoa' | 'europe' | 'global' => {
+    if (['NER', 'SEN', 'CIV'].includes(code)) return 'niger_uemoa';
+    if (['FRA', 'DEU', 'ESP', 'ITA', 'GBR'].includes(code)) return 'europe';
+    return 'global';
+  };
+
+  const countryRegion = getRegionForCountry(countryCode);
+  const relevantSignals = signals.filter((s) => {
+    if (s.countryCode && s.countryCode === countryCode) return true;
+    if (countryRegion !== 'global' && s.region && s.region === countryRegion) return true;
+    if (s.region === 'global' && s.isGlobal === true) return true;
+    return false;
+  });
 
   if (relevantSignals.length < 2) {
-    recordGeminiCall(Date.now() - startTime, false, 'Données insuffisantes : moins de 2 signaux vérifiés disponibles.');
+    recordGeminiCall(Date.now() - startTime, false, 'Données insuffisantes : moins de 2 signaux collectés disponibles.');
     return res.json({
       status: 'insufficient_data',
       message: 'données insuffisantes',
@@ -371,72 +382,99 @@ app.post('/api/opportunities/synthesize', async (req, res) => {
     });
   }
 
+  // 3. N'envoie à Gemini que le titre, la source, le lien, la date et l'extrait réel de l'article
+  // Supprime les champs "context" et "immediateArbitragePlay" écrits à la main
   const promptSignalsList = relevantSignals.slice(0, 10).map((s) => ({
     signalId: s.id,
-    headline: s.headline,
-    sourceName: s.sourceName,
-    sourceUrl: s.sourceUrl,
-    publishedAt: s.publishedAt,
+    title: s.headline,
+    source: s.sourceName,
+    link: s.sourceUrl,
+    date: s.publishedAt,
+    realArticleExcerpt: s.context || '',
     status: s.status || 'live',
-    context: s.context,
-    immediateArbitragePlay: s.immediateArbitragePlay,
   }));
 
   const systemPrompt = `Tu es le moteur d'opportunités d'OmniVectis, conçu pour un usage personnel strict.
 RÈGLE ABSOLUE : Aucune donnée inventée ni simulée présentée comme réelle. Chaque chiffre doit reposer sur les signaux ci-dessous.
-Chaque opportunité doit être reliée UNIQUEMENT et STRICTEMENT aux signaux fournis en entrée.
+Chaque opportunité doit être reliée UNIQUEMENT et STRICTEMENT aux signaux collectés fournis en entrée.
 Tu dois générer entre 2 et 4 opportunités concrètes et pertinentes pour le pays cible (${countryCode}).
 Pour chaque opportunité :
 1. "title": Titre court et professionnel
 2. "type": Soit "numérique" (SaaS, service automatisé, arbitrage de flux, digital), soit "physique" (commerce physique, logistique, agrobusiness, énergie, import-export)
 3. "description": Description claire et factuelle
-4. "sourceSignals": Tableau des signaux utilisés (avec signalId, headline, sourceName, sourceUrl, publishedAt, status)
-5. "whyItExists": Pourquoi elle existe à cet instant précis selon les faits du signal
-6. "confidenceLevel": Soit "faible", "moyen", ou "élevé"
-7. "risks": Liste des 2 à 4 risques majeurs réels
-8. "invalidationTriggers": Liste des 2 à 3 événements concrets qui invalideraient cette opportunité
-9. "targetRevenueLocal": Estimation indicative mensuelle dans la devise du pays (ex: 2 500 000 FCFA / mois si NER/XOF, ou 3 500 € / mois si FRA/EUR)
-10. "estimatedMargin": Estimation indicative de la marge brute (ex: 65% à 80% pour numérique, 25% à 45% pour physique)
+4. "whyItExists": Pourquoi elle existe à cet instant précis selon les faits du signal
+5. "confidenceLevel": Soit "faible", "moyen", ou "élevé"
+6. "risks": Liste des 2 à 4 risques majeurs réels
+7. "invalidationTriggers": Liste des 2 à 3 événements concrets qui invalideraient cette opportunité
+8. "targetRevenueLocal": Estimation indicative mensuelle dans la devise du pays, ou laisser vide / null s'il n'y a pas assez d'éléments
+9. "estimatedMargin": Estimation indicative de la marge brute, ou laisser vide / null s'il n'y a pas assez d'éléments
+10. "sourceSignalIds": Tableau contenant les "signalId" EXACTS des signaux collectés dont cette opportunité est issue. Toute opportunité sans au moins un signalId valide fourni sera rejetée.
 
 S'il n'y a pas assez de faits concrets pour bâtir une opportunité sérieuse, renvoie un tableau vide avec "hasEnoughData": false et "insufficientDataReason": "données insuffisantes".`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: `Pays cible : ${countryCode}\nSignaux collectés vérifiés :\n${JSON.stringify(promptSignalsList, null, 2)}`,
-      config: {
-        systemInstruction: systemPrompt,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            hasEnoughData: { type: Type.BOOLEAN },
-            insufficientDataReason: { type: Type.STRING },
-            opportunities: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  title: { type: Type.STRING },
-                  type: { type: Type.STRING, enum: ['numérique', 'physique'] },
-                  description: { type: Type.STRING },
-                  whyItExists: { type: Type.STRING },
-                  confidenceLevel: { type: Type.STRING, enum: ['faible', 'moyen', 'élevé'] },
-                  risks: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  invalidationTriggers: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  targetRevenueLocal: { type: Type.STRING },
-                  estimatedMargin: { type: Type.STRING },
-                  sourceSignalIds: { type: Type.ARRAY, items: { type: Type.STRING } },
-                },
-                required: ['title', 'type', 'description', 'whyItExists', 'confidenceLevel', 'risks', 'invalidationTriggers'],
-              },
+  const genConfig = {
+    systemInstruction: systemPrompt,
+    thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+    responseMimeType: 'application/json',
+    responseSchema: {
+      type: Type.OBJECT,
+      properties: {
+        hasEnoughData: { type: Type.BOOLEAN },
+        insufficientDataReason: { type: Type.STRING },
+        opportunities: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              type: { type: Type.STRING, enum: ['numérique', 'physique'] },
+              description: { type: Type.STRING },
+              whyItExists: { type: Type.STRING },
+              confidenceLevel: { type: Type.STRING, enum: ['faible', 'moyen', 'élevé'] },
+              risks: { type: Type.ARRAY, items: { type: Type.STRING } },
+              invalidationTriggers: { type: Type.ARRAY, items: { type: Type.STRING } },
+              targetRevenueLocal: { type: Type.STRING },
+              estimatedMargin: { type: Type.STRING },
+              sourceSignalIds: { type: Type.ARRAY, items: { type: Type.STRING } },
             },
+            required: ['title', 'type', 'description', 'whyItExists', 'confidenceLevel', 'risks', 'invalidationTriggers'],
           },
-          required: ['hasEnoughData', 'opportunities'],
         },
       },
-    });
+      required: ['hasEnoughData', 'opportunities'],
+    },
+  };
+
+  try {
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: `Pays cible : ${countryCode}\nSignaux collectés :\n${JSON.stringify(promptSignalsList, null, 2)}`,
+        config: genConfig,
+      });
+    } catch (e: any) {
+      if (e?.message?.includes('503') || e?.status === 503 || e?.toString().includes('high demand')) {
+        console.info('Transient 503 on gemini-3.8-flash, waiting 1500ms before retry...');
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        try {
+          response = await ai.models.generateContent({
+            model: 'gemini-3.1-flash-lite',
+            contents: `Pays cible : ${countryCode}\nSignaux collectés :\n${JSON.stringify(promptSignalsList, null, 2)}`,
+            config: genConfig,
+          });
+        } catch {
+          // Final retry with gemini-3.8-flash
+          response = await ai.models.generateContent({
+            model: 'gemini-3.8-flash',
+            contents: `Pays cible : ${countryCode}\nSignaux collectés :\n${JSON.stringify(promptSignalsList, null, 2)}`,
+            config: genConfig,
+          });
+        }
+      } else {
+        throw e;
+      }
+    }
 
     const duration = Date.now() - startTime;
     const rawText = response.text || '{}';
@@ -451,54 +489,84 @@ S'il n'y a pas assez de faits concrets pour bâtir une opportunité sérieuse, r
       });
     }
 
-    const formattedOpps = parsed.opportunities.map((opp: any, idx: number) => {
-      // Map cited signal IDs back to their full verified source citations
+    const validOpps: any[] = [];
+    const promptSignalIds = new Set(promptSignalsList.map((s) => s.signalId));
+
+    for (let idx = 0; idx < parsed.opportunities.length; idx++) {
+      const opp = parsed.opportunities[idx];
+      const citedIds: string[] = Array.isArray(opp.sourceSignalIds) ? opp.sourceSignalIds : [];
+
+      // 1. Ne garde comme sources que les signaux dont l'identifiant est dans sourceSignalIds ET existe dans les signaux fournis
       const matchedCitations = promptSignalsList
-        .filter((s) => (opp.sourceSignalIds || []).includes(s.signalId) || idx === 0)
+        .filter((s) => citedIds.includes(s.signalId) && promptSignalIds.has(s.signalId))
         .map((s) => ({
           signalId: s.signalId,
-          headline: s.headline,
-          sourceName: s.sourceName,
-          sourceUrl: s.sourceUrl,
-          publishedAt: s.publishedAt,
-          status: s.status as 'live' | 'cache' | 'indisponible',
+          headline: s.title,
+          sourceName: s.source,
+          sourceUrl: s.link,
+          publishedAt: s.date,
+          status: (s.status as 'live' | 'cache' | 'indisponible') || 'live',
         }));
 
-      return {
+      // Si une opportunité n'a aucune source valide, rejette-la
+      if (matchedCitations.length === 0) {
+        continue;
+      }
+
+      // 2. Supprime les valeurs de secours de targetRevenueLocal et estimatedMargin. S'ils manquent, affiche "Estimation non fournie".
+      const targetRevenue = (typeof opp.targetRevenueLocal === 'string' && opp.targetRevenueLocal.trim().length > 0)
+        ? opp.targetRevenueLocal.trim()
+        : 'Estimation non fournie';
+
+      const estMargin = (typeof opp.estimatedMargin === 'string' && opp.estimatedMargin.trim().length > 0)
+        ? opp.estimatedMargin.trim()
+        : 'Estimation non fournie';
+
+      validOpps.push({
         id: `opp-${Date.now()}-${idx}`,
         title: opp.title,
         type: opp.type as 'numérique' | 'physique',
         description: opp.description,
-        sourceSignals: matchedCitations.length > 0 ? matchedCitations : [promptSignalsList[0]],
+        sourceSignals: matchedCitations,
         whyItExists: opp.whyItExists,
         confidenceLevel: opp.confidenceLevel as 'faible' | 'moyen' | 'élevé',
         risks: opp.risks || [],
         invalidationTriggers: opp.invalidationTriggers || [],
-        targetRevenueLocal: opp.targetRevenueLocal || (countryCode === 'NER' ? '1 800 000 FCFA / mois' : '3 000 € / mois'),
-        estimatedMargin: opp.estimatedMargin || (opp.type === 'numérique' ? '75%' : '35%'),
+        targetRevenueLocal: targetRevenue,
+        estimatedMargin: estMargin,
         countryCode,
         createdAt: new Date().toISOString(),
         hasEnoughData: true,
-      };
-    });
+      });
+    }
 
-    // Save and log
+    if (validOpps.length === 0) {
+      recordGeminiCall(duration, true, undefined, { opportunitiesSynthesized: 0 });
+      return res.json({
+        status: 'insufficient_data',
+        message: 'données insuffisantes',
+        opportunities: [],
+      });
+    }
+
+    // Save and log (preserve opportunities for other countries)
     const existing = getPersistentOpportunities(countryCode);
-    const merged = [...formattedOpps, ...existing.filter((e) => !formattedOpps.some((f: any) => f.title === e.title))];
-    savePersistentOpportunities(merged);
+    const otherCountries = getPersistentOpportunities('all').filter((e) => e.countryCode !== countryCode);
+    const merged = [...validOpps, ...existing.filter((e) => !validOpps.some((f: any) => f.title === e.title))];
+    savePersistentOpportunities([...merged, ...otherCountries]);
 
-    recordGeminiCall(duration, true, undefined, { opportunitiesSynthesized: formattedOpps.length });
+    recordGeminiCall(duration, true, undefined, { opportunitiesSynthesized: validOpps.length });
     appendAuditLog({
       actionType: 'opportunity_generated',
       actor: 'gemini_api',
-      description: `${formattedOpps.length} opportunités synthétisées pour ${countryCode} à partir des signaux réels.`,
+      description: `${validOpps.length} opportunités synthétisées pour ${countryCode} à partir des signaux réels collectés.`,
       provenanceDetails: `Signaux analysés : ${relevantSignals.length}`,
       status: 'success',
     });
 
     res.json({
       status: 'ok',
-      count: formattedOpps.length,
+      count: validOpps.length,
       opportunities: merged,
     });
   } catch (err: any) {
