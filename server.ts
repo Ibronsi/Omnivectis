@@ -132,6 +132,67 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ----------------- ACCESS PASSWORD PROTECTION (APP_PASSWORD) -----------------
+
+app.get('/api/auth/status', (req, res) => {
+  const configuredPassword = process.env.APP_PASSWORD ? process.env.APP_PASSWORD.trim() : '';
+  if (!configuredPassword || configuredPassword === 'MY_APP_PASSWORD') {
+    return res.json({ status: 'ok', required: false, authenticated: true });
+  }
+
+  const provided =
+    (req.headers['x-app-password'] as string) ||
+    req.headers.authorization?.replace(/^Bearer\s+/i, '') ||
+    (req.query.token as string);
+
+  const isMatch = Boolean(provided && provided.trim() === configuredPassword);
+  res.json({ status: 'ok', required: true, authenticated: isMatch });
+});
+
+app.post('/api/auth/verify', (req, res) => {
+  const configuredPassword = process.env.APP_PASSWORD ? process.env.APP_PASSWORD.trim() : '';
+  if (!configuredPassword || configuredPassword === 'MY_APP_PASSWORD') {
+    return res.json({ status: 'ok', required: false, authenticated: true });
+  }
+
+  const { password } = req.body || {};
+  if (password && password.trim() === configuredPassword) {
+    return res.json({ status: 'ok', required: true, authenticated: true });
+  }
+
+  return res.status(401).json({
+    status: 'error',
+    error: 'Mot de passe incorrect.',
+    authenticated: false,
+  });
+});
+
+app.use('/api', (req, res, next) => {
+  if (req.path === '/auth/status' || req.path === '/auth/verify') {
+    return next();
+  }
+
+  const configuredPassword = process.env.APP_PASSWORD ? process.env.APP_PASSWORD.trim() : '';
+  if (!configuredPassword || configuredPassword === 'MY_APP_PASSWORD') {
+    return next();
+  }
+
+  const provided =
+    (req.headers['x-app-password'] as string) ||
+    req.headers.authorization?.replace(/^Bearer\s+/i, '') ||
+    (req.query.token as string);
+
+  if (provided && provided.trim() === configuredPassword) {
+    return next();
+  }
+
+  return res.status(401).json({
+    error: 'Accès protégé : mot de passe requis ou invalide.',
+    authenticated: false,
+    code: 'UNAUTHORIZED',
+  });
+});
+
 // Live Signals Harvester (Real External Sources: AllAfrica, Le Figaro, World Bank, BCE/OpenFX)
 app.get('/api/signals/live', async (req, res) => {
   const region = (req.query.region as string) || 'all';

@@ -12,6 +12,8 @@ import { LaunchpadView } from './components/LaunchpadView';
 import { ArbitrageView } from './components/ArbitrageView';
 import { PipelineView } from './components/PipelineView';
 import { SectorDetailModal } from './components/SectorDetailModal';
+import { PasswordGateModal } from './components/PasswordGateModal';
+import { checkAuthStatus, clearStoredPassword } from './utils/auth';
 import {
   EconomicSector,
   OpportunityNiche,
@@ -32,6 +34,29 @@ export default function App() {
   const [selectedSectorForModal, setSelectedSectorForModal] = useState<EconomicSector | null>(null);
   const [selectedNicheForModal, setSelectedNicheForModal] = useState<OpportunityNiche | null>(null);
   const [selectedOpportunityForKit, setSelectedOpportunityForKit] = useState<StrictOpportunity | null>(null);
+
+  // Authentication barrier state (APP_PASSWORD)
+  const [isAuthRequired, setIsAuthRequired] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    checkAuthStatus().then((status) => {
+      setIsAuthRequired(status.required);
+      if (status.required && !status.authenticated) {
+        setIsAuthenticated(false);
+        setShowPasswordModal(true);
+      }
+    });
+
+    const handleUnauthorized = () => {
+      setIsAuthenticated(false);
+      setShowPasswordModal(true);
+    };
+
+    window.addEventListener('omnivectis:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('omnivectis:unauthorized', handleUnauthorized);
+  }, []);
 
   // Cross-view state transfer
   const [blueprintSectorId, setBlueprintSectorId] = useState<SectorCategory>('ai_deeptech');
@@ -217,6 +242,12 @@ export default function App() {
         savedCount={pipelineItems.length}
         countryCode={countryCode}
         onCountryChange={setCountryCode}
+        isProtected={isAuthRequired}
+        onLock={() => {
+          clearStoredPassword();
+          setIsAuthenticated(false);
+          setShowPasswordModal(true);
+        }}
       />
 
       {/* Main Content Viewport */}
@@ -436,6 +467,15 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Password Protection Barrier (APP_PASSWORD) */}
+      <PasswordGateModal
+        isOpen={showPasswordModal}
+        onSuccess={() => {
+          setIsAuthenticated(true);
+          setShowPasswordModal(false);
+        }}
+      />
     </div>
   );
 }

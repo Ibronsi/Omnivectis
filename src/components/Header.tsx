@@ -13,6 +13,7 @@ import {
   DollarSign,
   Activity,
   AlertTriangle,
+  Lock,
 } from 'lucide-react';
 import { CountryCode, UsageCounterStats } from '../types/market';
 import { GEO_PROFILES } from '../data/geoProfiles';
@@ -38,6 +39,8 @@ interface HeaderProps {
   savedCount: number;
   countryCode: CountryCode;
   onCountryChange: (country: CountryCode) => void;
+  isProtected?: boolean;
+  onLock?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -47,6 +50,8 @@ export const Header: React.FC<HeaderProps> = ({
   savedCount,
   countryCode,
   onCountryChange,
+  isProtected,
+  onLock,
 }) => {
   const currentProfile = GEO_PROFILES[countryCode] || GEO_PROFILES.NER;
   const [usageStats, setUsageStats] = useState<UsageCounterStats | null>(null);
@@ -204,6 +209,17 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="w-2 h-2 rounded-full bg-rose-500" title="Dernière erreur enregistrée" />
               )}
             </button>
+
+            {/* Lock Terminal Button (if APP_PASSWORD is configured) */}
+            {isProtected && onLock && (
+              <button
+                onClick={onLock}
+                className="cursor-pointer p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors"
+                title="Verrouiller la session (Mot de passe APP_PASSWORD requis)"
+              >
+                <Lock className="w-3.5 h-3.5 text-indigo-400" />
+              </button>
+            )}
 
             {/* Primary Action Button */}
             <button
