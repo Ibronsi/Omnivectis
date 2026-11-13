@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Header, ActiveTab } from './components/Header';
+import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
 import { RadarView } from './components/RadarView';
 import { OpportunitiesView } from './components/OpportunitiesView';
@@ -31,6 +32,7 @@ const STORAGE_KEY = 'omnivectis_pipeline_v1';
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [countryCode, setCountryCode] = useState<CountryCode>('NER');
+  const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
   const [selectedSectorForModal, setSelectedSectorForModal] = useState<EconomicSector | null>(null);
   const [selectedNicheForModal, setSelectedNicheForModal] = useState<OpportunityNiche | null>(null);
   const [selectedOpportunityForKit, setSelectedOpportunityForKit] = useState<StrictOpportunity | null>(null);
@@ -231,27 +233,36 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Strict Top Bar Contract Header */}
-      <Header
+    <div className="min-h-screen bg-[#090B10] text-slate-100 flex font-sans">
+      <Sidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        onQuickAction={() => {
-          setActiveTab('sales');
-        }}
         savedCount={pipelineItems.length}
         countryCode={countryCode}
         onCountryChange={setCountryCode}
-        isProtected={isAuthRequired}
-        onLock={() => {
-          clearStoredPassword();
-          setIsAuthenticated(false);
-          setShowPasswordModal(true);
-        }}
+        mobileOpen={mobileNavOpen}
+        onCloseMobile={() => setMobileNavOpen(false)}
       />
 
-      {/* Main Content Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+        {/* Strict Top Bar Contract Header */}
+        <Header
+          activeTab={activeTab}
+          onQuickAction={() => {
+            setActiveTab('sales');
+          }}
+          countryCode={countryCode}
+          isProtected={isAuthRequired}
+          onLock={() => {
+            clearStoredPassword();
+            setIsAuthenticated(false);
+            setShowPasswordModal(true);
+          }}
+          onOpenMobileNav={() => setMobileNavOpen(true)}
+        />
+
+        {/* Main Content Viewport */}
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'opportunities' && (
           <OpportunitiesView
             countryCode={countryCode}
@@ -393,7 +404,58 @@ export default function App() {
             }}
           />
         )}
-      </main>
+        </main>
+
+        {/* Quiet Editorial Footer */}
+        <footer className="border-t border-white/[0.07] bg-[#090B10] py-5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="font-display font-semibold text-slate-300">OmniVectis</span>
+              <span aria-hidden="true">·</span>
+              <span>Usage Personnel · Provenance Stricte</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-5">
+              <button
+                onClick={() => setActiveTab('radar')}
+                className="hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                Radar
+              </button>
+              <button
+                onClick={() => setActiveTab('opportunities')}
+                className="hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                Opportunités
+              </button>
+              <button
+                onClick={() => setActiveTab('kits')}
+                className="hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                Dossiers & Plans
+              </button>
+              <button
+                onClick={() => setActiveTab('validation')}
+                className="hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                À Valider
+              </button>
+              <button
+                onClick={() => setActiveTab('sales')}
+                className="hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                Encaissements
+              </button>
+              <button
+                onClick={() => setActiveTab('simulator')}
+                className="hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                Simulateur
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
 
       {/* Detail Modal */}
       <SectorDetailModal
@@ -413,60 +475,6 @@ export default function App() {
           setActiveTab('launchpad');
         }}
       />
-
-      {/* Clean Editorial Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-8 px-6 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-400">OmniVectis</span>
-            <span aria-hidden="true">·</span>
-            <span>Usage Personnel · Données Vérifiées sans Simulation</span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-            <button
-              onClick={() => setActiveTab('radar')}
-              className="hover:text-slate-300 transition-colors cursor-pointer"
-            >
-              Radar
-            </button>
-            <button
-              onClick={() => setActiveTab('opportunities')}
-              className="hover:text-slate-300 transition-colors cursor-pointer"
-            >
-              Opportunités
-            </button>
-            <button
-              onClick={() => setActiveTab('kits')}
-              className="hover:text-slate-300 transition-colors cursor-pointer"
-            >
-              Dossiers & Plans
-            </button>
-            <button
-              onClick={() => setActiveTab('validation')}
-              className="hover:text-slate-300 transition-colors cursor-pointer text-emerald-400"
-            >
-              À Valider
-            </button>
-            <button
-              onClick={() => setActiveTab('sales')}
-              className="hover:text-slate-300 transition-colors cursor-pointer text-emerald-400"
-            >
-              Encaissements
-            </button>
-            <button
-              onClick={() => setActiveTab('simulator')}
-              className="hover:text-slate-300 transition-colors cursor-pointer"
-            >
-              Simulateur
-            </button>
-          </div>
-
-          <div>
-            <span>Statut : <span className="text-emerald-400 font-mono">live</span> · Sources certifiées</span>
-          </div>
-        </div>
-      </footer>
 
       {/* Password Protection Barrier (APP_PASSWORD) */}
       <PasswordGateModal

@@ -32,10 +32,10 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
   const [newNotes, setNewNotes] = useState<string>('');
 
   const stages: { key: PipelineItem['stage']; label: string; color: string }[] = [
-    { key: 'discovery', label: '01. Découverte & Étude de Marché', color: 'border-slate-700' },
-    { key: 'validation', label: '02. Validation Commerciale', color: 'border-indigo-500/60' },
-    { key: 'building', label: '03. Lancement MVP & Automatisation', color: 'border-cyan-500/60' },
-    { key: 'monetizing', label: '04. Encaissements & Cash Récurrent', color: 'border-emerald-500/60' },
+    { key: 'discovery', label: '01. Découverte & Étude de Marché', color: 'border-white/[0.08]' },
+    { key: 'validation', label: '02. Validation Commerciale', color: 'border-blue-500/30' },
+    { key: 'building', label: '03. Lancement MVP & Automatisation', color: 'border-cyan-500/30' },
+    { key: 'monetizing', label: '04. Encaissements & Cash Récurrent', color: 'border-emerald-500/30' },
   ];
 
   const handleCreate = (e: React.FormEvent) => {
@@ -113,15 +113,15 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
   return (
     <div className="space-y-8">
       {/* Editorial Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-800 pb-6">
-        <div>
-          <div className="text-xs font-semibold text-indigo-400 tracking-wider uppercase mb-1">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/[0.08] pb-6">
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-blue-400">
             Exécution & Pilotage Opérationnel
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+          </p>
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
             Mon Pipeline d Opportunités Multi-Secteurs
           </h1>
-          <p className="text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed">
+          <p className="text-sm text-slate-400 max-w-3xl leading-relaxed">
             Suivez l avancée de vos projets de revenus, de l étude de marché jusqu aux premiers encaissements
             récurrents. Vos opportunités sont sauvegardées automatiquement.
           </p>
@@ -130,7 +130,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={handleExportJSON}
-            className="cursor-pointer px-3.5 py-2 text-xs font-medium text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
+            className="cursor-pointer px-3.5 py-2 text-xs font-medium text-slate-300 bg-[#11141C] hover:bg-white/[0.05] border border-white/[0.08] rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Exporter JSON</span>
@@ -138,7 +138,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap"
+            className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             <span>Ajouter une Opportunité</span>
@@ -146,57 +146,57 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
         </div>
       </div>
 
-      {/* Pipeline Summary Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-xl">
+      {/* Unified Pipeline KPI Ledger Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 bg-[#11141C] border border-white/[0.08] rounded-xl divide-y sm:divide-y-0 sm:divide-x divide-white/[0.08]">
+        <div className="p-4">
           <span className="text-xs text-slate-400 block">Opportunités Actives</span>
-          <span className="text-2xl font-bold font-mono text-white mt-1 block">
+          <span className="text-2xl font-bold font-mono text-white mt-1 block tabular-nums">
             {items.length}
           </span>
         </div>
 
-        <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-xl">
+        <div className="p-4">
           <span className="text-xs text-slate-400 block">Objectif de Revenu Global</span>
           <span className="text-2xl font-bold font-mono text-emerald-400 mt-1 block tabular-nums">
             {totalTargetMrr.toLocaleString()} € / mois
           </span>
         </div>
 
-        <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-xl">
+        <div className="p-4">
           <span className="text-xs text-slate-400 block">Potentiel Annuel Cumulé</span>
-          <span className="text-2xl font-bold font-mono text-indigo-400 mt-1 block tabular-nums">
+          <span className="text-2xl font-bold font-mono text-blue-400 mt-1 block tabular-nums">
             {(totalTargetMrr * 12).toLocaleString()} € / an
           </span>
         </div>
 
-        <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-xl">
+        <div className="p-4">
           <span className="text-xs text-slate-400 block">Phase de Monétisation</span>
-          <span className="text-2xl font-bold font-mono text-cyan-400 mt-1 block">
+          <span className="text-2xl font-bold font-mono text-cyan-400 mt-1 block tabular-nums">
             {items.filter((i) => i.stage === 'monetizing').length} en cours
           </span>
         </div>
       </div>
 
       {/* Kanban Stages Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 items-start">
         {stages.map((st) => {
           const stageItems = items.filter((i) => i.stage === st.key);
           return (
             <div
               key={st.key}
-              className={`bg-slate-900/60 border ${st.color} rounded-xl p-4 flex flex-col min-h-[480px] space-y-4`}
+              className={`bg-[#11141C] border ${st.color} rounded-xl p-4 flex flex-col min-h-[460px] space-y-4`}
             >
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <span className="text-xs font-bold text-white tracking-wide">
+              <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
+                <span className="text-xs font-semibold text-white">
                   {st.label}
                 </span>
-                <span className="text-xs font-mono font-semibold px-2 py-0.5 bg-slate-800 text-slate-300 rounded">
+                <span className="text-xs font-mono font-semibold text-slate-400 tabular-nums">
                   {stageItems.length}
                 </span>
               </div>
 
               {stageItems.length === 0 && (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-slate-500 text-xs border border-dashed border-slate-800/80 rounded-lg">
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-slate-500 text-xs border border-dashed border-white/[0.08] rounded-lg">
                   <span>Aucun projet à cette étape</span>
                 </div>
               )}
@@ -205,13 +205,13 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                 {stageItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-4 bg-slate-950 border border-slate-800/80 rounded-lg space-y-3 shadow-md hover:border-slate-700 transition-all"
+                    className="p-4 bg-[#0D1017] border border-white/[0.08] rounded-lg space-y-3 hover:border-white/[0.16] transition-colors"
                   >
                     <div>
-                      <div className="text-[11px] text-indigo-400 font-medium">
+                      <div className="text-[11px] text-blue-400 font-medium">
                         {item.sectorName}
                       </div>
-                      <h4 className="text-sm font-bold text-white mt-0.5">
+                      <h4 className="font-display text-sm font-semibold text-white mt-0.5">
                         {item.title}
                       </h4>
                       {item.notes && (
@@ -221,9 +221,9 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between text-xs font-mono border-t border-slate-800/60 pt-2 text-slate-300">
+                    <div className="flex items-center justify-between text-xs font-mono border-t border-white/[0.06] pt-2 text-slate-300 tabular-nums">
                       <span className="text-slate-500">Cible :</span>
-                      <span className="text-emerald-400 font-bold tabular-nums">
+                      <span className="text-emerald-400 font-semibold">
                         {item.targetMrr.toLocaleString()} € / mois
                       </span>
                     </div>
@@ -249,7 +249,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                     </div>
 
                     {/* Actions on Item */}
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/60 text-xs">
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.06] text-xs">
                       <button
                         onClick={() => handleDelete(item.id)}
                         className="cursor-pointer text-slate-500 hover:text-rose-400 p-1 transition-colors"
@@ -261,14 +261,14 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => onNavigateToBlueprint(item.sectorId, item.title)}
-                          className="cursor-pointer text-[11px] text-indigo-400 hover:text-indigo-300"
+                          className="cursor-pointer text-[11px] text-blue-400 hover:text-blue-300"
                         >
                           Plan IA
                         </button>
                         {st.key !== 'monetizing' && (
                           <button
                             onClick={() => handleMoveStage(item.id, 'next')}
-                            className="cursor-pointer px-2 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded flex items-center gap-1 transition-colors"
+                            className="cursor-pointer px-2.5 py-1 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-[11px] text-slate-200 rounded flex items-center gap-1 transition-colors"
                           >
                             <span>Avancer</span>
                             <ArrowRight className="w-3 h-3" />
@@ -286,9 +286,9 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
       {/* Add Item Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4 shadow-2xl">
-            <h3 className="text-lg font-bold text-white">Ajouter une Opportunité au Pipeline</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#090B10]/85 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[#11141C] border border-white/[0.1] rounded-xl p-6 space-y-4 shadow-2xl">
+            <h3 className="font-display text-lg font-semibold text-white">Ajouter une Opportunité au Pipeline</h3>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs text-slate-300">Titre ou Nom du Projet</label>
@@ -298,7 +298,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                   placeholder="Ex: Micro-SaaS d audit CSRD pour PME"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full p-2.5 bg-slate-950 border border-slate-800 text-xs text-white rounded-lg focus:outline-none focus:border-indigo-500"
+                  className="w-full p-2.5 bg-[#0D1017] border border-white/[0.1] text-xs text-white rounded-lg focus:outline-none focus:border-blue-500/60"
                 />
               </div>
 
@@ -307,7 +307,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                 <select
                   value={newSectorId}
                   onChange={(e) => setNewSectorId(e.target.value as SectorCategory)}
-                  className="w-full p-2.5 bg-slate-950 border border-slate-800 text-xs text-white rounded-lg focus:outline-none focus:border-indigo-500 cursor-pointer"
+                  className="w-full p-2.5 bg-[#0D1017] border border-white/[0.1] text-xs text-white rounded-lg focus:outline-none focus:border-blue-500/60 cursor-pointer"
                 >
                   {ECONOMIC_SECTORS.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -326,7 +326,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                   step="500"
                   value={newTargetMrr}
                   onChange={(e) => setNewTargetMrr(Number(e.target.value))}
-                  className="w-full p-2.5 bg-slate-950 border border-slate-800 text-xs text-white rounded-lg focus:outline-none focus:border-indigo-500 font-mono"
+                  className="w-full p-2.5 bg-[#0D1017] border border-white/[0.1] text-xs text-white rounded-lg focus:outline-none focus:border-blue-500/60 font-mono tabular-nums"
                 />
               </div>
 
@@ -337,7 +337,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                   placeholder="Ex: Cibler les experts-comptables de ma région d abord..."
                   value={newNotes}
                   onChange={(e) => setNewNotes(e.target.value)}
-                  className="w-full p-2.5 bg-slate-950 border border-slate-800 text-xs text-white rounded-lg focus:outline-none focus:border-indigo-500"
+                  className="w-full p-2.5 bg-[#0D1017] border border-white/[0.1] text-xs text-white rounded-lg focus:outline-none focus:border-blue-500/60"
                 />
               </div>
 
@@ -351,7 +351,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-sm"
+                  className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
                 >
                   Enregistrer
                 </button>

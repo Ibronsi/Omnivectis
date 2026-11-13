@@ -136,17 +136,17 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-800 pb-6">
-        <div>
-          <div className="text-xs font-semibold text-emerald-400 tracking-wider uppercase mb-1 flex items-center gap-1.5">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/[0.08] pb-6">
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
             <Lock className="w-3.5 h-3.5" />
             <span>Contrôle Strict · Règle d Approbation Préalable</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            File "À valider" & Journal d Actions
+          </p>
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
+            File « À valider » & Journal d Actions
           </h1>
-          <p className="text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed">
-            <strong className="text-white">Règle absolue :</strong> Rien n est envoyé, contacté ni publié sans votre validation formelle.
+          <p className="text-sm text-slate-400 max-w-3xl leading-relaxed">
+            <strong className="text-slate-200 font-medium">Règle absolue :</strong> Rien n est envoyé, contacté ni publié sans votre validation formelle.
             Chaque prospection, offre ou formalité reste ici en attente, et chaque événement est consigné dans le journal d audit inaltérable.
           </p>
         </div>
@@ -154,7 +154,7 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={fetchData}
-            className="cursor-pointer px-3.5 py-2 text-xs text-slate-300 hover:text-white bg-slate-900 border border-slate-800 rounded-lg flex items-center gap-2"
+            className="cursor-pointer px-3.5 py-2 text-xs font-medium text-slate-300 hover:text-white bg-[#11141C] hover:bg-white/[0.04] border border-white/[0.08] rounded-lg flex items-center gap-2 transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Actualiser</span>
@@ -163,41 +163,41 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       </div>
 
       {/* Primary SubTabs: Queue vs Audit */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <div className="flex items-center gap-1 p-1 bg-[#11141C] border border-white/[0.08] rounded-lg">
           <button
             onClick={() => setActiveSubTab('queue')}
-            className={`cursor-pointer px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+            className={`cursor-pointer px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-2 ${
               activeSubTab === 'queue'
                 ? 'bg-emerald-600 text-white'
-                : 'text-slate-400 hover:text-white bg-slate-900/60'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            <ShieldCheck className="w-4 h-4" />
-            <span>File "À valider"</span>
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>File « À valider »</span>
             {pendingCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 font-mono text-[10px] border border-emerald-700">
-                {pendingCount} en attente
+              <span className="font-mono text-[11px] opacity-90 tabular-nums">
+                ({pendingCount})
               </span>
             )}
           </button>
 
           <button
             onClick={() => setActiveSubTab('audit')}
-            className={`cursor-pointer px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+            className={`cursor-pointer px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-2 ${
               activeSubTab === 'audit'
-                ? 'bg-indigo-600 text-white'
-                : 'text-slate-400 hover:text-white bg-slate-900/60'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            <History className="w-4 h-4" />
+            <History className="w-3.5 h-3.5" />
             <span>Journal de Toutes les Actions ({auditEntries.length})</span>
           </button>
         </div>
       </div>
 
       {feedbackMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-800/80 text-emerald-200 text-xs flex items-center gap-2">
+        <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-200 text-xs flex items-center gap-2.5">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{feedbackMsg}</span>
         </div>
@@ -207,13 +207,13 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       {activeSubTab === 'queue' && (
         <div className="space-y-6">
           {/* Status filter bar */}
-          <div className="flex items-center justify-between gap-4 p-3 bg-slate-900/60 border border-slate-800 rounded-xl">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-400 font-medium">Filtrer les éléments :</span>
-              <div className="flex items-center gap-1 p-0.5 bg-slate-950 rounded border border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-[#11141C] border border-white/[0.08] rounded-xl">
+            <div className="flex flex-wrap items-center gap-2.5 text-xs">
+              <span className="text-slate-400 font-medium pl-1">Filtrer :</span>
+              <div className="flex items-center gap-1 p-1 bg-[#0D1017] rounded-lg border border-white/[0.07]">
                 <button
                   onClick={() => setStatusFilter('en_attente')}
-                  className={`px-3 py-1 rounded transition-colors whitespace-nowrap ${
+                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
                     statusFilter === 'en_attente' ? 'bg-amber-600 text-white font-medium' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -221,7 +221,7 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                 </button>
                 <button
                   onClick={() => setStatusFilter('valide')}
-                  className={`px-3 py-1 rounded transition-colors whitespace-nowrap ${
+                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
                     statusFilter === 'valide' ? 'bg-emerald-600 text-white font-medium' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -229,7 +229,7 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                 </button>
                 <button
                   onClick={() => setStatusFilter('rejete')}
-                  className={`px-3 py-1 rounded transition-colors whitespace-nowrap ${
+                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
                     statusFilter === 'rejete' ? 'bg-rose-600 text-white font-medium' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -237,8 +237,8 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                 </button>
                 <button
                   onClick={() => setStatusFilter('all')}
-                  className={`px-3 py-1 rounded transition-colors whitespace-nowrap ${
-                    statusFilter === 'all' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-white'
+                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
+                    statusFilter === 'all' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   Tous ({queueItems.length})
@@ -246,24 +246,24 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
               </div>
             </div>
 
-            <span className="text-[11px] text-slate-400 hidden sm:block">
-              Aucun envoi automatisé sans clic "Valider"
+            <span className="text-[11px] text-slate-500 hidden sm:block pr-1">
+              Aucun envoi automatisé sans clic « Valider »
             </span>
           </div>
 
           {/* Items List */}
           {loading ? (
             <div className="py-20 text-center text-slate-400 space-y-3">
-              <RefreshCw className="w-8 h-8 animate-spin mx-auto text-emerald-400" />
+              <RefreshCw className="w-7 h-7 animate-spin mx-auto text-emerald-400" />
               <p className="text-sm">Chargement des éléments en file...</p>
             </div>
           ) : filteredQueue.length === 0 ? (
-            <div className="py-16 text-center bg-slate-900/30 border border-slate-800 rounded-xl space-y-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto text-emerald-400">
+            <div className="py-16 text-center bg-[#11141C] border border-white/[0.08] rounded-xl space-y-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto text-emerald-400">
                 <CheckCircle2 className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-semibold text-white">Aucun élément dans cette catégorie</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              <h3 className="font-display text-base font-semibold text-white">Aucun élément dans cette catégorie</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
                 Lorsque vous générez un dossier de lancement ou plan physique, les messages et formalités s affichent ici pour approbation.
               </p>
             </div>
@@ -277,58 +277,58 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                 return (
                   <div
                     key={item.id}
-                    className={`p-5 rounded-2xl border transition-all space-y-4 ${
+                    className={`p-6 rounded-xl bg-[#11141C] border transition-colors space-y-4 ${
                       isPending
-                        ? 'bg-slate-900 border-amber-700/50 hover:border-amber-600/70'
+                        ? 'border-amber-500/30 hover:border-amber-500/50'
                         : isValidated
-                        ? 'bg-slate-900/60 border-emerald-900/60'
-                        : 'bg-slate-900/40 border-rose-900/60'
+                        ? 'border-emerald-500/25'
+                        : 'border-rose-500/25'
                     }`}
                   >
                     {/* Header Zone */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap text-xs">
                           <span
-                            className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold ${
+                            className={`font-mono font-medium ${
                               item.category === 'prospection_message'
-                                ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
+                                ? 'text-cyan-400'
                                 : item.category === 'administrative_step'
-                                ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                                : 'bg-indigo-950 text-indigo-300 border border-indigo-800'
+                                ? 'text-amber-400'
+                                : 'text-blue-400'
                             }`}
                           >
                             {item.category.replace('_', ' ')}
                           </span>
-                          <span className="text-xs text-slate-400">·</span>
-                          <span className="text-xs text-slate-300">
-                            Destinataire : <strong className="text-white">{item.targetRecipient || 'Non spécifié'}</strong>
+                          <span aria-hidden="true" className="text-slate-600">·</span>
+                          <span className="text-slate-400">
+                            Destinataire : <strong className="text-slate-200 font-medium">{item.targetRecipient || 'Non spécifié'}</strong>
                           </span>
-                          <span className="text-xs text-slate-400">·</span>
-                          <span className="text-[11px] text-slate-400">
+                          <span aria-hidden="true" className="text-slate-600">·</span>
+                          <span className="text-[11px] text-slate-500">
                             Source : {item.sourceOpportunityTitle}
                           </span>
                         </div>
 
-                        <h3 className="text-base font-bold text-white pt-1">{item.title}</h3>
+                        <h3 className="font-display text-base font-semibold text-white">{item.title}</h3>
                       </div>
 
-                      {/* Status indicator */}
+                      {/* Unboxed Semantic Status */}
                       <div className="shrink-0">
                         {isPending && (
-                          <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
+                          <span className="text-xs font-mono font-medium text-amber-400 flex items-center gap-1.5">
                             <Clock className="w-3.5 h-3.5" />
-                            <span>En attente de validation</span>
+                            <span>En attente</span>
                           </span>
                         )}
                         {isValidated && (
-                          <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
+                          <span className="text-xs font-mono font-medium text-emerald-400 flex items-center gap-1.5">
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Validé par l utilisateur</span>
+                            <span>Validé</span>
                           </span>
                         )}
                         {isRejected && (
-                          <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1.5">
+                          <span className="text-xs font-mono font-medium text-rose-400 flex items-center gap-1.5">
                             <XCircle className="w-3.5 h-3.5" />
                             <span>Rejeté</span>
                           </span>
@@ -336,14 +336,14 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                       </div>
                     </div>
 
-                    {/* Content Payload */}
-                    <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">
+                    {/* Content Payload (Recessed monospace/sans surface, hairline separated) */}
+                    <div className="p-4 rounded-lg bg-[#0D1017] border border-white/[0.06] text-xs text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">
                       {item.contentPayload}
                     </div>
 
                     {/* Review Notes & Actions */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
-                      <div className="text-[11px] text-slate-400 font-mono">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-white/[0.07]">
+                      <div className="text-[11px] text-slate-500 font-mono tabular-nums">
                         Créé le {new Date(item.createdAt).toLocaleString('fr-FR')}
                         {item.reviewedAt && ` · Traité le ${new Date(item.reviewedAt).toLocaleString('fr-FR')}`}
                       </div>
@@ -352,14 +352,14 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleUpdateStatus(item.id, 'rejete')}
-                            className="cursor-pointer px-3 py-1.5 text-xs text-rose-300 hover:text-white bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 rounded-lg flex items-center gap-1.5 transition-colors"
+                            className="cursor-pointer px-3 py-1.5 text-xs font-medium text-rose-300 hover:text-white bg-rose-950/30 hover:bg-rose-900/50 border border-rose-500/30 rounded-lg flex items-center gap-1.5 transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
                             <span>Rejeter l action</span>
                           </button>
                           <button
                             onClick={() => handleUpdateStatus(item.id, 'valide')}
-                            className="cursor-pointer px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-sm flex items-center gap-1.5 transition-colors"
+                            className="cursor-pointer px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg flex items-center gap-1.5 transition-colors"
                           >
                             <Check className="w-3.5 h-3.5" />
                             <span>Valider & Autoriser l exécution</span>
@@ -382,54 +382,54 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       {/* ===================== VIEW 2: JOURNAL DE TOUTES LES ACTIONS (AUDIT LOG) ===================== */}
       {activeSubTab === 'audit' && (
         <div className="space-y-4">
-          <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 flex items-center justify-between">
+          <div className="p-4 rounded-xl bg-[#11141C] border border-white/[0.08] text-xs text-slate-300 flex items-center justify-between gap-4">
             <span>
               Journal certifié enregistrant chaque collecte de signal, synthèse d opportunité, validation manuelle, vente réelle et modification d hypothèse.
             </span>
-            <span className="font-mono text-indigo-400">{auditEntries.length} entrées</span>
+            <span className="font-mono text-blue-400 shrink-0 tabular-nums">{auditEntries.length} entrées</span>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+          <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-[#11141C]">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 bg-slate-900/80">
-                  <th className="py-3 px-4 font-semibold">Horodatage</th>
-                  <th className="py-3 px-4 font-semibold">Acteur</th>
-                  <th className="py-3 px-4 font-semibold">Type d Action</th>
-                  <th className="py-3 px-4 font-semibold">Description</th>
-                  <th className="py-3 px-4 font-semibold">Détails Provenance</th>
-                  <th className="py-3 px-4 text-center font-semibold">Statut</th>
+                <tr className="border-b border-white/[0.08] text-slate-400 bg-[#0D1017]">
+                  <th className="py-2.5 px-4 font-semibold">Horodatage</th>
+                  <th className="py-2.5 px-4 font-semibold">Acteur</th>
+                  <th className="py-2.5 px-4 font-semibold">Type d Action</th>
+                  <th className="py-2.5 px-4 font-semibold">Description</th>
+                  <th className="py-2.5 px-4 font-semibold">Détails Provenance</th>
+                  <th className="py-2.5 px-4 text-center font-semibold">Statut</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 font-sans">
+              <tbody className="divide-y divide-white/[0.06] font-sans">
                 {auditEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center text-slate-400">
+                    <td colSpan={6} className="py-8 text-center text-slate-400">
                       Aucune entrée dans le journal d actions.
                     </td>
                   </tr>
                 ) : (
                   auditEntries.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-slate-900/40">
-                      <td className="py-3 px-4 text-slate-400 font-mono text-[11px] whitespace-nowrap">
+                    <tr key={entry.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-2.5 px-4 text-slate-400 font-mono text-[11px] whitespace-nowrap tabular-nums">
                         {new Date(entry.timestamp).toLocaleString('fr-FR')}
                       </td>
-                      <td className="py-3 px-4 whitespace-nowrap">{getActorBadge(entry.actor)}</td>
-                      <td className="py-3 px-4 text-slate-300 font-semibold whitespace-nowrap">
+                      <td className="py-2.5 px-4 whitespace-nowrap">{getActorBadge(entry.actor)}</td>
+                      <td className="py-2.5 px-4 text-slate-200 font-medium whitespace-nowrap">
                         {getActionBadge(entry.actionType)}
                       </td>
-                      <td className="py-3 px-4 text-slate-200">{entry.description}</td>
-                      <td className="py-3 px-4 text-slate-400 text-[11px] max-w-xs truncate">
+                      <td className="py-2.5 px-4 text-slate-300">{entry.description}</td>
+                      <td className="py-2.5 px-4 text-slate-400 text-[11px] max-w-xs truncate">
                         {entry.provenanceDetails || '-'}
                       </td>
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                      <td className="py-2.5 px-4 text-center whitespace-nowrap">
                         <span
-                          className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                          className={`text-[11px] font-mono font-medium ${
                             entry.status === 'success'
-                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                              ? 'text-emerald-400'
                               : entry.status === 'warning'
-                              ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                              : 'bg-rose-950 text-rose-300 border border-rose-800'
+                              ? 'text-amber-400'
+                              : 'text-rose-400'
                           }`}
                         >
                           {entry.status}

@@ -4,18 +4,11 @@ import {
   RefreshCw,
   ExternalLink,
   ShieldAlert,
-  HelpCircle,
   FileText,
-  DollarSign,
-  TrendingUp,
-  Tag,
-  CheckCircle2,
   AlertOctagon,
-  Filter,
   Layers,
   ArrowRight,
   Database,
-  Radio,
 } from 'lucide-react';
 import { StrictOpportunity, CountryCode } from '../types/market';
 import { GEO_PROFILES } from '../data/geoProfiles';
@@ -31,7 +24,6 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
   countryCode,
   onOpenDigitalKit,
   onOpenPhysicalPlan,
-  onAddToPipeline,
 }) => {
   const [opportunities, setOpportunities] = useState<StrictOpportunity[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -52,7 +44,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
       if (data?.opportunities) {
         setOpportunities(data.opportunities);
       }
-    } catch (e: any) {
+    } catch {
       setErrorMsg('Impossible de charger les opportunités locales.');
     } finally {
       setLoading(false);
@@ -94,46 +86,31 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
     return true;
   });
 
-  const getStatusBadge = (status: 'live' | 'cache' | 'indisponible') => {
+  const renderStatusText = (status: 'live' | 'cache' | 'indisponible') => {
     switch (status) {
       case 'live':
-        return (
-          <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span>live</span>
-          </span>
-        );
+        return <span className="font-mono text-[11px] text-emerald-400">live</span>;
       case 'cache':
-        return (
-          <span className="text-[11px] font-mono text-amber-400 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-            <span>cache</span>
-          </span>
-        );
+        return <span className="font-mono text-[11px] text-amber-400">cache</span>;
       case 'indisponible':
       default:
-        return (
-          <span className="text-[11px] font-mono text-rose-400 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
-            <span>indisponible</span>
-          </span>
-        );
+        return <span className="font-mono text-[11px] text-rose-400">indisponible</span>;
     }
   };
 
   return (
     <div className="space-y-8">
       {/* Editorial Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-800 pb-6">
-        <div>
-          <div className="text-xs font-semibold text-indigo-400 tracking-wider uppercase mb-1">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/[0.08] pb-6">
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-blue-400">
             Provenance Stricte · Aucune Donnée Inventée
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+          </p>
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
             Module Opportunités · {currentProfile.countryName}
           </h1>
-          <p className="text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed">
-            Opportunités dérivées <strong className="text-white">exclusivement</strong> des signaux collectés stockés dans la table.
+          <p className="text-sm text-slate-400 max-w-3xl leading-relaxed">
+            Opportunités dérivées <strong className="text-slate-200 font-medium">exclusivement</strong> des signaux collectés stockés dans la table.
             Chaque fait cite sa source officielle, sa date et son statut (<span className="text-emerald-400 font-mono">live</span>, <span className="text-amber-400 font-mono">cache</span>, <span className="text-rose-400 font-mono">indisponible</span>).
           </p>
         </div>
@@ -142,74 +119,72 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
           <button
             onClick={handleSynthesize}
             disabled={synthesizing}
-            className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-sm transition-all whitespace-nowrap flex items-center gap-2 disabled:opacity-50"
+            className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors whitespace-nowrap flex items-center gap-2 disabled:opacity-50"
           >
-            <Sparkles className={`w-4 h-4 ${synthesizing ? 'animate-spin' : 'text-indigo-200'}`} />
+            <Sparkles className={`w-3.5 h-3.5 ${synthesizing ? 'animate-spin' : ''}`} />
             <span>{synthesizing ? 'Synthèse Gemini en cours...' : 'Synthétiser depuis signaux stockés'}</span>
           </button>
         </div>
       </div>
 
-      {/* Banner Rule Notice */}
-      <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Database className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-semibold text-white">Protocole d Intégrité OmniVectis : </span>
-            <span>
-              Gemini ne propose rien sans faits tangibles pré-enregistrés. S il n y a pas au moins 2 signaux tangibles, le système répond{' '}
-              <code className="text-amber-300 font-mono">données insuffisantes</code>.
-            </span>
-          </div>
+      {/* Integrity Protocol Strip */}
+      <div className="p-4 rounded-xl bg-[#11141C] border border-white/[0.08] text-xs text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start sm:items-center gap-3">
+          <Database className="w-4 h-4 text-blue-400 shrink-0 mt-0.5 sm:mt-0" />
+          <p className="leading-relaxed">
+            <span className="font-semibold text-white">Protocole d Intégrité : </span>
+            Gemini ne propose aucune opportunité sans signaux collectés pré-enregistrés. En dessous de 2 signaux disponibles, le système répond{' '}
+            <code className="text-amber-300 font-mono">données insuffisantes</code>.
+          </p>
         </div>
-        <div className="text-[11px] font-mono text-slate-400 shrink-0">
-          Devise d exploitation : {currentProfile.currency} ({currentProfile.currencySymbol})
+        <div className="text-[11px] font-mono text-slate-400 shrink-0 tabular-nums">
+          Devise : {currentProfile.currency} ({currentProfile.currencySymbol})
         </div>
       </div>
 
-      {/* Error or Insufficient Notice */}
+      {/* Alerts */}
       {insufficientMsg && (
-        <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-800/60 text-amber-200 text-xs flex items-center gap-3">
+        <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-3">
           <AlertOctagon className="w-4 h-4 text-amber-400 shrink-0" />
           <div>
-            <strong className="font-semibold">Alerte d intégrité : </strong>
-            <span>{insufficientMsg}. Collectez davantage de sources RSS ou données macroéconomiques dans le Radar avant de régénérer.</span>
+            <strong className="font-semibold">Données insuffisantes : </strong>
+            <span>{insufficientMsg}. Collectez davantage de sources dans le Radar avant de relancer la synthèse.</span>
           </div>
         </div>
       )}
 
       {errorMsg && (
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-200 text-xs flex items-center gap-3">
+        <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-3">
           <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
 
-      {/* Filters bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-slate-900/60 border border-slate-800/80 rounded-xl">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium">Type :</span>
-          <div className="flex items-center gap-1 p-0.5 bg-slate-950 rounded-lg border border-slate-800 text-xs">
+      {/* Segmented Filters Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-400 font-medium">Type</span>
+          <div className="flex items-center gap-1 p-1 bg-[#11141C] rounded-lg border border-white/[0.08] text-xs">
             <button
               onClick={() => setTypeFilter('all')}
-              className={`px-3 py-1 rounded transition-colors whitespace-nowrap ${
-                typeFilter === 'all' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'
+              className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
+                typeFilter === 'all' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'
               }`}
             >
               Tous
             </button>
             <button
               onClick={() => setTypeFilter('numérique')}
-              className={`px-3 py-1 rounded transition-colors whitespace-nowrap ${
-                typeFilter === 'numérique' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'
+              className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
+                typeFilter === 'numérique' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'
               }`}
             >
               Numérique
             </button>
             <button
               onClick={() => setTypeFilter('physique')}
-              className={`px-3 py-1 rounded transition-colors whitespace-nowrap ${
-                typeFilter === 'physique' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'
+              className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
+                typeFilter === 'physique' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'
               }`}
             >
               Physique
@@ -217,37 +192,37 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium">Confiance :</span>
-          <div className="flex items-center gap-1 p-0.5 bg-slate-950 rounded-lg border border-slate-800 text-xs">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-400 font-medium">Confiance</span>
+          <div className="flex items-center gap-1 p-1 bg-[#11141C] rounded-lg border border-white/[0.08] text-xs">
             <button
               onClick={() => setConfidenceFilter('all')}
-              className={`px-2.5 py-1 rounded transition-colors whitespace-nowrap ${
-                confidenceFilter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
+              className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
+                confidenceFilter === 'all' ? 'bg-white/[0.1] text-white font-medium' : 'text-slate-400 hover:text-white'
               }`}
             >
               Toutes
             </button>
             <button
               onClick={() => setConfidenceFilter('élevé')}
-              className={`px-2.5 py-1 rounded transition-colors whitespace-nowrap ${
-                confidenceFilter === 'élevé' ? 'bg-emerald-950 text-emerald-300 font-medium' : 'text-slate-400 hover:text-white'
+              className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
+                confidenceFilter === 'élevé' ? 'bg-emerald-600/25 text-emerald-300 font-medium' : 'text-slate-400 hover:text-white'
               }`}
             >
               Élevé
             </button>
             <button
               onClick={() => setConfidenceFilter('moyen')}
-              className={`px-2.5 py-1 rounded transition-colors whitespace-nowrap ${
-                confidenceFilter === 'moyen' ? 'bg-amber-950 text-amber-300 font-medium' : 'text-slate-400 hover:text-white'
+              className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
+                confidenceFilter === 'moyen' ? 'bg-amber-600/25 text-amber-300 font-medium' : 'text-slate-400 hover:text-white'
               }`}
             >
               Moyen
             </button>
             <button
               onClick={() => setConfidenceFilter('faible')}
-              className={`px-2.5 py-1 rounded transition-colors whitespace-nowrap ${
-                confidenceFilter === 'faible' ? 'bg-slate-800 text-slate-300 font-medium' : 'text-slate-400 hover:text-white'
+              className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
+                confidenceFilter === 'faible' ? 'bg-white/[0.1] text-slate-200 font-medium' : 'text-slate-400 hover:text-white'
               }`}
             >
               Faible
@@ -256,26 +231,28 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
         </div>
       </div>
 
-      {/* Opportunities List */}
+      {/* Opportunities Grid */}
       {loading ? (
-        <div className="py-20 text-center text-slate-400 space-y-3">
-          <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-400" />
+        <div className="py-20 text-center text-slate-400 space-y-3 bg-[#11141C] border border-white/[0.08] rounded-xl">
+          <RefreshCw className="w-7 h-7 animate-spin mx-auto text-blue-400" />
           <p className="text-sm">Chargement des opportunités issues des signaux collectés...</p>
         </div>
       ) : filteredOpportunities.length === 0 ? (
-        <div className="py-16 text-center bg-slate-900/30 border border-slate-800 rounded-xl space-y-4">
-          <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto text-indigo-400">
-            <Layers className="w-6 h-6" />
+        <div className="py-16 px-6 text-center bg-[#11141C] border border-white/[0.08] rounded-xl space-y-4">
+          <div className="w-11 h-11 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto text-blue-400">
+            <Layers className="w-5 h-5" />
           </div>
-          <div>
-            <h3 className="text-base font-semibold text-white">Aucune opportunité active pour ce filtre</h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-              Cliquez sur "Synthétiser depuis signaux stockés" pour générer les opportunités de marché à partir des signaux collectés en table.
+          <div className="space-y-1">
+            <h3 className="font-display text-base font-semibold text-white">
+              Aucune opportunité active pour ce filtre
+            </h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+              Cliquez sur « Synthétiser depuis signaux stockés » pour générer des opportunités à partir des signaux collectés en table.
             </p>
           </div>
           <button
             onClick={handleSynthesize}
-            className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors"
+            className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
           >
             Lancer la synthèse
           </button>
@@ -285,25 +262,19 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
           {filteredOpportunities.map((opp) => {
             const isDigital = opp.type === 'numérique';
             return (
-              <div
+              <article
                 key={opp.id}
-                className="p-6 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between space-y-5"
+                className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] hover:border-white/[0.15] transition-colors flex flex-col justify-between space-y-5"
               >
-                {/* Header Zone */}
+                {/* Header & Unboxed Metadata */}
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                          isDigital
-                            ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
-                            : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                        }`}
-                      >
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <span className={`font-medium capitalize ${isDigital ? 'text-cyan-400' : 'text-amber-400'}`}>
                         {opp.type}
                       </span>
-                      <span className="text-xs text-slate-400">·</span>
-                      <span className="text-xs text-slate-300">
+                      <span aria-hidden="true">·</span>
+                      <span>
                         Confiance :{' '}
                         <strong
                           className={
@@ -311,7 +282,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
                               ? 'text-emerald-400 font-semibold'
                               : opp.confidenceLevel === 'moyen'
                               ? 'text-amber-400 font-semibold'
-                              : 'text-slate-400 font-semibold'
+                              : 'text-slate-300 font-semibold'
                           }
                         >
                           {opp.confidenceLevel}
@@ -319,12 +290,12 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
                       </span>
                     </div>
 
-                    <div className="text-[11px] font-mono text-slate-400">
-                      Réf : {opp.id.slice(0, 14)}
-                    </div>
+                    <span className="text-[11px] font-mono text-slate-500 tabular-nums">
+                      {opp.id.slice(0, 14)}
+                    </span>
                   </div>
 
-                  <h3 className="text-lg font-bold text-white leading-snug">
+                  <h3 className="font-display text-lg font-semibold text-white leading-snug">
                     {opp.title}
                   </h3>
 
@@ -333,65 +304,68 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
                   </p>
                 </div>
 
-                {/* Why It Exists Section */}
-                <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5">
-                  <div className="text-[11px] font-semibold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Pourquoi elle existe (Fait Réel)</span>
+                {/* Why It Exists (Hairline Separator) */}
+                <div className="border-t border-white/[0.07] pt-4 space-y-1.5">
+                  <div className="text-xs font-medium text-blue-400">
+                    Pourquoi elle existe (Fait Réel)
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
                     {opp.whyItExists}
                   </p>
                 </div>
 
-                {/* Financial Projections - Mandatory Label "Estimation indicative (non issue des sources)" */}
-                <div className="p-3.5 rounded-xl bg-slate-950/40 border border-slate-800/50 space-y-2">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span className="font-semibold text-slate-300">Modèle Économique :</span>
-                    <span className="font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 text-[10px]">
+                {/* Financial Projections (Unboxed + Explicit Mandatory Disclaimer) */}
+                <div className="border-t border-white/[0.07] pt-4 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <span className="font-medium text-slate-300">Modèle Économique</span>
+                    <span className="font-mono text-amber-400">
                       Estimation indicative (non issue des sources)
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Objectif Mensuel</span>
-                      <span className="text-white font-mono font-bold">{opp.targetRevenueLocal || 'Estimation non fournie'}</span>
+                      <span className="text-slate-500 block text-[11px]">Objectif Mensuel</span>
+                      <span className="text-white font-mono font-semibold tabular-nums mt-0.5 block">
+                        {opp.targetRevenueLocal || 'Estimation non fournie'}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[11px]">Marge Brute Indicative</span>
-                      <span className="text-emerald-400 font-mono font-bold">{opp.estimatedMargin || 'Estimation non fournie'}</span>
+                      <span className="text-slate-500 block text-[11px]">Marge Brute Indicative</span>
+                      <span className="text-emerald-400 font-mono font-semibold tabular-nums mt-0.5 block">
+                        {opp.estimatedMargin || 'Estimation non fournie'}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Source Signals & Citations */}
-                <div className="space-y-2 border-t border-slate-800 pt-3">
-                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                {/* Source Signals Collected (Flat Hairline List) */}
+                <div className="border-t border-white/[0.07] pt-4 space-y-2">
+                  <div className="text-xs font-medium text-slate-400 flex items-center justify-between">
                     <span>Signaux sources collectés</span>
-                    <span className="text-slate-400 font-mono text-[10px]">
+                    <span className="font-mono text-[11px] text-slate-500 tabular-nums">
                       {opp.sourceSignals?.length || 0} source(s)
                     </span>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="divide-y divide-white/[0.06]">
                     {opp.sourceSignals && opp.sourceSignals.length > 0 ? (
                       opp.sourceSignals.map((src, i) => (
                         <div
                           key={i}
-                          className="flex items-center justify-between gap-2 p-2 rounded bg-slate-950 border border-slate-800/60 text-[11px]"
+                          className="py-2 first:pt-1 last:pb-0 flex items-center justify-between gap-3 text-[11px]"
                         >
-                          <div className="truncate flex-1">
+                          <div className="min-w-0 flex-1">
                             <span className="font-medium text-slate-200 block truncate">{src.sourceName}</span>
-                            <span className="text-slate-400 truncate block text-[10px]">{src.headline}</span>
+                            <span className="text-slate-400 truncate block">{src.headline}</span>
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
-                            {getStatusBadge(src.status || 'live')}
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            {renderStatusText(src.status || 'live')}
                             <a
                               href={src.sourceUrl}
                               target="_blank"
                               rel="noreferrer noopener"
-                              className="text-indigo-400 hover:text-indigo-300 p-1"
+                              className="text-blue-400 hover:text-blue-300 p-1 transition-colors"
                               title="Ouvrir la source officielle"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
@@ -405,31 +379,43 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
                   </div>
                 </div>
 
-                {/* Invalidation Triggers & Risks */}
-                <div className="space-y-2">
-                  <div className="text-[11px] font-semibold text-rose-400/90 uppercase tracking-wider flex items-center gap-1.5">
-                    <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
-                    <span>Ce qui l invaliderait</span>
+                {/* Risks & Invalidation Triggers */}
+                <div className="border-t border-white/[0.07] pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  {opp.risks && opp.risks.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="font-medium text-amber-400">Risques majeurs</div>
+                      <ul className="space-y-1 list-disc list-inside text-slate-400">
+                        {opp.risks.map((r, idx) => (
+                          <li key={idx} className="leading-snug">
+                            <span className="text-slate-300">{r}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <div className="font-medium text-rose-400">Ce qui l invaliderait</div>
+                    <ul className="space-y-1 list-disc list-inside text-slate-400">
+                      {opp.invalidationTriggers && opp.invalidationTriggers.length > 0 ? (
+                        opp.invalidationTriggers.map((t, idx) => (
+                          <li key={idx} className="leading-snug">
+                            <span className="text-slate-300">{t}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="text-slate-400">Changement soudain des régulations en vigueur.</li>
+                      )}
+                    </ul>
                   </div>
-                  <ul className="text-xs text-slate-300 space-y-1 list-disc list-inside">
-                    {opp.invalidationTriggers && opp.invalidationTriggers.length > 0 ? (
-                      opp.invalidationTriggers.map((t, idx) => (
-                        <li key={idx} className="leading-tight text-slate-400">
-                          <span className="text-slate-300">{t}</span>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="text-slate-400">Changement soudain des régulations en vigueur.</li>
-                    )}
-                  </ul>
                 </div>
 
-                {/* Primary Action Button */}
-                <div className="pt-2 flex items-center gap-3">
+                {/* Primary Action */}
+                <div className="pt-2">
                   {isDigital ? (
                     <button
                       onClick={() => onOpenDigitalKit(opp)}
-                      className="cursor-pointer flex-1 py-2.5 px-4 text-xs font-semibold text-white bg-cyan-600 hover:bg-cyan-500 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
+                      className="cursor-pointer w-full py-2.5 px-4 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors flex items-center justify-center gap-2"
                     >
                       <FileText className="w-4 h-4" />
                       <span>Générer Dossier de Lancement Numérique</span>
@@ -438,7 +424,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
                   ) : (
                     <button
                       onClick={() => onOpenPhysicalPlan(opp)}
-                      className="cursor-pointer flex-1 py-2.5 px-4 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
+                      className="cursor-pointer w-full py-2.5 px-4 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors flex items-center justify-center gap-2"
                     >
                       <Layers className="w-4 h-4" />
                       <span>Générer Plan d Exploitation Physique</span>
@@ -446,7 +432,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
                     </button>
                   )}
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>

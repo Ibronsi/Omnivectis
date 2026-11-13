@@ -255,17 +255,17 @@ export const KitsView: React.FC<KitsViewProps> = ({
   return (
     <div className="space-y-8">
       {/* Editorial Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-800 pb-6">
-        <div>
-          <div className="text-xs font-semibold text-indigo-400 tracking-wider uppercase mb-1">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/[0.08] pb-6">
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-blue-400">
             Exécution Terrain & Déploiement Prêt à l Emploi
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+          </p>
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
             Dossiers de Lancement & Plans d Exploitation
           </h1>
-          <p className="text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed">
-            Pour les opportunités <strong className="text-cyan-400">numériques</strong> : tunnel complet en HTML, prospection, et relances.
-            Pour les opportunités <strong className="text-amber-400">physiques</strong> : budget avec <strong className="text-white">hypothèses 100% modifiables</strong>, partenaires locaux et démarches administratives.
+          <p className="text-sm text-slate-400 max-w-3xl leading-relaxed">
+            Pour les opportunités <strong className="text-cyan-400 font-medium">numériques</strong> : tunnel complet en HTML, prospection, et relances.
+            Pour les opportunités <strong className="text-amber-400 font-medium">physiques</strong> : budget avec <strong className="text-slate-200 font-medium">hypothèses 100% modifiables</strong>, partenaires locaux et démarches administratives.
           </p>
         </div>
 
@@ -273,35 +273,33 @@ export const KitsView: React.FC<KitsViewProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={onNavigateToValidationQueue}
-            className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-all flex items-center gap-2"
+            className="cursor-pointer px-4 py-2 text-xs font-medium text-slate-200 bg-[#11141C] hover:bg-white/[0.05] rounded-lg border border-white/[0.08] transition-colors flex items-center gap-2"
           >
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Ouvrir la File "À valider"</span>
+            <span>Ouvrir la File « À valider »</span>
           </button>
         </div>
       </div>
 
       {/* Selected Opportunity Header or Selector */}
       {selectedOpportunity ? (
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-5 rounded-xl bg-[#11141C] border border-white/[0.08] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-xs">
               <span
-                className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                  selectedOpportunity.type === 'numérique'
-                    ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
-                    : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                className={`font-mono font-medium ${
+                  selectedOpportunity.type === 'numérique' ? 'text-cyan-400' : 'text-amber-400'
                 }`}
               >
                 {selectedOpportunity.type}
               </span>
-              <span className="text-xs text-slate-400">·</span>
-              <span className="text-xs text-slate-300">
-                Pays : <strong className="text-white">{currentProfile.countryName} ({currentProfile.currency})</strong>
+              <span aria-hidden="true" className="text-slate-600">·</span>
+              <span className="text-slate-400">
+                Pays : <strong className="text-slate-200 font-medium">{currentProfile.countryName} ({currentProfile.currency})</strong>
               </span>
             </div>
-            <h2 className="text-lg font-bold text-white">{selectedOpportunity.title}</h2>
-            <p className="text-xs text-slate-400">{selectedOpportunity.description}</p>
+            <h2 className="font-display text-lg font-semibold text-white">{selectedOpportunity.title}</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">{selectedOpportunity.description}</p>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -309,42 +307,42 @@ export const KitsView: React.FC<KitsViewProps> = ({
               <button
                 onClick={handleGenerateDigitalKit}
                 disabled={loading}
-                className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-cyan-600 hover:bg-cyan-500 rounded-lg shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
               >
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-3.5 h-3.5" />
                 <span>{loading ? 'Génération...' : digitalKit ? 'Régénérer le dossier numérique' : 'Générer le dossier'}</span>
               </button>
             ) : (
               <button
                 onClick={handleGeneratePhysicalPlan}
                 disabled={loading}
-                className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 rounded-lg shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
               >
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-3.5 h-3.5" />
                 <span>{loading ? 'Génération...' : physicalPlan ? 'Régénérer le plan physique' : 'Générer le plan'}</span>
               </button>
             )}
           </div>
         </div>
       ) : (
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+        <div className="p-4 rounded-xl bg-[#11141C] border border-white/[0.08] text-xs text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>Sélectionnez une opportunité dans l onglet "Opportunités" pour générer ou consulter son dossier opérationnel.</span>
+            <span>Sélectionnez une opportunité dans l onglet « Opportunités » pour générer ou consulter son dossier opérationnel.</span>
           </div>
-          <div className="flex items-center gap-1 p-0.5 bg-slate-950 rounded border border-slate-800">
+          <div className="flex items-center gap-1 p-1 bg-[#0D1017] rounded-lg border border-white/[0.07] shrink-0">
             <button
               onClick={() => setActiveKitType('numérique')}
-              className={`px-3 py-1 text-xs rounded transition-colors ${
-                activeKitType === 'numérique' ? 'bg-cyan-600 text-white' : 'text-slate-400'
+              className={`cursor-pointer px-3 py-1 text-xs rounded-md transition-colors ${
+                activeKitType === 'numérique' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'
               }`}
             >
               Exemple Numérique
             </button>
             <button
               onClick={() => setActiveKitType('physique')}
-              className={`px-3 py-1 text-xs rounded transition-colors ${
-                activeKitType === 'physique' ? 'bg-amber-600 text-white' : 'text-slate-400'
+              className={`cursor-pointer px-3 py-1 text-xs rounded-md transition-colors ${
+                activeKitType === 'physique' ? 'bg-amber-600 text-white font-medium' : 'text-slate-400 hover:text-white'
               }`}
             >
               Exemple Physique
@@ -353,16 +351,16 @@ export const KitsView: React.FC<KitsViewProps> = ({
         </div>
       )}
 
-      {/* Queued Feedback Banner */}
+      {/* Queued Feedback Strip */}
       {queuedNotice && (
-        <div className="p-3.5 rounded-xl bg-emerald-950/50 border border-emerald-800/80 text-emerald-200 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="p-3.5 rounded-xl bg-emerald-950/35 border border-emerald-500/30 text-emerald-200 text-xs flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>{queuedNotice}</span>
           </div>
           <button
             onClick={onNavigateToValidationQueue}
-            className="text-xs font-semibold text-emerald-300 hover:text-white underline cursor-pointer"
+            className="text-xs font-semibold text-emerald-300 hover:text-white underline cursor-pointer shrink-0"
           >
             Voir la file d attente
           </button>
@@ -371,41 +369,41 @@ export const KitsView: React.FC<KitsViewProps> = ({
 
       {/* ===================== VIEW A: NUMÉRIQUE ===================== */}
       {(selectedOpportunity?.type === 'numérique' || (!selectedOpportunity && activeKitType === 'numérique')) && (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Section 1: Offre et Tarification Locale */}
-          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
+          <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-5">
+            <div className="flex items-center justify-between border-b border-white/[0.07] pb-3.5">
+              <div className="text-xs font-semibold text-cyan-400 flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
                 <span>1. Offre Commerciale & Prix en Devise Locale ({currentProfile.currency})</span>
               </div>
-              <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+              <span className="text-[11px] font-mono text-amber-400">
                 Estimation indicative
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                <span className="text-[11px] text-slate-400">Tarif Recommandé</span>
-                <div className="text-xl font-bold font-mono text-white">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-1.5 md:border-r md:border-white/[0.07] md:pr-6">
+                <span className="text-[11px] text-slate-400 block">Tarif Recommandé</span>
+                <div className="text-xl font-bold font-mono text-white tabular-nums">
                   {digitalKit?.offerAndPricing.localPrice || (countryCode === 'NER' ? '650 000 FCFA / mois' : '1 200 € / mois')}
                 </div>
-                <span className="text-[11px] text-slate-400 block">
+                <span className="text-[11px] text-slate-500 block">
                   Modèle : {digitalKit?.offerAndPricing.billingModel || 'Abonnement mensuel B2B'}
                 </span>
               </div>
 
-              <div className="md:col-span-2 p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                <span className="text-[11px] text-slate-400 font-semibold uppercase">Livrables Inclus</span>
-                <ul className="text-xs text-slate-300 space-y-1">
+              <div className="md:col-span-2 space-y-2">
+                <span className="text-[11px] text-slate-400 font-medium block">Livrables Inclus</span>
+                <ul className="text-xs text-slate-300 space-y-1.5">
                   {(digitalKit?.offerAndPricing.deliverables || [
                     'Audit express et cartographie des flux d encaissement',
                     'Intégration des connecteurs WhatsApp / Mobile Money',
                     'Rapports hebdomadaires de conformité et réconciliation',
                     'Support technique direct sur Niamey et à distance',
                   ]).map((deliv, idx) => (
-                    <li key={idx} className="flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <li key={idx} className="flex items-start gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
                       <span>{deliv}</span>
                     </li>
                   ))}
@@ -415,19 +413,19 @@ export const KitsView: React.FC<KitsViewProps> = ({
           </div>
 
           {/* Section 2: Page de vente HTML5 */}
-          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+          <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
+              <div className="text-xs font-semibold text-cyan-400 flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 <span>2. Page de Vente en HTML5 Autonome</span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 p-0.5 bg-slate-950 rounded border border-slate-800 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 p-1 bg-[#0D1017] rounded-lg border border-white/[0.07] text-xs">
                   <button
                     onClick={() => setHtmlViewMode('preview')}
-                    className={`px-3 py-1 rounded transition-colors flex items-center gap-1.5 ${
-                      htmlViewMode === 'preview' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'
+                    className={`cursor-pointer px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 ${
+                      htmlViewMode === 'preview' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" />
@@ -435,8 +433,8 @@ export const KitsView: React.FC<KitsViewProps> = ({
                   </button>
                   <button
                     onClick={() => setHtmlViewMode('code')}
-                    className={`px-3 py-1 rounded transition-colors flex items-center gap-1.5 ${
-                      htmlViewMode === 'code' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'
+                    className={`cursor-pointer px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 ${
+                      htmlViewMode === 'code' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     <Code className="w-3.5 h-3.5" />
@@ -451,7 +449,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
                       'html_page'
                     )
                   }
-                  className="px-3 py-1 text-xs rounded bg-slate-800 text-slate-200 hover:text-white border border-slate-700 flex items-center gap-1"
+                  className="cursor-pointer px-3 py-1.5 text-xs rounded-lg bg-white/[0.05] hover:bg-white/[0.09] text-slate-200 border border-white/[0.08] flex items-center gap-1.5 transition-colors"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>{copiedKey === 'html_page' ? 'Copié !' : 'Copier'}</span>
@@ -459,7 +457,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
 
                 <button
                   onClick={handleDownloadHtml}
-                  className="px-3 py-1 text-xs rounded bg-cyan-600/30 text-cyan-300 hover:bg-cyan-600/50 border border-cyan-500/40 flex items-center gap-1"
+                  className="cursor-pointer px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 border border-blue-500/30 flex items-center gap-1.5 transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Télécharger .html</span>
@@ -467,9 +465,8 @@ export const KitsView: React.FC<KitsViewProps> = ({
               </div>
             </div>
 
-            {/* Preview Frame or Code Area */}
             {htmlViewMode === 'preview' ? (
-              <div className="rounded-xl overflow-hidden border border-slate-800 bg-white">
+              <div className="rounded-lg overflow-hidden border border-white/[0.08] bg-white">
                 <iframe
                   title="Aperçu Page de Vente"
                   srcDoc={
@@ -498,7 +495,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
                 />
               </div>
             ) : (
-              <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300 overflow-x-auto max-h-80 whitespace-pre-wrap">
+              <pre className="p-4 rounded-lg bg-[#0D1017] border border-white/[0.08] text-[11px] font-mono text-slate-300 overflow-x-auto max-h-80 whitespace-pre-wrap">
                 {digitalKit?.htmlSalesPage || '<!-- Code HTML complet généré automatiquement -->'}
               </pre>
             )}
@@ -507,16 +504,16 @@ export const KitsView: React.FC<KitsViewProps> = ({
           {/* Section 3: Messages de Prospection & Séquence de Relance */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Messages Outbound */}
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-              <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider flex items-center justify-between">
-                <span>3. Messages de Prospection Directe</span>
-                <span className="text-[10px] text-slate-400">Règle : Rien n est envoyé sans validation</span>
+            <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-4">
+              <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
+                <span className="text-xs font-semibold text-cyan-400">3. Messages de Prospection Directe</span>
+                <span className="text-[11px] text-slate-500">Rien n est envoyé sans validation</span>
               </div>
 
-              <div className="space-y-3">
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-slate-300">Message Direct LinkedIn / WhatsApp</span>
+              <div className="divide-y divide-white/[0.07]">
+                <div className="pb-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-slate-200">Message Direct LinkedIn / WhatsApp</span>
                     <button
                       onClick={() =>
                         handleQueueItem(
@@ -526,21 +523,21 @@ export const KitsView: React.FC<KitsViewProps> = ({
                           'Directeurs Généraux'
                         )
                       }
-                      className="cursor-pointer text-[11px] text-cyan-300 hover:text-white px-2 py-0.5 rounded bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/30 flex items-center gap-1"
+                      className="cursor-pointer text-[11px] text-blue-300 hover:text-white px-2.5 py-1 rounded-md bg-blue-600/15 hover:bg-blue-600/30 border border-blue-500/30 flex items-center gap-1 transition-colors shrink-0"
                     >
                       <Send className="w-3 h-3" />
-                      <span>Ajouter à la file "À valider"</span>
+                      <span>Ajouter à « À valider »</span>
                     </button>
                   </div>
-                  <p className="text-xs text-slate-300 italic leading-relaxed">
+                  <p className="text-xs text-slate-300 italic leading-relaxed bg-[#0D1017] p-3.5 rounded-lg border border-white/[0.06]">
                     "{digitalKit?.outreachCopy?.directMessage ||
                       `Bonjour [Nom], au vu des nouvelles réglementations sur ${selectedOpportunity?.title || 'votre secteur'}, nous avons mis en place une passerelle directe permettant d optimiser vos encaissements. Seriez-vous ouvert à 10 min d échange ?`}"
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-slate-300">Email de Pitch B2B Complet</span>
+                <div className="pt-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-slate-200">Email de Pitch B2B Complet</span>
                     <button
                       onClick={() =>
                         handleQueueItem(
@@ -550,13 +547,13 @@ export const KitsView: React.FC<KitsViewProps> = ({
                           'Direction Financière'
                         )
                       }
-                      className="cursor-pointer text-[11px] text-cyan-300 hover:text-white px-2 py-0.5 rounded bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/30 flex items-center gap-1"
+                      className="cursor-pointer text-[11px] text-blue-300 hover:text-white px-2.5 py-1 rounded-md bg-blue-600/15 hover:bg-blue-600/30 border border-blue-500/30 flex items-center gap-1 transition-colors shrink-0"
                     >
                       <Send className="w-3 h-3" />
-                      <span>Ajouter à la file "À valider"</span>
+                      <span>Ajouter à « À valider »</span>
                     </button>
                   </div>
-                  <pre className="text-xs text-slate-300 whitespace-pre-wrap font-sans leading-relaxed">
+                  <pre className="text-xs text-slate-300 whitespace-pre-wrap font-sans leading-relaxed bg-[#0D1017] p-3.5 rounded-lg border border-white/[0.06]">
                     {digitalKit?.outreachCopy?.emailPitch ||
                       `Objet : Optimisation immédiate de vos flux\n\nBonjour [Nom],\n\nNous accompagnons les décideurs sur le marché du Niger dans la digitalisation de leurs encaissements et la réduction de leurs délais de paiement.\n\nDiscutons-en cette semaine.`}
                   </pre>
@@ -565,16 +562,16 @@ export const KitsView: React.FC<KitsViewProps> = ({
             </div>
 
             {/* Séquence de Relance */}
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-              <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider flex items-center justify-between">
-                <span>4. Séquence de Relance (J+3, J+7, J+14)</span>
-                <span className="text-[10px] text-slate-400">Automatisation cadencée</span>
+            <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-4">
+              <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
+                <span className="text-xs font-semibold text-cyan-400">4. Séquence de Relance (J+3, J+7, J+14)</span>
+                <span className="text-[11px] text-slate-500">Cadence structurée</span>
               </div>
 
-              <div className="space-y-3">
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+              <div className="divide-y divide-white/[0.07]">
+                <div className="pb-3.5 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-indigo-300">Relance J+3 (Valeur ajoutée)</span>
+                    <span className="text-xs font-medium text-blue-300">Relance J+3 (Valeur ajoutée)</span>
                     <button
                       onClick={() =>
                         handleQueueItem(
@@ -584,20 +581,20 @@ export const KitsView: React.FC<KitsViewProps> = ({
                           'Prospect non-répondant'
                         )
                       }
-                      className="text-[11px] text-indigo-300 hover:text-white px-2 py-0.5 rounded bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] text-blue-300 hover:text-white px-2.5 py-1 rounded-md bg-blue-600/15 hover:bg-blue-600/30 border border-blue-500/30 flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       <Send className="w-3 h-3" />
-                      <span>File "À valider"</span>
+                      <span>File « À valider »</span>
                     </button>
                   </div>
-                  <p className="text-xs text-slate-300 italic">
+                  <p className="text-xs text-slate-300 italic leading-relaxed">
                     "{digitalKit?.followupSequence?.day3 || 'Bonjour, je me permets de remonter mon précédent message. Avez-vous eu l occasion d y jeter un œil ?'}"
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                <div className="py-3.5 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-indigo-300">Relance J+7 (Preuve sociale)</span>
+                    <span className="text-xs font-medium text-blue-300">Relance J+7 (Preuve sociale)</span>
                     <button
                       onClick={() =>
                         handleQueueItem(
@@ -607,20 +604,20 @@ export const KitsView: React.FC<KitsViewProps> = ({
                           'Prospect non-répondant'
                         )
                       }
-                      className="text-[11px] text-indigo-300 hover:text-white px-2 py-0.5 rounded bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] text-blue-300 hover:text-white px-2.5 py-1 rounded-md bg-blue-600/15 hover:bg-blue-600/30 border border-blue-500/30 flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       <Send className="w-3 h-3" />
-                      <span>File "À valider"</span>
+                      <span>File « À valider »</span>
                     </button>
                   </div>
-                  <p className="text-xs text-slate-300 italic">
+                  <p className="text-xs text-slate-300 italic leading-relaxed">
                     "{digitalKit?.followupSequence?.day7 || 'Dernière relance rapide : seriez-vous disponible pour 10 minutes ce jeudi ?'}"
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                <div className="pt-3.5 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-rose-300">Rupture Polie J+14 (Breakup)</span>
+                    <span className="text-xs font-medium text-rose-300">Rupture Polie J+14 (Breakup)</span>
                     <button
                       onClick={() =>
                         handleQueueItem(
@@ -630,13 +627,13 @@ export const KitsView: React.FC<KitsViewProps> = ({
                           'Prospect non-répondant'
                         )
                       }
-                      className="text-[11px] text-rose-300 hover:text-white px-2 py-0.5 rounded bg-rose-600/20 hover:bg-rose-600/40 border border-rose-500/30 flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] text-rose-300 hover:text-white px-2.5 py-1 rounded-md bg-rose-600/15 hover:bg-rose-600/30 border border-rose-500/30 flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       <Send className="w-3 h-3" />
-                      <span>File "À valider"</span>
+                      <span>File « À valider »</span>
                     </button>
                   </div>
-                  <p className="text-xs text-slate-300 italic">
+                  <p className="text-xs text-slate-300 italic leading-relaxed">
                     "{digitalKit?.followupSequence?.day14Breakup || 'Je constate que ce n est pas votre priorité actuelle. Je clôture votre dossier et vous souhaite plein succès.'}"
                   </p>
                 </div>
@@ -646,13 +643,13 @@ export const KitsView: React.FC<KitsViewProps> = ({
 
           {/* Section 4: Checklist des Comptes & Automations */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-              <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
+            <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-4">
+              <div className="text-xs font-semibold text-cyan-400 flex items-center gap-2 border-b border-white/[0.07] pb-3">
                 <CheckSquare className="w-4 h-4" />
                 <span>5. Checklist des Comptes Réels à Créer</span>
               </div>
 
-              <div className="space-y-2">
+              <div className="divide-y divide-white/[0.06]">
                 {(digitalKit?.accountsChecklist || [
                   { accountName: 'Compte Marchand Airtel Money / Moov Money Flooz Niger', description: 'Permet de recevoir les règlements locaux instantanés des clients particuliers et TPE.' },
                   { accountName: 'Compte Bancaire Pro B2B (SONIBANK, ECOBANK ou BOA)', description: 'Nécessaire pour les virements d entreprises et l émission de factures conformes.' },
@@ -660,11 +657,11 @@ export const KitsView: React.FC<KitsViewProps> = ({
                   { accountName: 'Nom de domaine (.com / .ne) & Adresse mail professionnelle', description: 'Essentiel pour la délivrabilité des emails de prospection et la crédibilité.' },
                   { accountName: 'Passerelle d encaissement FedaPay ou Stripe', description: 'Pour encaisser les paiements par carte bancaire locale et internationale.' },
                 ]).map((acc, i) => (
-                  <div key={i} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-start gap-3">
+                  <div key={i} className="py-3 flex items-start gap-3">
                     <input
                       type="checkbox"
                       id={`chk-${i}`}
-                      className="mt-1 rounded border-slate-700 text-cyan-500 focus:ring-0 cursor-pointer"
+                      className="mt-0.5 rounded border-white/20 bg-[#0D1017] text-blue-500 focus:ring-0 cursor-pointer"
                     />
                     <label htmlFor={`chk-${i}`} className="text-xs text-slate-300 cursor-pointer">
                       <strong className="text-white block font-medium">{acc.accountName}</strong>
@@ -675,26 +672,26 @@ export const KitsView: React.FC<KitsViewProps> = ({
               </div>
             </div>
 
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-              <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
+            <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-4">
+              <div className="text-xs font-semibold text-cyan-400 flex items-center gap-2 border-b border-white/[0.07] pb-3">
                 <Sparkles className="w-4 h-4" />
                 <span>6. Actions d Automatisation Proposées</span>
               </div>
 
-              <div className="space-y-3">
+              <div className="divide-y divide-white/[0.06]">
                 {(digitalKit?.automationActions || [
                   { title: 'Alerte WhatsApp de Nouvelle Demande', tool: 'Webhook n8n / Make', description: 'Envoi d un message instantané sur votre mobile dès qu un prospect remplit la page de vente.' },
                   { title: 'Génération Automatique de Facture Pro-Forma', tool: 'Template PDF auto', description: 'Émission immédiate du devis/facture en FCFA conforme OHADA dès validation du panier.' },
                   { title: 'Réconciliation d Encaissement Mobile Money', tool: 'Notification SMS / Webhook', description: 'Vérification automatique du numéro de quittance Airtel/Flooz avant déblocage de l accès.' },
                 ]).map((auto, i) => (
-                  <div key={i} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white">{auto.title}</span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/60">
+                  <div key={i} className="py-3 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-white">{auto.title}</span>
+                      <span className="text-[11px] font-mono text-cyan-400 shrink-0">
                         {auto.tool}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-300">{auto.description}</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">{auto.description}</p>
                   </div>
                 ))}
               </div>
@@ -705,28 +702,28 @@ export const KitsView: React.FC<KitsViewProps> = ({
 
       {/* ===================== VIEW B: PHYSIQUE ===================== */}
       {(selectedOpportunity?.type === 'physique' || (!selectedOpportunity && activeKitType === 'physique')) && (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Section 1: Budget d'Investissement avec Hypothèses 100% Modifiables */}
-          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-6">
+          <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                <div className="text-xs font-semibold text-amber-400 flex items-center gap-2">
                   <DollarSign className="w-4 h-4" />
                   <span>1. Budget d Investissement & Hypothèses Modifiables en Direct</span>
                 </div>
-                <p className="text-xs text-slate-300 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   Modifiez directement les montants dans le tableau : le total et le point mort se recalculent automatiquement.
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-mono font-semibold text-amber-400 bg-amber-500/15 px-2.5 py-1 rounded border border-amber-500/30">
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-[11px] font-mono text-amber-400">
                   Estimation indicative
                 </span>
                 <button
                   onClick={handleSavePhysicalHypotheses}
                   disabled={savingHypotheses}
-                  className="cursor-pointer px-3.5 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 rounded-lg shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  className="cursor-pointer px-3.5 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{savingHypotheses ? 'Enregistrement...' : 'Sauvegarder Hypothèses'}</span>
@@ -735,27 +732,27 @@ export const KitsView: React.FC<KitsViewProps> = ({
             </div>
 
             {/* Interactive Hypotheses Table */}
-            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+            <div className="overflow-x-auto rounded-lg border border-white/[0.08] bg-[#0D1017]">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 bg-slate-900/60">
-                    <th className="py-3 px-4 font-semibold">Poste de Dépense</th>
-                    <th className="py-3 px-4 font-semibold">Catégorie</th>
-                    <th className="py-3 px-4 font-semibold text-right">Montant ({currentProfile.currency})</th>
-                    <th className="py-3 px-4 font-semibold">Remarques & Terrain</th>
-                    <th className="py-3 px-4 text-center font-semibold">Actions</th>
+                  <tr className="border-b border-white/[0.08] text-slate-400">
+                    <th className="py-2.5 px-4 font-semibold">Poste de Dépense</th>
+                    <th className="py-2.5 px-4 font-semibold">Catégorie</th>
+                    <th className="py-2.5 px-4 font-semibold text-right">Montant ({currentProfile.currency})</th>
+                    <th className="py-2.5 px-4 font-semibold">Remarques & Terrain</th>
+                    <th className="py-2.5 px-4 text-center font-semibold">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-white/[0.06]">
                   {editableHypotheses.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-4 text-center text-slate-400">
-                        Aucune hypothèse saisie. Cliquez sur "Ajouter une ligne" ci-dessous.
+                      <td colSpan={5} className="py-6 text-center text-slate-400">
+                        Aucune hypothèse saisie. Cliquez sur « Ajouter une ligne » ci-dessous.
                       </td>
                     </tr>
                   ) : (
                     editableHypotheses.map((hyp) => (
-                      <tr key={hyp.id} className="hover:bg-slate-900/40">
+                      <tr key={hyp.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="py-2.5 px-4 font-medium text-white">{hyp.label}</td>
                         <td className="py-2.5 px-4 text-slate-400">{hyp.category}</td>
                         <td className="py-2.5 px-4 text-right">
@@ -763,7 +760,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
                             type="number"
                             value={hyp.amount}
                             onChange={(e) => handleHypothesisAmountChange(hyp.id, Number(e.target.value))}
-                            className="w-32 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-right text-white font-mono font-bold focus:border-amber-400 focus:outline-none"
+                            className="w-32 px-2.5 py-1 bg-[#11141C] border border-white/[0.1] rounded text-right text-white font-mono font-semibold tabular-nums focus:border-amber-400 focus:outline-none"
                           />
                         </td>
                         <td className="py-2.5 px-4 text-slate-400 text-[11px]">{hyp.note}</td>
@@ -781,14 +778,14 @@ export const KitsView: React.FC<KitsViewProps> = ({
                   )}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-slate-700 bg-slate-900/80 font-bold">
+                  <tr className="border-t border-white/[0.1] bg-[#11141C] font-semibold">
                     <td colSpan={2} className="py-3 px-4 text-white">
                       TOTAL INVESTISSEMENT INITIAL REQUIS
                     </td>
-                    <td className="py-3 px-4 text-right font-mono text-base text-amber-400">
+                    <td className="py-3 px-4 text-right font-mono text-base text-amber-400 tabular-nums">
                       {totalCalculatedInitial.toLocaleString('fr-FR')} {currentProfile.currency}
                     </td>
-                    <td colSpan={2} className="py-3 px-4 text-[11px] text-slate-400">
+                    <td colSpan={2} className="py-3 px-4 text-[11px] text-slate-400 font-normal">
                       Fonds propres ou financement de démarrage requis
                     </td>
                   </tr>
@@ -798,7 +795,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
 
             <button
               onClick={handleAddHypothesis}
-              className="cursor-pointer px-3 py-1.5 text-xs text-amber-300 hover:text-white bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/30 rounded-lg flex items-center gap-1.5 transition-colors"
+              className="cursor-pointer px-3 py-1.5 text-xs font-medium text-amber-300 hover:text-white bg-amber-600/15 hover:bg-amber-600/25 border border-amber-500/30 rounded-lg flex items-center gap-1.5 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Ajouter une ligne de dépense au budget</span>
@@ -806,97 +803,97 @@ export const KitsView: React.FC<KitsViewProps> = ({
           </div>
 
           {/* Section 2: Seuil de Rentabilité Interactif (Point Mort) */}
-          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+          <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-5">
+            <div className="flex items-center justify-between border-b border-white/[0.07] pb-3.5">
+              <div className="text-xs font-semibold text-amber-400 flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
                 <span>2. Analyse du Seuil de Rentabilité Dynamique (Point Mort)</span>
               </div>
-              <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+              <span className="text-[11px] font-mono text-amber-400">
                 Estimation indicative
               </span>
             </div>
 
             {/* Inputs for Breakeven */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+              <div className="space-y-1.5">
                 <span className="text-[11px] text-slate-400 block">Prix de Vente Unitaire Moyen</span>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
                     value={sellingPrice}
                     onChange={(e) => setSellingPrice(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-white font-mono font-bold focus:border-amber-400 focus:outline-none text-sm"
+                    className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.1] rounded-lg text-white font-mono font-semibold tabular-nums focus:border-amber-400 focus:outline-none text-sm"
                   />
                   <span className="text-xs text-slate-400 font-mono">{currentProfile.currency}</span>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+              <div className="space-y-1.5">
                 <span className="text-[11px] text-slate-400 block">Coût de Revient Unitaire Moyen</span>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
                     value={unitCost}
                     onChange={(e) => setUnitCost(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-white font-mono font-bold focus:border-amber-400 focus:outline-none text-sm"
+                    className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.1] rounded-lg text-white font-mono font-semibold tabular-nums focus:border-amber-400 focus:outline-none text-sm"
                   />
                   <span className="text-xs text-slate-400 font-mono">{currentProfile.currency}</span>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+              <div className="space-y-1.5">
                 <span className="text-[11px] text-slate-400 block">Charges Fixes Mensuelles Estimées</span>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
                     value={monthlyFixedCharges}
                     onChange={(e) => setMonthlyFixedCharges(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-white font-mono font-bold focus:border-amber-400 focus:outline-none text-sm"
+                    className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.1] rounded-lg text-white font-mono font-semibold tabular-nums focus:border-amber-400 focus:outline-none text-sm"
                   />
                   <span className="text-xs text-slate-400 font-mono">{currentProfile.currency}</span>
                 </div>
               </div>
             </div>
 
-            {/* Calculated Output KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
-                <span className="text-[11px] text-slate-400">Marge Brute par Unité</span>
-                <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
+            {/* Calculated Output KPI Hairline Strip */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 bg-[#0D1017] border border-white/[0.08] rounded-xl divide-y sm:divide-y-0 sm:divide-x divide-white/[0.08]">
+              <div className="p-4">
+                <span className="text-[11px] text-slate-400 block">Marge Brute par Unité</span>
+                <div className="text-xl font-bold font-mono text-emerald-400 mt-1 tabular-nums">
                   {calculatedUnitMargin.toLocaleString('fr-FR')} {currentProfile.currency}
                 </div>
-                <span className="text-[10px] text-slate-400">
+                <span className="text-[10px] text-slate-500 font-mono tabular-nums">
                   Soit {sellingPrice > 0 ? Math.round((calculatedUnitMargin / sellingPrice) * 100) : 0}% du prix
                 </span>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
-                <span className="text-[11px] text-slate-400">Point Mort en Volume</span>
-                <div className="text-xl font-bold font-mono text-amber-400 mt-1">
+              <div className="p-4">
+                <span className="text-[11px] text-slate-400 block">Point Mort en Volume</span>
+                <div className="text-xl font-bold font-mono text-amber-400 mt-1 tabular-nums">
                   {calculatedBreakEvenUnits.toLocaleString('fr-FR')} unités / mois
                 </div>
-                <span className="text-[10px] text-slate-400">Nombre de ventes pour couvrir les charges fixes</span>
+                <span className="text-[10px] text-slate-500">Ventes pour couvrir les charges fixes</span>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
-                <span className="text-[11px] text-slate-400">Chiffre d Affaires au Point Mort</span>
-                <div className="text-xl font-bold font-mono text-white mt-1">
+              <div className="p-4">
+                <span className="text-[11px] text-slate-400 block">Chiffre d Affaires au Point Mort</span>
+                <div className="text-xl font-bold font-mono text-white mt-1 tabular-nums">
                   {calculatedBreakEvenRevenue.toLocaleString('fr-FR')} {currentProfile.currency}
                 </div>
-                <span className="text-[10px] text-slate-400">Au-delà, chaque vente génère un bénéfice net</span>
+                <span className="text-[10px] text-slate-500">Seuil de bénéfice net positif</span>
               </div>
             </div>
           </div>
 
           {/* Section 3: Fournisseurs et Partenaires Locaux */}
-          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-            <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+          <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-4">
+            <div className="text-xs font-semibold text-amber-400 flex items-center gap-2 border-b border-white/[0.07] pb-3">
               <Building className="w-4 h-4" />
               <span>3. Fournisseurs et Partenaires Locaux à Contacter</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 divide-y md:divide-y-0 md:divide-x divide-white/[0.07]">
               {(physicalPlan?.localSuppliersAndPartners || [
                 {
                   name: 'Négociants Grossistes du Marché de Katako & Grand Marché',
@@ -917,14 +914,14 @@ export const KitsView: React.FC<KitsViewProps> = ({
                   contactGuide: 'Lettre de voiture officielle et bordereau de déchargement.',
                 },
               ]).map((partner, idx) => (
-                <div key={idx} className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 flex flex-col justify-between">
+                <div key={idx} className="pt-4 first:pt-0 md:pt-0 md:pl-5 md:first:pl-0 space-y-2 flex flex-col justify-between">
                   <div className="space-y-1">
-                    <span className="text-[10px] font-mono text-amber-400 uppercase tracking-wider">{partner.role}</span>
-                    <h4 className="text-sm font-bold text-white leading-snug">{partner.name}</h4>
+                    <span className="text-[11px] font-mono text-amber-400 block">{partner.role}</span>
+                    <h4 className="font-display text-sm font-semibold text-white leading-snug">{partner.name}</h4>
                     <span className="text-[11px] text-slate-400 block">{partner.location}</span>
                   </div>
-                  <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-300">
-                    <strong className="text-slate-400 block">Protocole terrain :</strong>
+                  <div className="pt-2 border-t border-white/[0.06] text-[11px] text-slate-300">
+                    <span className="text-slate-500 block">Protocole terrain :</span>
                     {partner.contactGuide}
                   </div>
                 </div>
@@ -933,16 +930,16 @@ export const KitsView: React.FC<KitsViewProps> = ({
           </div>
 
           {/* Section 4: Démarches Administratives & Autorisations */}
-          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-            <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center justify-between">
-              <div className="flex items-center gap-2">
+          <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-4">
+            <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
+              <div className="text-xs font-semibold text-amber-400 flex items-center gap-2">
                 <CheckSquare className="w-4 h-4" />
-                <span>4. Autorisations & Démarches Administratives du Pays ({currentProfile.countryName})</span>
+                <span>4. Autorisations & Démarches Administratives ({currentProfile.countryName})</span>
               </div>
-              <span className="text-[10px] text-slate-400">Règle : Rien n est envoyé sans validation</span>
+              <span className="text-[11px] text-slate-500">Rien n est envoyé sans validation</span>
             </div>
 
-            <div className="space-y-3">
+            <div className="divide-y divide-white/[0.07]">
               {(physicalPlan?.regulatoryAuthorizations || [
                 {
                   stepNumber: 1,
@@ -975,19 +972,19 @@ export const KitsView: React.FC<KitsViewProps> = ({
               ]).map((auth, idx) => (
                 <div
                   key={idx}
-                  className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  className="py-4 first:pt-1 last:pb-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center justify-center">
-                        {auth.stepNumber}
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-mono text-xs text-amber-400 font-bold tabular-nums">
+                        0{auth.stepNumber}.
                       </span>
-                      <strong className="text-sm text-white">{auth.authority}</strong>
+                      <strong className="text-sm font-semibold text-white">{auth.authority}</strong>
                     </div>
                     <p className="text-xs text-slate-300">{auth.requirement}</p>
-                    <div className="text-[11px] text-slate-400 font-mono flex items-center gap-3 pt-1">
+                    <div className="text-[11px] text-slate-400 font-mono flex items-center gap-2.5 pt-0.5 tabular-nums">
                       <span>Coût estimé : {auth.estimatedCost}</span>
-                      <span>·</span>
+                      <span aria-hidden="true" className="text-slate-600">·</span>
                       <span>Délai : {auth.delay}</span>
                     </div>
                   </div>
@@ -1001,10 +998,10 @@ export const KitsView: React.FC<KitsViewProps> = ({
                         auth.authority
                       )
                     }
-                    className="cursor-pointer shrink-0 px-3 py-1.5 text-xs text-amber-300 hover:text-white bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/30 rounded-lg flex items-center gap-1.5 transition-colors"
+                    className="cursor-pointer shrink-0 px-3 py-1.5 text-xs font-medium text-amber-300 hover:text-white bg-amber-600/15 hover:bg-amber-600/30 border border-amber-500/30 rounded-lg flex items-center gap-1.5 transition-colors"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>Ajouter à la file "À valider"</span>
+                    <span>Ajouter à « À valider »</span>
                   </button>
                 </div>
               ))}
@@ -1013,39 +1010,39 @@ export const KitsView: React.FC<KitsViewProps> = ({
 
           {/* Section 5: Logistique & Calendrier d'Exécution */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-              <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+            <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-4">
+              <div className="text-xs font-semibold text-amber-400 flex items-center gap-2 border-b border-white/[0.07] pb-3">
                 <Truck className="w-4 h-4" />
                 <span>5. Logistique & Chaîne d Approvisionnement</span>
               </div>
 
-              <div className="space-y-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                  <span className="text-[11px] text-slate-400 font-semibold uppercase">Itinéraire & Corridor</span>
-                  <p className="text-slate-200">
+              <div className="space-y-4 text-xs">
+                <div className="space-y-1">
+                  <span className="text-[11px] text-slate-400 font-medium block">Itinéraire & Corridor</span>
+                  <p className="text-slate-200 leading-relaxed">
                     {physicalPlan?.supplyChainAndLogistics?.transportRoute ||
                       'Axe principal Cotonou-Malanville-Gaya-Dosso-Niamey avec relais sécurisé.'}
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                  <span className="text-[11px] text-slate-400 font-semibold uppercase">Conditions de Stockage</span>
-                  <p className="text-slate-200">
+                <div className="pt-3 border-t border-white/[0.06] space-y-1">
+                  <span className="text-[11px] text-slate-400 font-medium block">Conditions de Stockage</span>
+                  <p className="text-slate-200 leading-relaxed">
                     {physicalPlan?.supplyChainAndLogistics?.storageConditions ||
                       'Entrepôt aéré, palettes bois traitées, température contrôlée par ventilation solaire.'}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                    <span className="text-[11px] text-slate-400">Délai d Acheminement</span>
-                    <div className="text-lg font-bold font-mono text-white mt-1">
+                <div className="grid grid-cols-2 pt-3 border-t border-white/[0.06] divide-x divide-white/[0.07]">
+                  <div className="pr-4">
+                    <span className="text-[11px] text-slate-400 block">Délai d Acheminement</span>
+                    <div className="text-lg font-bold font-mono text-white mt-0.5 tabular-nums">
                       {physicalPlan?.supplyChainAndLogistics?.leadTimeDays || 4} jours
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                    <span className="text-[11px] text-slate-400">Stock de Sécurité Minimal</span>
-                    <div className="text-lg font-bold font-mono text-white mt-1">
+                  <div className="pl-4">
+                    <span className="text-[11px] text-slate-400 block">Stock de Sécurité Minimal</span>
+                    <div className="text-lg font-bold font-mono text-white mt-0.5 tabular-nums">
                       {physicalPlan?.supplyChainAndLogistics?.safetyStockUnits || 150} unités
                     </div>
                   </div>
@@ -1053,25 +1050,25 @@ export const KitsView: React.FC<KitsViewProps> = ({
               </div>
             </div>
 
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-              <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+            <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-4">
+              <div className="text-xs font-semibold text-amber-400 flex items-center gap-2 border-b border-white/[0.07] pb-3">
                 <Calendar className="w-4 h-4" />
                 <span>6. Calendrier d Exécution (Semaines 1 à 8)</span>
               </div>
 
-              <div className="space-y-3">
+              <div className="divide-y divide-white/[0.06]">
                 {(physicalPlan?.implementationTimeline || [
                   { week: 'Semaine 1-2', milestone: 'Légal & Local commercial', criticalAction: 'Dépôt des statuts à la Maison de l Entreprise et bail du dépôt.' },
                   { week: 'Semaine 3-4', milestone: 'Contrats Fournisseurs', criticalAction: 'Paiement acompte premier lot et sécurisation du fret routier.' },
                   { week: 'Semaine 5-6', milestone: 'Réception & Lancement Ventes', criticalAction: 'Déchargement stock, contrôle qualité et prospection des premiers clients.' },
                   { week: 'Semaine 7-8', milestone: 'Atteinte du Point Mort', criticalAction: 'Recouvrement des premières ventes et réapprovisionnement régulier.' },
                 ]).map((step, idx) => (
-                  <div key={idx} className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-amber-400">{step.week}</span>
-                      <span className="text-slate-300 font-medium">{step.milestone}</span>
+                  <div key={idx} className="py-3 first:pt-1 last:pb-1 space-y-1 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-semibold text-amber-400">{step.week}</span>
+                      <span className="text-slate-200 font-medium">{step.milestone}</span>
                     </div>
-                    <p className="text-slate-400 text-[11px]">{step.criticalAction}</p>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">{step.criticalAction}</p>
                   </div>
                 ))}
               </div>

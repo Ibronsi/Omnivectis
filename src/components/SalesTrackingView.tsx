@@ -157,21 +157,21 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [sales]);
 
-  const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#06b6d4', '#ec4899', '#8b5cf6'];
+  const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#06B6D4', '#EC4899', '#8B5CF6'];
 
   return (
     <div className="space-y-8">
       {/* Editorial Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-800 pb-6">
-        <div>
-          <div className="text-xs font-semibold text-emerald-400 tracking-wider uppercase mb-1 flex items-center gap-1.5">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/[0.08] pb-6">
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
             <DollarSign className="w-3.5 h-3.5" />
             <span>Réalité Terrain · Enregistrement & Réconciliation des Ventes</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+          </p>
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
             Module Encaissements Réels vs Prévisions
           </h1>
-          <p className="text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed">
+          <p className="text-sm text-slate-400 max-w-3xl leading-relaxed">
             Saisissez vos encaissements réels (clients, montants, opérateurs Mobile Money ou banques du pays).
             L application compare vos chiffres effectifs aux projections sans aucune donnée inventée.
           </p>
@@ -180,7 +180,7 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => setIsAdding(!isAdding)}
-            className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-sm transition-all flex items-center gap-2"
+            className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             <span>{isAdding ? 'Fermer le formulaire' : 'Saisir une Vente Réelle'}</span>
@@ -188,49 +188,45 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
         </div>
       </div>
 
-      {/* Mandatory Legal & Model Banner */}
-      <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-semibold text-white">Mention Réglementaire & Méthodologique : </span>
-            <span className="font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 mr-1.5">
-              Estimation indicative
-            </span>
-            <span>
-              Les prévisions et objectifs financiers sont des modélisations établies à partir d hypothèses d activité révisables.
-              Seules les ventes enregistrées dans ce module constituent des données réelles certifiées.
-            </span>
-          </div>
-        </div>
+      {/* Mandatory Legal & Model Strip */}
+      <div className="p-4 rounded-xl bg-[#11141C] border border-white/[0.08] text-xs text-slate-300 flex items-start gap-3">
+        <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+        <p className="leading-relaxed">
+          <span className="font-semibold text-white">Mention Méthodologique : </span>
+          <span className="font-mono text-amber-400 font-medium mr-1.5">
+            Estimation indicative
+          </span>
+          · Les prévisions et objectifs financiers sont des modélisations établies à partir d hypothèses d activité révisables.
+          Seules les ventes enregistrées dans ce module constituent des données réelles certifiées.
+        </p>
       </div>
 
-      {/* Real Sales Input Form Modal / Collapsible */}
+      {/* Real Sales Input Form Collapsible */}
       {isAdding && (
         <form
           onSubmit={handleAddSale}
-          className="p-6 rounded-2xl bg-slate-900 border border-emerald-600/50 shadow-xl space-y-4"
+          className="p-6 rounded-xl bg-[#11141C] border border-emerald-500/30 space-y-4"
         >
-          <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+          <div className="text-xs font-semibold text-emerald-400 flex items-center gap-2 border-b border-white/[0.07] pb-3">
             <Plus className="w-4 h-4" />
             <span>Saisie d un Encaissement Réel</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <label className="text-[11px] text-slate-300 font-semibold">Nom du Client / Société *</label>
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-slate-300 font-medium block">Nom du Client / Société *</label>
               <input
                 type="text"
                 required
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
                 placeholder="Ex: Entreprise Sahel SARL, Dr. Moussa"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:border-emerald-400 focus:outline-none"
+                className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.1] rounded-lg text-white text-xs focus:border-emerald-400 focus:outline-none"
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[11px] text-slate-300 font-semibold">Montant Réel *</label>
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-slate-300 font-medium block">Montant Réel *</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -238,18 +234,18 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
                   min="0"
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono font-bold text-xs focus:border-emerald-400 focus:outline-none"
+                  className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.1] rounded-lg text-white font-mono font-semibold text-xs tabular-nums focus:border-emerald-400 focus:outline-none"
                 />
-                <span className="text-xs font-mono font-bold text-slate-300">{currency}</span>
+                <span className="text-xs font-mono font-semibold text-slate-400">{currency}</span>
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[11px] text-slate-300 font-semibold">Statut d Encaissement</label>
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-slate-300 font-medium block">Statut d Encaissement</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as 'encaisse' | 'en_attente')}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:border-emerald-400 focus:outline-none"
+                className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.1] rounded-lg text-white text-xs focus:border-emerald-400 focus:outline-none cursor-pointer"
               >
                 <option value="encaisse">Encaissé (Fonds reçus)</option>
                 <option value="en_attente">En attente de règlement (Facturé)</option>
@@ -258,26 +254,23 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <label className="text-[11px] text-slate-300 font-semibold">Moyen de Paiement Réel</label>
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-slate-300 font-medium block">Moyen de Paiement Réel</label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:border-emerald-400 focus:outline-none"
+                className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.1] rounded-lg text-white text-xs focus:border-emerald-400 focus:outline-none cursor-pointer"
               >
-                {/* Mobile Money */}
                 {currentProfile.mobileMoney.map((m) => (
                   <option key={m} value={m}>
                     {m} (Mobile Money)
                   </option>
                 ))}
-                {/* Banks */}
                 {currentProfile.banks.map((b) => (
                   <option key={b} value={b}>
                     {b} (Virement bancaire)
                   </option>
                 ))}
-                {/* Transfer Agencies & Cards */}
                 {currentProfile.transferAgencies.map((t) => (
                   <option key={t} value={t}>
                     {t} (Transfert / Carte)
@@ -288,29 +281,29 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[11px] text-slate-300 font-semibold">Date de l opération</label>
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-slate-300 font-medium block">Date de l opération</label>
               <input
                 type="date"
                 value={saleDate}
                 onChange={(e) => setSaleDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:border-emerald-400 focus:outline-none"
+                className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.1] rounded-lg text-white text-xs font-mono focus:border-emerald-400 focus:outline-none"
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[11px] text-slate-300 font-semibold">Référence / Reçu</label>
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-slate-300 font-medium block">Référence / Reçu</label>
               <input
                 type="text"
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
                 placeholder="Ex: AIRTEL-TX-993821, FACT-2026-04"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:border-emerald-400 focus:outline-none"
+                className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.1] rounded-lg text-white text-xs focus:border-emerald-400 focus:outline-none"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/[0.07]">
             <button
               type="button"
               onClick={() => setIsAdding(false)}
@@ -320,7 +313,7 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
             </button>
             <button
               type="submit"
-              className="cursor-pointer px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-sm transition-all"
+              className="cursor-pointer px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors"
             >
               Enregistrer l encaissement
             </button>
@@ -328,42 +321,42 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
         </form>
       )}
 
-      {/* KPI Comparators: Réel vs Prévisions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Unified KPI Hairline Ledger Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-[#11141C] border border-white/[0.08] rounded-xl divide-y sm:divide-y-0 sm:divide-x divide-white/[0.08]">
         {/* KPI 1: Real Received */}
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+        <div className="p-5 space-y-1.5">
           <div className="flex items-center justify-between text-slate-400 text-xs">
             <span>Encaissé Réel (Fonds reçus)</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
           </div>
-          <div className="text-2xl font-bold font-mono text-emerald-400">
+          <div className="text-2xl font-bold font-mono text-emerald-400 tabular-nums">
             {totalReceived.toLocaleString('fr-FR')} {currentProfile.currency}
           </div>
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-slate-500 block font-mono tabular-nums">
             {sales.filter((s) => s.status === 'encaisse').length} transaction(s) certifiée(s)
           </span>
         </div>
 
         {/* KPI 2: Pending Receivables */}
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+        <div className="p-5 space-y-1.5">
           <div className="flex items-center justify-between text-slate-400 text-xs">
             <span>En Attente de Règlement</span>
-            <Clock className="w-4 h-4 text-amber-400" />
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
           </div>
-          <div className="text-2xl font-bold font-mono text-amber-400">
+          <div className="text-2xl font-bold font-mono text-amber-400 tabular-nums">
             {totalPending.toLocaleString('fr-FR')} {currentProfile.currency}
           </div>
-          <span className="text-[11px] text-slate-400">
-            Factures ou promesses en cours de recouvrement
+          <span className="text-[11px] text-slate-500 block">
+            Factures en cours de recouvrement
           </span>
         </div>
 
         {/* KPI 3: Target Objective (Editable) */}
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+        <div className="p-5 space-y-1.5">
           <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span>Objectif Mensuel Indicatif</span>
-            <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1 rounded">
-              Estimation
+            <span>Objectif Mensuel</span>
+            <span className="text-[10px] font-mono text-amber-400">
+              Estimation indicative
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -371,32 +364,32 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
               type="number"
               value={indicativeMonthlyTarget}
               onChange={(e) => setIndicativeMonthlyTarget(Number(e.target.value))}
-              className="w-full text-xl font-bold font-mono text-white bg-slate-950 border border-slate-700 rounded px-2 py-1 focus:border-indigo-400 focus:outline-none"
+              className="w-full text-lg font-bold font-mono text-white bg-[#0D1017] border border-white/[0.1] rounded-lg px-2.5 py-1 tabular-nums focus:border-blue-500/60 focus:outline-none"
             />
             <span className="text-xs font-mono text-slate-400">{currentProfile.currency}</span>
           </div>
-          <span className="text-[10px] text-slate-400 block">
-            Hypothèse modifiable selon votre plan de charge
+          <span className="text-[11px] text-slate-500 block">
+            Hypothèse modifiable
           </span>
         </div>
 
         {/* KPI 4: Achievement Rate */}
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+        <div className="p-5 space-y-2">
           <div className="flex items-center justify-between text-slate-400 text-xs">
             <span>Taux de Réalisation</span>
-            <TrendingUp className="w-4 h-4 text-cyan-400" />
+            <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
           </div>
-          <div className="text-2xl font-bold font-mono text-cyan-400">
+          <div className="text-2xl font-bold font-mono text-blue-400 tabular-nums">
             {targetAchievementRate}%
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div className="w-full bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
             <div
-              className="bg-cyan-400 h-1.5 rounded-full transition-all"
+              className="bg-blue-500 h-1.5 rounded-full transition-all"
               style={{ width: `${Math.min(100, targetAchievementRate)}%` }}
             />
           </div>
-          <span className="text-[10px] text-slate-400 block">
-            Taux de recouvrement : {recoveryRate}%
+          <span className="text-[11px] text-slate-500 block font-mono tabular-nums">
+            Recouvrement : {recoveryRate}%
           </span>
         </div>
       </div>
@@ -404,38 +397,40 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
       {/* Charts Zone: Real vs Projections & Payment breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Chart 1: Visual Comparison */}
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+        <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-4">
           <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+            <div className="text-xs font-semibold text-slate-200 flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-emerald-400" />
-              <span>Comparaison des Volumes : Réel vs En attente vs Objectif</span>
+              <span>Comparaison : Réel vs En attente vs Objectif</span>
             </div>
-            <span className="text-[10px] font-mono text-amber-400">Estimation indicative</span>
+            <span className="text-[11px] font-mono text-amber-400">Estimation indicative</span>
           </div>
 
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={[
-                  { name: 'Encaissé Réel', montant: totalReceived, fill: '#10b981' },
-                  { name: 'En Attente', montant: totalPending, fill: '#f59e0b' },
-                  { name: 'Objectif Prévisionnel', montant: indicativeMonthlyTarget, fill: '#6366f1' },
+                  { name: 'Encaissé Réel', montant: totalReceived, fill: '#10B981' },
+                  { name: 'En Attente', montant: totalPending, fill: '#F59E0B' },
+                  { name: 'Objectif Indicatif', montant: indicativeMonthlyTarget, fill: '#3B82F6' },
                 ]}
                 margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
               >
-                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <XAxis dataKey="name" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
                 <YAxis
-                  tick={{ fill: '#94a3b8', fontSize: 10 }}
+                  tick={{ fill: '#64748B', fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
                   tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`}
                 />
                 <Tooltip
                   formatter={(val: any) => [`${Number(val).toLocaleString('fr-FR')} ${currentProfile.currency}`, 'Montant']}
-                  contentStyle={{ backgroundColor: '#020617', borderColor: '#1e293b', borderRadius: '8px' }}
+                  contentStyle={{ backgroundColor: '#0D1017', borderColor: 'rgba(255,255,255,0.12)', borderRadius: '8px', fontSize: '12px' }}
                 />
-                <Bar dataKey="montant" radius={[6, 6, 0, 0]}>
-                  <Cell fill="#10b981" />
-                  <Cell fill="#f59e0b" />
-                  <Cell fill="#6366f1" />
+                <Bar dataKey="montant" radius={[5, 5, 0, 0]}>
+                  <Cell fill="#10B981" />
+                  <Cell fill="#F59E0B" />
+                  <Cell fill="#3B82F6" />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -443,14 +438,14 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
         </div>
 
         {/* Chart 2: Payment Rail Distribution */}
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-          <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-            <Wallet className="w-4 h-4 text-cyan-400" />
+        <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-4">
+          <div className="text-xs font-semibold text-slate-200 flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-blue-400" />
             <span>Répartition par Moyen d Encaissement Réel</span>
           </div>
 
           {paymentBreakdownData.length === 0 ? (
-            <div className="h-64 flex items-center justify-center text-xs text-slate-400">
+            <div className="h-64 flex items-center justify-center text-xs text-slate-500">
               Aucune vente enregistrée pour afficher la répartition.
             </div>
           ) : (
@@ -461,19 +456,19 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
                     data={paymentBreakdownData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={5}
+                    innerRadius={52}
+                    outerRadius={82}
+                    paddingAngle={4}
                     dataKey="value"
                     label={({ name, percent }) => `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`}
                   >
                     {paymentBreakdownData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
                     ))}
                   </Pie>
                   <Tooltip
                     formatter={(val: any) => [`${Number(val).toLocaleString('fr-FR')} ${currentProfile.currency}`, 'Volume']}
-                    contentStyle={{ backgroundColor: '#020617', borderColor: '#1e293b', borderRadius: '8px' }}
+                    contentStyle={{ backgroundColor: '#0D1017', borderColor: 'rgba(255,255,255,0.12)', borderRadius: '8px', fontSize: '12px' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -482,62 +477,62 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
         </div>
       </div>
 
-      {/* Real Sales Ledger Table */}
-      <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+      {/* Real Sales Ledger Table (Single-Elevation Card) */}
+      <div className="rounded-xl bg-[#11141C] border border-white/[0.08] overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
+          <span className="text-xs font-semibold text-slate-200">
             Registre des Ventes Réelles Enregistrées ({sales.length})
-          </div>
-          <span className="text-[11px] text-slate-400">Données persistées sur disque</span>
+          </span>
+          <span className="text-[11px] font-mono text-slate-500">Persisté localement</span>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-800 text-slate-400 bg-slate-900/60">
-                <th className="py-3 px-4 font-semibold">Date</th>
-                <th className="py-3 px-4 font-semibold">Client / Entreprise</th>
-                <th className="py-3 px-4 font-semibold">Opportunité / Offre</th>
-                <th className="py-3 px-4 font-semibold">Moyen de Paiement</th>
-                <th className="py-3 px-4 font-semibold">Référence</th>
-                <th className="py-3 px-4 font-semibold text-right">Montant</th>
-                <th className="py-3 px-4 text-center font-semibold">Statut</th>
-                <th className="py-3 px-4 text-center font-semibold">Actions</th>
+              <tr className="border-b border-white/[0.08] text-slate-400 bg-[#0D1017]">
+                <th className="py-2.5 px-4 font-semibold">Date</th>
+                <th className="py-2.5 px-4 font-semibold">Client / Entreprise</th>
+                <th className="py-2.5 px-4 font-semibold">Opportunité / Offre</th>
+                <th className="py-2.5 px-4 font-semibold">Moyen de Paiement</th>
+                <th className="py-2.5 px-4 font-semibold">Référence</th>
+                <th className="py-2.5 px-4 font-semibold text-right">Montant</th>
+                <th className="py-2.5 px-4 text-center font-semibold">Statut</th>
+                <th className="py-2.5 px-4 text-center font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-sans">
+            <tbody className="divide-y divide-white/[0.06] font-sans">
               {sales.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
-                    Aucune vente enregistrée pour le moment. Cliquez sur "Saisir une Vente Réelle" ci-dessus pour ajouter votre premier encaissement.
+                  <td colSpan={8} className="py-10 text-center text-slate-400">
+                    Aucune vente enregistrée pour le moment. Cliquez sur « Saisir une Vente Réelle » ci-dessus pour ajouter votre premier encaissement.
                   </td>
                 </tr>
               ) : (
                 sales.map((sale) => (
-                  <tr key={sale.id} className="hover:bg-slate-900/40">
-                    <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">{sale.date}</td>
-                    <td className="py-3 px-4 font-bold text-white">{sale.clientName}</td>
-                    <td className="py-3 px-4 text-slate-300 text-xs">{sale.opportunityTitle}</td>
-                    <td className="py-3 px-4 text-slate-300 flex items-center gap-1.5 pt-3">
-                      <CreditCard className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                      <span>{sale.paymentMethod}</span>
+                  <tr key={sale.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-2.5 px-4 text-slate-400 font-mono text-[11px] tabular-nums whitespace-nowrap">{sale.date}</td>
+                    <td className="py-2.5 px-4 font-semibold text-white">{sale.clientName}</td>
+                    <td className="py-2.5 px-4 text-slate-300 text-xs">{sale.opportunityTitle}</td>
+                    <td className="py-2.5 px-4 text-slate-300">
+                      <span className="inline-flex items-center gap-1.5">
+                        <CreditCard className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                        <span>{sale.paymentMethod}</span>
+                      </span>
                     </td>
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-400">{sale.reference || '-'}</td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-white">
+                    <td className="py-2.5 px-4 font-mono text-[11px] text-slate-400">{sale.reference || '-'}</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-semibold text-white tabular-nums whitespace-nowrap">
                       {sale.amount.toLocaleString('fr-FR')} {sale.currency}
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-2.5 px-4 text-center whitespace-nowrap">
                       <span
-                        className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded ${
-                          sale.status === 'encaisse'
-                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                            : 'bg-amber-950 text-amber-300 border border-amber-800'
+                        className={`text-[11px] font-mono font-medium ${
+                          sale.status === 'encaisse' ? 'text-emerald-400' : 'text-amber-400'
                         }`}
                       >
                         {sale.status === 'encaisse' ? 'Encaissé' : 'En attente'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-2.5 px-4 text-center">
                       <button
                         onClick={() => handleDeleteSale(sale.id)}
                         className="p-1 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"

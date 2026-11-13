@@ -93,32 +93,31 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="border-b border-slate-800 pb-6">
-        <div className="text-xs font-semibold text-indigo-400 tracking-wider uppercase mb-1">
+      <div className="border-b border-white/[0.08] pb-6 space-y-1.5">
+        <p className="text-xs font-medium text-blue-400">
           Générateur de Stratégie d Exécution IA
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+        </p>
+        <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
           Concepteur de Plan d Action Commercial & Revenus
         </h1>
-        <p className="text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed">
+        <p className="text-sm text-slate-400 max-w-3xl leading-relaxed">
           Configurez vos objectifs de gains, votre secteur cible et vos ressources disponibles. Le moteur
-          IA synthétise un plan d action opérationnel d élite pour atteindre vos premiers revenus récurrents en moins de 30 jours.
+          IA synthétise un plan d action opérationnel pour atteindre vos premiers revenus récurrents.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Form Inputs (5 cols) */}
-        <div className="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-400" />
+        <div className="lg:col-span-5 bg-[#11141C] border border-white/[0.08] rounded-xl p-5 space-y-5">
+          <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
+            <span className="text-xs font-semibold text-slate-200 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-400" />
               <span>Paramètres du Business</span>
             </span>
-            <span className="text-[11px] text-slate-400 font-mono">Modèle Gemini 3.8 Flash</span>
+            <span className="text-[11px] text-slate-500 font-mono">Gemini API</span>
           </div>
 
           <form onSubmit={handleGenerate} className="space-y-4">
-            {/* Sector Picker */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-300">
                 Secteur économique principal
@@ -126,7 +125,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               <select
                 value={selectedSectorId}
                 onChange={(e) => setSelectedSectorId(e.target.value as SectorCategory)}
-                className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                className="w-full bg-[#0D1017] border border-white/[0.1] text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-blue-500/60 cursor-pointer"
               >
                 {ECONOMIC_SECTORS.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -136,7 +135,6 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               </select>
             </div>
 
-            {/* Custom Niche or Preset */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-300">
                 Niche ciblée (ou laisser vide pour la recommandation optimale)
@@ -146,11 +144,10 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                 placeholder={currentSector.niches[0]?.title || 'Ex: Agents IA B2B pour experts-comptables'}
                 value={customNiche}
                 onChange={(e) => setCustomNiche(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2.5 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-[#0D1017] border border-white/[0.1] text-slate-200 text-xs rounded-lg px-3 py-2.5 placeholder-slate-500 focus:outline-none focus:border-blue-500/60"
               />
             </div>
 
-            {/* Target Revenue */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-300">
                 Objectif de revenu mensuel visé
@@ -158,16 +155,15 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               <select
                 value={targetRevenue}
                 onChange={(e) => setTargetRevenue(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                className="w-full bg-[#0D1017] border border-white/[0.1] text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-blue-500/60 cursor-pointer"
               >
-                <option value="5 000 € / mois">5 000 € / mois (Premier palier liberté)</option>
+                <option value="5 000 € / mois">5 000 € / mois (Premier palier)</option>
                 <option value="15 000 € / mois">15 000 € / mois (Rentabilité consolidée)</option>
                 <option value="50 000 € / mois">50 000 € / mois (Échelle et équipe lean)</option>
                 <option value="100 000 €+ / mois">100 000 €+ / mois (Leadership de niche)</option>
               </select>
             </div>
 
-            {/* Business Model */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-300">
                 Modèle d affaires privilégié
@@ -175,7 +171,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               <select
                 value={businessModel}
                 onChange={(e) => setBusinessModel(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                className="w-full bg-[#0D1017] border border-white/[0.1] text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-blue-500/60 cursor-pointer"
               >
                 <option value="SaaS B2B & Abonnements Récurrents">SaaS B2B / Micro-SaaS (Récurrence MRR 80%+)</option>
                 <option value="Agence Produitisée / Retainer B2B">Service Produitisé / Retainer B2B (Cash immédiat)</option>
@@ -184,7 +180,6 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               </select>
             </div>
 
-            {/* Starting Budget */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-300">
                 Budget de démarrage disponible
@@ -192,7 +187,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               <select
                 value={capitalBudget}
                 onChange={(e) => setCapitalBudget(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                className="w-full bg-[#0D1017] border border-white/[0.1] text-slate-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-blue-500/60 cursor-pointer"
               >
                 <option value="0€ (Bootstrap total sans capital)">0 € (Bootstrap total / No-code)</option>
                 <option value="1 000€ à 3 000€">1 000 € à 3 000 € (Outils pros & cold outbound)</option>
@@ -200,7 +195,6 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               </select>
             </div>
 
-            {/* Skills */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-300">
                 Vos compétences clés / Atouts
@@ -210,15 +204,14 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                 value={userSkills}
                 onChange={(e) => setUserSkills(e.target.value)}
                 placeholder="Ex: Vente, automatisation, code, réseau relationnel..."
-                className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2.5 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-[#0D1017] border border-white/[0.1] text-slate-200 text-xs rounded-lg px-3 py-2.5 placeholder-slate-500 focus:outline-none focus:border-blue-500/60"
               />
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="cursor-pointer w-full mt-4 py-3 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-900/60 rounded-lg shadow transition-colors flex items-center justify-center gap-2"
+              className="cursor-pointer w-full mt-4 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -234,8 +227,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
             </button>
           </form>
 
-          {/* Quick Preset Buttons */}
-          <div className="pt-2 border-t border-slate-800/80">
+          <div className="pt-3 border-t border-white/[0.07]">
             <span className="text-[11px] text-slate-400 block mb-2">Exemples de requêtes rapides :</span>
             <div className="flex flex-wrap gap-1.5">
               <button
@@ -246,7 +238,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                   setBusinessModel('SaaS B2B & Abonnements Récurrents');
                   setCustomNiche('Agents IA B2B pour audits comptables');
                 }}
-                className="text-[11px] px-2 py-1 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded border border-slate-800"
+                className="cursor-pointer text-[11px] px-2.5 py-1 bg-[#0D1017] hover:bg-white/[0.06] text-slate-300 rounded-md border border-white/[0.08] transition-colors"
               >
                 Audit IA B2B (15k€/m)
               </button>
@@ -258,7 +250,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                   setBusinessModel('Agence Produitisée / Retainer B2B');
                   setCustomNiche('Agence Prospection Multicanale B2B');
                 }}
-                className="text-[11px] px-2 py-1 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded border border-slate-800"
+                className="cursor-pointer text-[11px] px-2.5 py-1 bg-[#0D1017] hover:bg-white/[0.06] text-slate-300 rounded-md border border-white/[0.08] transition-colors"
               >
                 RevOps Agency (25k€/m)
               </button>
@@ -270,7 +262,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                   setBusinessModel('Arbitrage de Flux & Commission (Take-Rate)');
                   setCustomNiche('Courtage d effacement électrique industriel');
                 }}
-                className="text-[11px] px-2 py-1 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded border border-slate-800"
+                className="cursor-pointer text-[11px] px-2.5 py-1 bg-[#0D1017] hover:bg-white/[0.06] text-slate-300 rounded-md border border-white/[0.08] transition-colors"
               >
                 CleanTech Arbitrage (50k€/m)
               </button>
@@ -281,18 +273,18 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
         {/* Blueprint Dossier Output (7 cols) */}
         <div className="lg:col-span-7">
           {error && (
-            <div className="p-4 bg-rose-950/40 border border-rose-800/80 rounded-xl text-rose-300 text-xs mb-6">
+            <div className="p-4 bg-[#11141C] border border-rose-500/30 rounded-lg text-rose-400 text-xs mb-6">
               {error}
             </div>
           )}
 
           {!blueprint && !loading && (
-            <div className="p-12 bg-slate-900/40 border border-slate-800 border-dashed rounded-xl text-center space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center mx-auto text-indigo-400">
-                <Sparkles className="w-6 h-6" />
+            <div className="p-12 bg-[#11141C] border border-white/[0.08] border-dashed rounded-lg text-center space-y-4">
+              <div className="w-11 h-11 rounded-lg bg-[#0D1017] border border-white/[0.08] flex items-center justify-center mx-auto text-blue-400">
+                <Sparkles className="w-5 h-5" />
               </div>
               <div className="max-w-md mx-auto">
-                <h3 className="text-base font-bold text-white">Prêt à configurer votre plan d action</h3>
+                <h3 className="font-display text-base font-semibold text-white">Prêt à configurer votre plan d action</h3>
                 <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
                   Sélectionnez vos critères à gauche et cliquez sur "Compiler la Stratégie d Exécution". L IA
                   analysera la dynamique du marché et produira un plan de monétisation, d acquisition et une roadmap chronologique J+30 à J+90.
@@ -300,7 +292,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               </div>
               <button
                 onClick={() => handleGenerate()}
-                className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-sm transition-colors"
+                className="cursor-pointer px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
               >
                 Générer un exemple pour {currentSector.name}
               </button>
@@ -308,24 +300,24 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
           )}
 
           {loading && (
-            <div className="p-12 bg-slate-900/60 border border-slate-800 rounded-xl text-center space-y-4">
-              <Loader2 className="w-8 h-8 text-indigo-400 animate-spin mx-auto" />
-              <div className="text-sm font-semibold text-white">Analyse des flux de valeur en cours...</div>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            <div className="p-12 bg-[#11141C] border border-white/[0.08] rounded-lg text-center space-y-4">
+              <Loader2 className="w-7 h-7 text-blue-400 animate-spin mx-auto" />
+              <div className="font-display text-sm font-semibold text-white">Analyse des flux de valeur en cours...</div>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
                 Modélisation de l asymétrie de marché, calibrage des prix et synthèse de la feuille de route 30-60-90 jours.
               </p>
             </div>
           )}
 
           {blueprint && !loading && (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-6 shadow-xl">
+            <div className="bg-[#11141C] border border-white/[0.08] rounded-lg divide-y divide-white/[0.07]">
               {/* Dossier Header and Controls */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-blue-400 font-medium">
                     Plan d Exécution Stratégique · {currentSector.name}
                   </div>
-                  <h2 className="text-xl font-extrabold text-white mt-0.5">
+                  <h2 className="font-display text-xl font-semibold text-white tracking-tight mt-0.5">
                     {customNiche || currentSector.niches[0]?.title}
                   </h2>
                 </div>
@@ -333,9 +325,9 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={handleCopy}
-                    className="cursor-pointer px-3 py-1.5 text-xs font-medium text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors flex items-center gap-1.5"
+                    className="cursor-pointer px-3 py-1.5 text-xs font-medium text-slate-200 bg-[#0D1017] hover:bg-white/[0.06] border border-white/[0.08] rounded-lg transition-colors flex items-center gap-1.5"
                   >
-                    <Copy className="w-3.5 h-3.5" />
+                    <Copy className="w-3.5 h-3.5 text-slate-400" />
                     <span>{copied ? 'Copié !' : 'Copier'}</span>
                   </button>
 
@@ -349,7 +341,7 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                       setSavedSuccess(true);
                       setTimeout(() => setSavedSuccess(false), 3000);
                     }}
-                    className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                    className="cursor-pointer px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors flex items-center gap-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>{savedSuccess ? 'Ajouté au Pipeline !' : 'Suivre dans Pipeline'}</span>
@@ -358,8 +350,8 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               </div>
 
               {/* Executive Summary */}
-              <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-lg">
-                <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
+              <div className="p-6 space-y-1.5 bg-[#0D1017]/50">
+                <span className="text-[11px] font-medium text-blue-400 uppercase tracking-wider block">
                   Thèse d Opportunité & Asymétrie de Marché
                 </span>
                 <p className="text-xs text-slate-200 leading-relaxed">
@@ -367,53 +359,50 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                 </p>
               </div>
 
-              {/* Revenue Mechanics Strip */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+              {/* Revenue Mechanics Unified Strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-white/[0.07]">
+                <div className="p-4">
                   <span className="text-[11px] text-slate-400 block">Pricing Conseillé</span>
-                  <span className="text-xs font-bold font-mono text-white mt-0.5 block">
+                  <span className="text-xs font-semibold font-mono text-white mt-1 block">
                     {blueprint.revenueMechanics.pricingModel}
                   </span>
                 </div>
-                <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                <div className="p-4">
                   <span className="text-[11px] text-slate-400 block">Marge Brute Estimée</span>
-                  <span className="text-sm font-bold font-mono text-emerald-400 mt-0.5 block tabular-nums">
+                  <span className="text-sm font-semibold font-mono text-emerald-400 mt-1 block tabular-nums">
                     {blueprint.revenueMechanics.expectedGrossMargin}
                   </span>
                 </div>
-                <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                <div className="p-4">
                   <span className="text-[11px] text-slate-400 block">Panier Moyen</span>
-                  <span className="text-xs font-bold font-mono text-cyan-300 mt-0.5 block">
+                  <span className="text-xs font-semibold font-mono text-blue-300 mt-1 block tabular-nums">
                     {blueprint.revenueMechanics.targetTicket}
                   </span>
                 </div>
-                <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                <div className="p-4">
                   <span className="text-[11px] text-slate-400 block">Scalabilité</span>
-                  <span className="text-xs font-bold font-mono text-amber-300 mt-0.5 block">
+                  <span className="text-xs font-semibold font-mono text-amber-400 mt-1 block">
                     {blueprint.revenueMechanics.scalabilityGrade}
                   </span>
                 </div>
               </div>
 
-              <div className="text-xs text-slate-300 p-3 bg-slate-800/30 rounded-lg border border-slate-800/80">
+              <div className="px-6 py-3.5 text-xs text-slate-300 bg-[#0D1017]/40 leading-relaxed">
                 <span className="font-semibold text-white">Mécanique de Monétisation : </span>
                 {blueprint.revenueMechanics.explanation}
               </div>
 
               {/* 3 Acquisition Strategies */}
-              <div className="space-y-3">
-                <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider block">
+              <div className="p-6 space-y-3">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block">
                   3 Canaux d Acquisition Client à Coût Zéro
                 </span>
-                <div className="space-y-2.5">
+                <div className="divide-y divide-white/[0.07] border border-white/[0.08] rounded-lg bg-[#0D1017]/60">
                   {blueprint.acquisitionStrategy.map((strat, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3 bg-slate-950/60 rounded-lg border border-slate-800 text-xs space-y-1"
-                    >
-                      <div className="flex items-center justify-between text-indigo-400 font-semibold">
-                        <span>{strat.channel}</span>
-                        <span className="text-slate-400 font-mono text-[11px]">
+                    <div key={idx} className="p-3.5 text-xs space-y-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-blue-400 font-semibold">{strat.channel}</span>
+                        <span className="text-slate-400 font-mono text-[11px] tabular-nums shrink-0">
                           Conversion : {strat.expectedConversion}
                         </span>
                       </div>
@@ -424,13 +413,13 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               </div>
 
               {/* 30-60-90 Day Roadmap */}
-              <div className="space-y-3">
-                <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider block">
+              <div className="p-6 space-y-3">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block">
                   Feuille de Route Chronologique (J+30 / J+60 / J+90)
                 </span>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="p-3.5 bg-slate-950/70 rounded-lg border border-slate-800 space-y-1.5">
-                    <div className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+                <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/[0.07] border border-white/[0.08] rounded-lg bg-[#0D1017]/60">
+                  <div className="p-4 space-y-1.5">
+                    <div className="text-xs font-semibold text-blue-400 flex items-center gap-1.5 font-mono">
                       <Calendar className="w-3.5 h-3.5" />
                       <span>J+30 : Validation & Cash</span>
                     </div>
@@ -439,8 +428,8 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                     </p>
                   </div>
 
-                  <div className="p-3.5 bg-slate-950/70 rounded-lg border border-slate-800 space-y-1.5">
-                    <div className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+                  <div className="p-4 space-y-1.5">
+                    <div className="text-xs font-semibold text-amber-400 flex items-center gap-1.5 font-mono">
                       <Calendar className="w-3.5 h-3.5" />
                       <span>J+60 : Automatisation</span>
                     </div>
@@ -449,8 +438,8 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                     </p>
                   </div>
 
-                  <div className="p-3.5 bg-slate-950/70 rounded-lg border border-slate-800 space-y-1.5">
-                    <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <div className="p-4 space-y-1.5">
+                    <div className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 font-mono">
                       <Calendar className="w-3.5 h-3.5" />
                       <span>J+90 : Échelle & Marge</span>
                     </div>
@@ -462,15 +451,15 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               </div>
 
               {/* Cross-sector synergies */}
-              <div className="p-4 bg-slate-950/50 rounded-lg border border-slate-800 space-y-2">
-                <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                  <Layers className="w-3.5 h-3.5 text-indigo-400" />
+              <div className="p-6 space-y-2.5">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                  <Layers className="w-3.5 h-3.5 text-blue-400" />
                   <span>Synergies Cross-Secteur pour Démultiplier les Gains</span>
                 </span>
                 <div className="space-y-1.5">
                   {blueprint.crossSectorSynergies.map((syn, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-xs text-slate-300">
-                      <CheckCircle className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />
+                    <div key={idx} className="flex items-start gap-2 text-xs text-slate-300 leading-relaxed">
+                      <CheckCircle className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
                       <span>{syn}</span>
                     </div>
                   ))}
@@ -478,10 +467,10 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               </div>
 
               {/* Defense Moat */}
-              <div className="p-4 bg-slate-950/70 rounded-lg border border-slate-800 flex items-start gap-3">
-                <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="p-6 bg-[#0D1017]/50 flex items-start gap-3">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
-                  <div className="font-semibold text-white">Barrière à l Entrée & Moat Défensif :</div>
+                  <div className="font-semibold text-white">Barrière à l Entrée & Moat Défensif</div>
                   <div className="text-slate-300 leading-relaxed">{blueprint.keyRisksAndMoat.defenseMoat}</div>
                   <div className="text-slate-500 text-[11px] pt-1">
                     Risque principal à contrôler : {blueprint.keyRisksAndMoat.primaryRisk}
@@ -490,15 +479,15 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               </div>
 
               {/* Operational Stack */}
-              <div className="pt-2">
-                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block mb-2">
-                  Stack opérationnelle recommandée (1 opérateur autonome) :
+              <div className="p-6 space-y-2">
+                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block">
+                  Stack opérationnelle recommandée (1 opérateur autonome)
                 </span>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-300 font-mono">
                   {blueprint.operationalStack.map((tool, idx) => (
                     <span
                       key={idx}
-                      className="text-xs text-slate-300 bg-slate-800/80 px-2.5 py-1 rounded border border-slate-700/60 font-mono"
+                      className="px-2 py-0.5 bg-[#0D1017] rounded border border-white/[0.08]"
                     >
                       {tool}
                     </span>
