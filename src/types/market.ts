@@ -148,6 +148,7 @@ export interface PipelineItem {
 
 export interface MarketSignal {
   id: string;
+  sourceId?: string;
   category: 'reglementaire' | 'energie_matiere' | 'ia_tech' | 'finance_taux' | 'supply_chain';
   headline: string;
   context: string;
@@ -165,6 +166,38 @@ export interface MarketSignal {
   isVerifiedSource: boolean;
   status: 'live' | 'cache' | 'indisponible';
   countryCode?: CountryCode;
+  isGlobal?: boolean;
+}
+
+export interface SourceHealthItem {
+  id: string;
+  name: string;
+  url: string;
+  region: 'niger_uemoa' | 'europe' | 'global';
+  countryCodes?: CountryCode[];
+  status: 'live' | 'cache' | 'indisponible';
+  lastCheckedAt: string;
+  lastSuccessAt?: string;
+  signalCount: number;
+  error?: string;
+}
+
+export interface LiveFxRates {
+  EUR: number;
+  XOF: number;
+  USD: number;
+  lastUpdate: string;
+  status?: 'live' | 'cache' | 'fallback';
+}
+
+export interface SignalsSnapshotPayload {
+  status: string;
+  lastSync: string;
+  timestamp: string;
+  totalSignals: number;
+  signals: MarketSignal[];
+  sourceHealth: SourceHealthItem[];
+  rates?: LiveFxRates;
 }
 
 export interface SourceCitation {
@@ -401,6 +434,47 @@ export interface LaunchpadCircuit {
     timeSavedHoursPerClient: number;
   };
 }
+
+export interface ArbitrageAnalysis {
+  conceptName: string;
+  arbitrageMechanism: string;
+  revenueStreamA: string;
+  revenueStreamB: string;
+  estimatedMonthlyCashflow: string;
+  unfairAdvantage: string;
+}
+
+export interface SavedBlueprintRecord {
+  id: string;
+  createdAt: string;
+  sectorId: SectorCategory;
+  sectorName: string;
+  niche: string;
+  targetRevenue: string;
+  capitalBudget: string;
+  userSkills: string;
+  businessModel: string;
+  blueprint: AIExecutionBlueprint;
+}
+
+export interface SavedArbitrageRecord {
+  id: string;
+  createdAt: string;
+  sectorA: string;
+  sectorB: string;
+  riskTolerance: string;
+  analysis: ArbitrageAnalysis;
+}
+
+export interface SavedLaunchpadRecord {
+  id: string;
+  createdAt: string;
+  sectorId: SectorCategory;
+  sectorName: string;
+  opportunityTitle: string;
+  circuit: LaunchpadCircuit;
+}
+
 
 
 

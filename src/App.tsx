@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Header, ActiveTab } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
@@ -16,6 +16,11 @@ import { SectorDetailModal } from './components/SectorDetailModal';
 import { PasswordGateModal } from './components/PasswordGateModal';
 import { checkAuthStatus, clearStoredPassword } from './utils/auth';
 import {
+  restartLiveStream,
+  stopLiveStream,
+  subscribeLiveEvent,
+} from './utils/liveStream';
+import {
   EconomicSector,
   OpportunityNiche,
   PipelineItem,
@@ -23,6 +28,8 @@ import {
   AIExecutionBlueprint,
   CountryCode,
   StrictOpportunity,
+  LiveFxRates,
+  SignalsSnapshotPayload,
 } from './types/market';
 import { ECONOMIC_SECTORS } from './data/sectorsData';
 import { calculateSimulation } from './utils/simulatorEngine';
@@ -38,20 +45,29 @@ export default function App() {
   const [selectedOpportunityForKit, setSelectedOpportunityForKit] = useState<StrictOpportunity | null>(null);
 
   // Authentication barrier state (APP_PASSWORD)
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
   const [isAuthRequired, setIsAuthRequired] = useState<boolean>(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
+  const [liveRates, setLiveRates] = useState<LiveFxRates | null>(null);
 
   useEffect(() => {
-    checkAuthStatus().then((status) => {
-      setIsAuthRequired(status.required);
-      if (status.required && !status.authenticated) {
-        setIsAuthenticated(false);
-        setShowPasswordModal(true);
-      }
-    });
+    checkAuthStatus()
+      .then((status) => {
+        setIsAuthRequired(status.required);
+        if (status.required && !status.authenticated) {
+          setIsAuthenticated(false);
+          setShowPasswordModal(true);
+        } else {
+          setIsAuthenticated(true);
+        }
+      })
+      .finally(() => {
+        setAuthChecked(true);
+      });
 
     const handleUnauthorized = () => {
+      stopLiveStream();
       setIsAuthenticated(false);
       setShowPasswordModal(true);
     };
@@ -59,6 +75,39 @@ export default function App() {
     window.addEventListener('omnivectis:unauthorized', handleUnauthorized);
     return () => window.removeEventListener('omnivectis:unauthorized', handleUnauthorized);
   }, []);
+
+  // Unified real-time SSE lifecycle + Live FX rates sync
+  useEffect(() => {
+    if (!authChecked || !isAuthenticated) {
+      stopLiveStream();
+      return;
+    }
+
+    restartLiveStream();
+
+    fetch('/api/rates/live')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.rates) {
+          setLiveRates(data.rates);
+        }
+      })
+      .catch(() => {});
+
+    const applySignalsFx = (payload: SignalsSnapshotPayload) => {
+      if (payload?.rates) {
+        setLiveRates(payload.rates);
+      }
+    };
+
+    const unsubSnap = subscribeLiveEvent<SignalsSnapshotPayload>('signals_snapshot', applySignalsFx);
+    const unsubUpd = subscribeLiveEvent<SignalsSnapshotPayload>('signals_updated', applySignalsFx);
+
+    return () => {
+      unsubSnap();
+      unsubUpd();
+    };
+  }, [authChecked, isAuthenticated]);
 
   // Cross-view state transfer
   const [blueprintSectorId, setBlueprintSectorId] = useState<SectorCategory>('ai_deeptech');
@@ -81,69 +130,72 @@ export default function App() {
     });
   }, [simulatorSectors]);
 
-  // Pipeline items state with server persistence + localStorage fallback
+  // Pipeline items state with server persistence + localStorage cache
   const [pipelineItems, setPipelineItems] = useState<PipelineItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
       console.error(e);
     }
-    // Default starter items for instant discovery
-    return [
-      {
-        id: 'init-1',
-        title: 'Micro-SaaS d Audit de Conformité CSRD Automatisée',
-        sectorId: 'cleantech',
-        sectorName: 'Énergie & Transition Climat (CleanTech)',
-        stage: 'validation',
-        targetMrr: 12000,
-        currentMrr: 1500,
-        notes: 'Partenariat avec 2 cabinets d experts-comptables pour la distribution marque blanche.',
-        addedAt: '12/11/2026',
-        checklists: [
-          { text: 'Finaliser la grille de questions ESRS avec citations', done: true },
-          { text: 'Tester avec 3 PME pilotes du secteur agroalimentaire', done: true },
-          { text: 'Signer 5 abonnements annuels payants à 7 500€', done: false },
-        ],
-      },
-      {
-        id: 'init-2',
-        title: 'Agence RevOps IA B2B - Génération de Leads Qualifiés',
-        sectorId: 'b2b_services',
-        sectorName: 'B2B Services & Agences Produitisées (Cash Rapide)',
-        stage: 'monetizing',
-        targetMrr: 18000,
-        currentMrr: 9000,
-        notes: '3 clients sous retainers mensuels à 3 000€/mois signés.',
-        addedAt: '05/11/2026',
-        checklists: [
-          { text: 'Configurer 10 domaines de cold email en warm-up', done: true },
-          { text: 'Automatiser le flux de qualification via Gemini API', done: true },
-          { text: 'Recruter 2 clients supplémentaires pour atteindre 15k€/mois', done: false },
-        ],
-      },
-    ];
+    return [];
   });
+  const [pipelineHydrated, setPipelineHydrated] = useState<boolean>(false);
+  const skipNextPipelineSyncRef = useRef<boolean>(false);
 
-  // Fetch persistent pipeline from server on mount
+  // Fetch persistent pipeline from server on mount and after authentication
   useEffect(() => {
+    if (!authChecked || !isAuthenticated) return;
+    let cancelled = false;
     fetch('/api/pipeline')
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((data) => {
-        if (data?.items && Array.isArray(data.items) && data.items.length > 0) {
+        if (cancelled) return;
+        if (Array.isArray(data?.items)) {
+          skipNextPipelineSyncRef.current = true;
           setPipelineItems(data.items);
+          setPipelineHydrated(true);
         }
       })
       .catch((err) => {
-        console.info('Using local pipeline cache:', err);
+        console.info('Impossible de synchroniser le pipeline depuis le serveur:', err);
       });
-  }, []);
 
-  // Save to localStorage and sync to server
+    const unsubPipeline = subscribeLiveEvent<{ items?: PipelineItem[] }>('pipeline_updated', (payload) => {
+      if (Array.isArray(payload?.items)) {
+        const incomingSerialized = JSON.stringify(payload.items);
+        setPipelineItems((prev) => {
+          if (JSON.stringify(prev) === incomingSerialized) return prev;
+          skipNextPipelineSyncRef.current = true;
+          return payload.items!;
+        });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubPipeline();
+    };
+  }, [authChecked, isAuthenticated]);
+
+  // Save to localStorage and sync to server once hydrated
   useEffect(() => {
+    if (!pipelineHydrated) return;
+    if (skipNextPipelineSyncRef.current) {
+      skipNextPipelineSyncRef.current = false;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(pipelineItems));
+      } catch (e) {
+        console.error(e);
+      }
+      return;
+    }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(pipelineItems));
       fetch('/api/pipeline/sync', {
@@ -154,7 +206,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-  }, [pipelineItems]);
+  }, [pipelineItems, pipelineHydrated]);
 
   // Handlers for interactions between views
   const handleSelectSector = (sector: EconomicSector, niche?: OpportunityNiche) => {
@@ -254,6 +306,7 @@ export default function App() {
           countryCode={countryCode}
           isProtected={isAuthRequired}
           onLock={() => {
+            stopLiveStream();
             clearStoredPassword();
             setIsAuthenticated(false);
             setShowPasswordModal(true);
@@ -310,13 +363,15 @@ export default function App() {
         )}
 
         {activeTab === 'sales' && (
-          <SalesTrackingView countryCode={countryCode} />
+          <SalesTrackingView countryCode={countryCode} liveRates={liveRates} />
         )}
 
         {activeTab === 'dashboard' && (
           <DashboardView
             simulationResult={activeSimulationResult}
             pipelineItems={pipelineItems}
+            countryCode={countryCode}
+            liveRates={liveRates}
             onNavigateTab={setActiveTab}
             onOpenBlueprintForSector={(sectorId) => {
               setBlueprintSectorId(sectorId);
@@ -348,6 +403,7 @@ export default function App() {
             initialSectors={simulatorSectors}
             onTriggerBlueprint={handleTriggerBlueprintFromSimulator}
             countryCode={countryCode}
+            liveRates={liveRates}
           />
         )}
 
@@ -364,6 +420,7 @@ export default function App() {
             initialSectorId={launchpadSectorId}
             initialOpportunityTitle={launchpadTitle}
             countryCode={countryCode}
+            liveRates={liveRates}
             onAddToPipeline={(title, sectorId, targetMrr) => {
               const secObj = ECONOMIC_SECTORS.find((s) => s.id === sectorId) || ECONOMIC_SECTORS[0];
               const newItem: PipelineItem = {

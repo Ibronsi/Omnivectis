@@ -9,9 +9,12 @@ import {
   Loader2,
   DollarSign,
   Layers,
+  History,
+  Trash2,
 } from 'lucide-react';
-import { EconomicSector, SectorCategory } from '../types/market';
+import { SectorCategory, SavedArbitrageRecord, ArbitrageAnalysis } from '../types/market';
 import { CROSS_SECTOR_COMBINATIONS, ECONOMIC_SECTORS } from '../data/sectorsData';
+import { subscribeLiveEvent } from '../utils/liveStream';
 
 interface ArbitrageViewProps {
   onOpenBlueprintForArbitrage: (sectorId: SectorCategory, customTitle: string) => void;
@@ -24,11 +27,62 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
   const [sectorBId, setSectorBId] = useState<SectorCategory>('cleantech');
   const [riskTolerance, setRiskTolerance] = useState<string>('Équilibré (Risque modéré, cash récurrent)');
   const [analyzing, setAnalyzing] = useState<boolean>(false);
-  const [customArbitrage, setCustomArbitrage] = useState<any | null>(null);
+  const [customArbitrage, setCustomArbitrage] = useState<ArbitrageAnalysis | null>(null);
+  const [savedArbitrages, setSavedArbitrages] = useState<SavedArbitrageRecord[]>([]);
+  const [activeRecordId, setActiveRecordId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const sectorA = ECONOMIC_SECTORS.find((s) => s.id === sectorAId) || ECONOMIC_SECTORS[0];
   const sectorB = ECONOMIC_SECTORS.find((s) => s.id === sectorBId) || ECONOMIC_SECTORS[1];
+
+  React.useEffect(() => {
+    fetch('/api/arbitrages')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.arbitrages) && data.arbitrages.length > 0) {
+          setSavedArbitrages(data.arbitrages);
+          setCustomArbitrage((prev) => {
+            if (prev) return prev;
+            const first = data.arbitrages[0] as SavedArbitrageRecord;
+            setActiveRecordId(first.id);
+            return first.analysis;
+          });
+        }
+      })
+      .catch(() => {});
+
+    const unsub = subscribeLiveEvent<{ kind?: string; arbitrages?: SavedArbitrageRecord[] }>(
+      'workspace_updated',
+      (payload) => {
+        if (payload?.kind === 'arbitrage' && Array.isArray(payload.arbitrages)) {
+          setSavedArbitrages(payload.arbitrages);
+        }
+      }
+    );
+    return () => unsub();
+  }, []);
+
+  const handleDeleteSaved = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/arbitrages/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data?.arbitrages)) {
+        setSavedArbitrages(data.arbitrages);
+        if (activeRecordId === id) {
+          if (data.arbitrages.length > 0) {
+            setActiveRecordId(data.arbitrages[0].id);
+            setCustomArbitrage(data.arbitrages[0].analysis);
+          } else {
+            setActiveRecordId(null);
+            setCustomArbitrage(null);
+          }
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Erreur lors de la suppression.');
+    }
+  };
 
   const handleRunArbitrage = async () => {
     if (sectorAId === sectorBId) {
@@ -55,6 +109,10 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
       }
 
       setCustomArbitrage(data.analysis);
+      if (data.record) {
+        setActiveRecordId(data.record.id);
+        setSavedArbitrages((prev) => [data.record, ...prev.filter((a) => a.id !== data.record.id)]);
+      }
     } catch (err: any) {
       setError(err?.message || 'Erreur de connexion.');
     } finally {
@@ -168,6 +226,44 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
       {error && (
         <div className="p-4 bg-[#11141C] border border-rose-500/30 rounded-lg text-xs text-rose-400">
           {error}
+        </div>
+      )}
+
+      {savedArbitrages.length > 0 && (
+        <div className="p-4 bg-[#11141C] border border-white/[0.08] rounded-lg space-y-2.5">
+          <div className="flex items-center justify-between text-xs text-slate-300">
+            <span className="flex items-center gap-2 font-medium">
+              <History className="w-3.5 h-3.5 text-blue-400" />
+              <span>Analyses d arbitrage persistées ({savedArbitrages.length})</span>
+            </span>
+            <span className="text-[11px] font-mono text-slate-500">Sauvegarde serveur</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {savedArbitrages.map((rec) => (
+              <div
+                key={rec.id}
+                onClick={() => {
+                  setActiveRecordId(rec.id);
+                  setCustomArbitrage(rec.analysis);
+                }}
+                className={`cursor-pointer px-3 py-1.5 rounded-lg border text-xs flex items-center gap-2 transition-colors ${
+                  activeRecordId === rec.id
+                    ? 'bg-blue-600/20 border-blue-500/50 text-white'
+                    : 'bg-[#0D1017] border-white/[0.08] text-slate-300 hover:border-white/[0.16]'
+                }`}
+              >
+                <span className="truncate max-w-[240px]">{rec.analysis.conceptName}</span>
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteSaved(rec.id, e)}
+                  className="text-slate-500 hover:text-rose-400 cursor-pointer"
+                  title="Supprimer l analyse"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

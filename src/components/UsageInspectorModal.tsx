@@ -12,6 +12,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { UsageCounterStats } from '../types/market';
+import { subscribeLiveEvent } from '../utils/liveStream';
 
 interface UsageInspectorModalProps {
   isOpen: boolean;
@@ -21,26 +22,36 @@ interface UsageInspectorModalProps {
 export const UsageInspectorModal: React.FC<UsageInspectorModalProps> = ({ isOpen, onClose }) => {
   const [stats, setStats] = useState<UsageCounterStats | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchStats = async () => {
     setLoading(true);
+    setErrorMsg(null);
     try {
       const res = await fetch('/api/usage');
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      }
       if (data?.stats) {
         setStats(data.stats);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Impossible de charger les métriques API.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isOpen) {
-      fetchStats();
-    }
+    if (!isOpen) return;
+    fetchStats();
+    const unsub = subscribeLiveEvent<{ stats?: UsageCounterStats }>('usage_updated', (payload) => {
+      if (payload?.stats) {
+        setStats(payload.stats);
+      }
+    });
+    return () => unsub();
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -68,6 +79,14 @@ export const UsageInspectorModal: React.FC<UsageInspectorModalProps> = ({ isOpen
             Ce panneau trace chaque interaction avec les modèles et affiche clairement les erreurs éventuelles.
           </p>
         </div>
+
+        {/* Error alert if usage endpoint failed */}
+        {errorMsg && (
+          <div className="p-3 rounded-lg bg-rose-950/30 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
         {/* Counter Stats Unified Ledger Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 bg-[#0D1017] border border-white/[0.08] rounded-xl overflow-hidden divide-x divide-y divide-white/[0.07]">

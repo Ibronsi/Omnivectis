@@ -29,18 +29,23 @@ import {
   PieChart,
   Pie,
 } from 'recharts';
-import { RealSaleRecord, CountryCode, CurrencyCode } from '../types/market';
+import { RealSaleRecord, CountryCode, CurrencyCode, LiveFxRates } from '../types/market';
 import { GEO_PROFILES } from '../data/geoProfiles';
+import { convertCurrency, getEffectiveFxRateToEur } from '../utils/currency';
+import { subscribeLiveEvent } from '../utils/liveStream';
 
 interface SalesTrackingViewProps {
   countryCode: CountryCode;
+  liveRates?: LiveFxRates | null;
 }
 
-export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCode }) => {
+export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCode, liveRates }) => {
   const currentProfile = GEO_PROFILES[countryCode] || GEO_PROFILES.NER;
+  const fxInfo = getEffectiveFxRateToEur(currentProfile.currency, liveRates);
 
   const [sales, setSales] = useState<RealSaleRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState<boolean>(false);
   const [indicativeMonthlyTarget, setIndicativeMonthlyTarget] = useState<number>(
     countryCode === 'NER' ? 2500000 : 4000
@@ -61,14 +66,18 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
 
   const fetchSales = async () => {
     setLoading(true);
+    setErrorMsg(null);
     try {
       const res = await fetch('/api/sales');
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      }
       if (data?.sales) {
         setSales(data.sales);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Impossible de charger les encaissements.');
     } finally {
       setLoading(false);
     }
@@ -78,12 +87,22 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
     fetchSales();
     setCurrency(currentProfile.currency);
     setPaymentMethod(currentProfile.mobileMoney[0] || currentProfile.banks[0] || 'Mobile Money');
-    setIndicativeMonthlyTarget(countryCode === 'NER' ? 2500000 : 4000);
+    setIndicativeMonthlyTarget(countryCode === 'NER' || countryCode === 'SEN' || countryCode === 'CIV' ? 2500000 : 4000);
   }, [countryCode]);
+
+  useEffect(() => {
+    const unsub = subscribeLiveEvent<{ sales?: RealSaleRecord[] }>('sales_updated', (payload) => {
+      if (Array.isArray(payload?.sales)) {
+        setSales(payload.sales);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const handleAddSale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName || !amount) return;
+    setErrorMsg(null);
 
     try {
       const res = await fetch('/api/sales', {
@@ -102,40 +121,55 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
         }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      }
       if (data?.sale) {
-        setSales((prev) => [data.sale, ...prev]);
+        setSales((prev) => [data.sale, ...prev.filter((s) => s.id !== data.sale.id)]);
         setIsAdding(false);
-        // Reset form
         setClientName('');
         setReference('');
         setNotes('');
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Erreur lors de l enregistrement de la vente.');
     }
   };
 
   const handleDeleteSale = async (id: string) => {
+    setErrorMsg(null);
     try {
-      await fetch(`/api/sales/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/sales/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok || data?.status === 'error') {
+        throw new Error(data?.error || `Erreur suppression HTTP ${res.status}`);
+      }
       setSales((prev) => prev.filter((s) => s.id !== id));
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Impossible de supprimer cette écriture.');
     }
   };
 
-  // Aggregated Statistics
+  // Aggregated Statistics (normalized into active country currency via live FX)
   const totalReceived = useMemo(() => {
     return sales
       .filter((s) => s.status === 'encaisse')
-      .reduce((sum, s) => sum + Number(s.amount || 0), 0);
-  }, [sales]);
+      .reduce(
+        (sum, s) =>
+          sum + convertCurrency(Number(s.amount || 0), s.currency || 'XOF', currentProfile.currency, liveRates),
+        0
+      );
+  }, [sales, currentProfile.currency, liveRates]);
 
   const totalPending = useMemo(() => {
     return sales
       .filter((s) => s.status === 'en_attente')
-      .reduce((sum, s) => sum + Number(s.amount || 0), 0);
-  }, [sales]);
+      .reduce(
+        (sum, s) =>
+          sum + convertCurrency(Number(s.amount || 0), s.currency || 'XOF', currentProfile.currency, liveRates),
+        0
+      );
+  }, [sales, currentProfile.currency, liveRates]);
 
   const totalInvoiced = totalReceived + totalPending;
 
@@ -147,15 +181,21 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
     ? Math.round((totalReceived / totalInvoiced) * 100)
     : 100;
 
-  // Breakdown by Payment Method
+  // Breakdown by Payment Method (converted via live FX)
   const paymentBreakdownData = useMemo(() => {
     const map: Record<string, number> = {};
     sales.forEach((s) => {
       const key = s.paymentMethod || 'Autre';
-      map[key] = (map[key] || 0) + Number(s.amount || 0);
+      const converted = convertCurrency(
+        Number(s.amount || 0),
+        s.currency || 'XOF',
+        currentProfile.currency,
+        liveRates
+      );
+      map[key] = (map[key] || 0) + converted;
     });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
-  }, [sales]);
+  }, [sales, currentProfile.currency, liveRates]);
 
   const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#06B6D4', '#EC4899', '#8B5CF6'];
 
@@ -188,17 +228,30 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
         </div>
       </div>
 
+      {/* Error Alert */}
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-3">
+          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
       {/* Mandatory Legal & Model Strip */}
-      <div className="p-4 rounded-xl bg-[#11141C] border border-white/[0.08] text-xs text-slate-300 flex items-start gap-3">
-        <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-        <p className="leading-relaxed">
-          <span className="font-semibold text-white">Mention Méthodologique : </span>
-          <span className="font-mono text-amber-400 font-medium mr-1.5">
-            Estimation indicative
-          </span>
-          · Les prévisions et objectifs financiers sont des modélisations établies à partir d hypothèses d activité révisables.
-          Seules les ventes enregistrées dans ce module constituent des données réelles certifiées.
-        </p>
+      <div className="p-4 rounded-xl bg-[#11141C] border border-white/[0.08] text-xs text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <p className="leading-relaxed">
+            <span className="font-semibold text-white">Mention Méthodologique : </span>
+            <span className="font-mono text-amber-400 font-medium mr-1.5">
+              Estimation indicative
+            </span>
+            · Les prévisions et objectifs sont des modélisations. Seules les ventes enregistrées ici constituent des encaissements réels.
+          </p>
+        </div>
+        <span className="text-[11px] font-mono text-slate-400 shrink-0 tabular-nums">
+          FX {fxInfo.status === 'live' ? 'live' : fxInfo.status === 'cache' ? 'cache' : 'secours'} : 1 EUR ={' '}
+          {(liveRates?.XOF || 655.957).toFixed(2)} XOF · {(liveRates?.USD || 1.08).toFixed(4)} USD
+        </span>
       </div>
 
       {/* Real Sales Input Form Collapsible */}
@@ -226,7 +279,7 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] text-slate-300 font-medium block">Montant Réel *</label>
+              <label className="text-[11px] text-slate-300 font-medium block">Montant Réel & Devise *</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -236,7 +289,15 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
                   onChange={(e) => setAmount(Number(e.target.value))}
                   className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.1] rounded-lg text-white font-mono font-semibold text-xs tabular-nums focus:border-emerald-400 focus:outline-none"
                 />
-                <span className="text-xs font-mono font-semibold text-slate-400">{currency}</span>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+                  className="px-2.5 py-2 bg-[#0D1017] border border-white/[0.1] rounded-lg text-slate-200 font-mono font-semibold text-xs focus:border-emerald-400 focus:outline-none cursor-pointer"
+                >
+                  <option value="XOF">XOF</option>
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                </select>
               </div>
             </div>
 
@@ -521,7 +582,12 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
                     </td>
                     <td className="py-2.5 px-4 font-mono text-[11px] text-slate-400">{sale.reference || '-'}</td>
                     <td className="py-2.5 px-4 text-right font-mono font-semibold text-white tabular-nums whitespace-nowrap">
-                      {sale.amount.toLocaleString('fr-FR')} {sale.currency}
+                      <div>{sale.amount.toLocaleString('fr-FR')} {sale.currency}</div>
+                      {sale.currency !== currentProfile.currency && (
+                        <div className="text-[10px] font-normal text-slate-400">
+                          ≈ {convertCurrency(sale.amount, sale.currency, currentProfile.currency, liveRates).toLocaleString('fr-FR')} {currentProfile.currency}
+                        </div>
+                      )}
                     </td>
                     <td className="py-2.5 px-4 text-center whitespace-nowrap">
                       <span

@@ -12,9 +12,10 @@ import {
   Activity,
   X,
 } from 'lucide-react';
-import { CountryCode, UsageCounterStats } from '../types/market';
+import { CountryCode, UsageCounterStats, ValidationItem } from '../types/market';
 import { ActiveTab } from './Header';
 import { UsageInspectorModal } from './UsageInspectorModal';
+import { subscribeLiveEvent } from '../utils/liveStream';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -46,16 +47,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
 }) => {
   const [usageStats, setUsageStats] = useState<UsageCounterStats | null>(null);
+  const [pendingValidationCount, setPendingValidationCount] = useState<number>(0);
   const [isUsageModalOpen, setIsUsageModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     fetch('/api/usage')
-      .then((res) => res.json())
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.stats) setUsageStats(data.stats);
       })
       .catch(() => {});
+
+    fetch('/api/validation')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.items)) {
+          setPendingValidationCount(
+            data.items.filter((i: ValidationItem) => i.status === 'en_attente').length
+          );
+        }
+      })
+      .catch(() => {});
   }, [activeTab]);
+
+  useEffect(() => {
+    const unsubUsage = subscribeLiveEvent<{ stats?: UsageCounterStats }>('usage_updated', (payload) => {
+      if (payload?.stats) setUsageStats(payload.stats);
+    });
+    const unsubVal = subscribeLiveEvent<{ items?: ValidationItem[] }>('validation_updated', (payload) => {
+      if (Array.isArray(payload?.items)) {
+        setPendingValidationCount(
+          payload.items.filter((i) => i.status === 'en_attente').length
+        );
+      }
+    });
+    return () => {
+      unsubUsage();
+      unsubVal();
+    };
+  }, []);
 
   const navGroups: NavGroup[] = [
     {
@@ -90,6 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'validation',
           label: 'À Valider & Journal',
           icon: <ShieldCheck className="w-4 h-4 shrink-0" />,
+          trailing: pendingValidationCount > 0 ? pendingValidationCount : undefined,
         },
         {
           id: 'sales',

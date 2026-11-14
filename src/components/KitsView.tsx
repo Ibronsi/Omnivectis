@@ -44,10 +44,10 @@ export const KitsView: React.FC<KitsViewProps> = ({
 }) => {
   const currentProfile = GEO_PROFILES[countryCode] || GEO_PROFILES.NER;
 
-  const [activeKitType, setActiveKitType] = useState<'numérique' | 'physique'>('numérique');
   const [digitalKit, setDigitalKit] = useState<DigitalLaunchKit | null>(null);
   const [physicalPlan, setPhysicalPlan] = useState<PhysicalExploitationPlan | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [htmlViewMode, setHtmlViewMode] = useState<'preview' | 'code'>('preview');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [queuedNotice, setQueuedNotice] = useState<string | null>(null);
@@ -59,19 +59,31 @@ export const KitsView: React.FC<KitsViewProps> = ({
   const [monthlyFixedCharges, setMonthlyFixedCharges] = useState<number>(0);
   const [savingHypotheses, setSavingHypotheses] = useState<boolean>(false);
 
-  // Load existing kit if opportunity is selected
+  // Load existing kit if opportunity is selected (clear stale state first)
   useEffect(() => {
+    setDigitalKit(null);
+    setPhysicalPlan(null);
+    setEditableHypotheses([]);
+    setSellingPrice(0);
+    setUnitCost(0);
+    setMonthlyFixedCharges(0);
+    setErrorMsg(null);
+    setQueuedNotice(null);
+
     if (selectedOpportunity) {
-      setActiveKitType(selectedOpportunity.type);
       loadKitForOpportunity(selectedOpportunity.id);
     }
-  }, [selectedOpportunity]);
+  }, [selectedOpportunity?.id]);
 
   const loadKitForOpportunity = async (oppId: string) => {
     setLoading(true);
+    setErrorMsg(null);
     try {
       const res = await fetch(`/api/kits/${oppId}`);
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      }
       if (data?.kit) {
         if (data.kit.digital) setDigitalKit(data.kit.digital);
         if (data.kit.physical) {
@@ -79,27 +91,30 @@ export const KitsView: React.FC<KitsViewProps> = ({
           initPhysicalInputs(data.kit.physical);
         }
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Impossible de charger le dossier opérationnel depuis le serveur.');
     } finally {
       setLoading(false);
     }
   };
 
   const initPhysicalInputs = (plan: PhysicalExploitationPlan) => {
-    if (plan.investmentBudget?.hypotheses) {
+    if (Array.isArray(plan.investmentBudget?.hypotheses)) {
       setEditableHypotheses(plan.investmentBudget.hypotheses);
+    } else {
+      setEditableHypotheses([]);
     }
     if (plan.breakEvenAnalysis) {
-      setSellingPrice(plan.breakEvenAnalysis.unitSalePrice || (countryCode === 'NER' ? 12500 : 25));
-      setUnitCost(plan.breakEvenAnalysis.unitCost || (countryCode === 'NER' ? 7500 : 15));
-      setMonthlyFixedCharges(plan.breakEvenAnalysis.monthlyFixedCosts || (countryCode === 'NER' ? 350000 : 800));
+      setSellingPrice(Number(plan.breakEvenAnalysis.unitSalePrice) || 0);
+      setUnitCost(Number(plan.breakEvenAnalysis.unitCost) || 0);
+      setMonthlyFixedCharges(Number(plan.breakEvenAnalysis.monthlyFixedCosts) || 0);
     }
   };
 
   const handleGenerateDigitalKit = async () => {
     if (!selectedOpportunity) return;
     setLoading(true);
+    setErrorMsg(null);
     setQueuedNotice(null);
     try {
       const res = await fetch('/api/kits/generate-digital', {
@@ -111,12 +126,17 @@ export const KitsView: React.FC<KitsViewProps> = ({
         }),
       });
       const data = await res.json();
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      }
       if (data?.kit) {
         setDigitalKit(data.kit);
         setQueuedNotice('Dossier généré et messages de prospection ajoutés à la file "À valider" !');
+      } else {
+        throw new Error('Réponse incomplète du serveur.');
       }
     } catch (e: any) {
-      console.error(e);
+      setErrorMsg(e?.message || 'Erreur lors de la génération du dossier numérique.');
     } finally {
       setLoading(false);
     }
@@ -125,6 +145,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
   const handleGeneratePhysicalPlan = async () => {
     if (!selectedOpportunity) return;
     setLoading(true);
+    setErrorMsg(null);
     setQueuedNotice(null);
     try {
       const res = await fetch('/api/kits/generate-physical', {
@@ -136,19 +157,25 @@ export const KitsView: React.FC<KitsViewProps> = ({
         }),
       });
       const data = await res.json();
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      }
       if (data?.plan) {
         setPhysicalPlan(data.plan);
         initPhysicalInputs(data.plan);
         setQueuedNotice('Plan généré et formalités administratives ajoutées à la file "À valider" !');
+      } else {
+        throw new Error('Réponse incomplète du serveur.');
       }
     } catch (e: any) {
-      console.error(e);
+      setErrorMsg(e?.message || 'Erreur lors de la génération du plan physique.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleQueueItem = async (title: string, category: string, payload: string, target?: string) => {
+    setErrorMsg(null);
     try {
       const res = await fetch('/api/validation', {
         method: 'POST',
@@ -162,12 +189,14 @@ export const KitsView: React.FC<KitsViewProps> = ({
           countryCode,
         }),
       });
-      if (res.ok) {
-        setQueuedNotice(`« ${title} » a été ajouté à la file "À valider" !`);
-        setTimeout(() => setQueuedNotice(null), 5000);
+      const data = await res.json();
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
       }
-    } catch (e) {
-      console.error(e);
+      setQueuedNotice(`« ${title} » a été ajouté à la file "À valider" !`);
+      setTimeout(() => setQueuedNotice(null), 5000);
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Impossible d ajouter cet élément à la file de validation.');
     }
   };
 
@@ -205,7 +234,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
       id: `hyp-${Date.now()}`,
       category: 'Frais Complémentaires',
       label: 'Nouvelle dépense prévisionnelle',
-      amount: countryCode === 'NER' ? 100000 : 500,
+      amount: 0,
       isEditable: true,
       note: 'Hypothèse définie par l utilisateur',
     };
@@ -219,6 +248,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
   const handleSavePhysicalHypotheses = async () => {
     if (!physicalPlan || !selectedOpportunity) return;
     setSavingHypotheses(true);
+    setErrorMsg(null);
     const updatedPlan: PhysicalExploitationPlan = {
       ...physicalPlan,
       investmentBudget: {
@@ -237,16 +267,20 @@ export const KitsView: React.FC<KitsViewProps> = ({
     };
 
     try {
-      await fetch(`/api/kits/${selectedOpportunity.id}/physical`, {
+      const res = await fetch(`/api/kits/${selectedOpportunity.id}/physical`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedPlan),
       });
+      const data = await res.json();
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      }
       setPhysicalPlan(updatedPlan);
       setQueuedNotice('Hypothèses et point mort enregistrés avec succès !');
       setTimeout(() => setQueuedNotice(null), 4000);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Erreur lors de la sauvegarde des hypothèses.');
     } finally {
       setSavingHypotheses(false);
     }
@@ -325,29 +359,21 @@ export const KitsView: React.FC<KitsViewProps> = ({
           </div>
         </div>
       ) : (
-        <div className="p-4 rounded-xl bg-[#11141C] border border-white/[0.08] text-xs text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>Sélectionnez une opportunité dans l onglet « Opportunités » pour générer ou consulter son dossier opérationnel.</span>
+        <div className="p-8 rounded-xl bg-[#11141C] border border-white/[0.08] text-center space-y-3">
+          <AlertTriangle className="w-6 h-6 text-amber-400 mx-auto" />
+          <div className="font-display text-base font-semibold text-white">
+            Aucune opportunité sélectionnée
           </div>
-          <div className="flex items-center gap-1 p-1 bg-[#0D1017] rounded-lg border border-white/[0.07] shrink-0">
-            <button
-              onClick={() => setActiveKitType('numérique')}
-              className={`cursor-pointer px-3 py-1 text-xs rounded-md transition-colors ${
-                activeKitType === 'numérique' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Exemple Numérique
-            </button>
-            <button
-              onClick={() => setActiveKitType('physique')}
-              className={`cursor-pointer px-3 py-1 text-xs rounded-md transition-colors ${
-                activeKitType === 'physique' ? 'bg-amber-600 text-white font-medium' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Exemple Physique
-            </button>
-          </div>
+          <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+            Sélectionnez une opportunité issue des signaux collectés dans l onglet « Opportunités » pour générer ou consulter son dossier de lancement numérique ou son plan d exploitation physique.
+          </p>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-3">
+          <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>{errorMsg}</span>
         </div>
       )}
 
@@ -367,8 +393,31 @@ export const KitsView: React.FC<KitsViewProps> = ({
         </div>
       )}
 
+      {/* Empty state when opportunity selected but kit/plan not generated yet */}
+      {selectedOpportunity &&
+        ((selectedOpportunity.type === 'numérique' && !digitalKit) ||
+          (selectedOpportunity.type === 'physique' && !physicalPlan)) && (
+          <div className="p-10 rounded-xl bg-[#11141C] border border-white/[0.08] text-center space-y-4">
+            <Sparkles className={`w-6 h-6 mx-auto text-blue-400 ${loading ? 'animate-spin' : ''}`} />
+            <div className="space-y-1">
+              <h3 className="font-display text-base font-semibold text-white">
+                {loading
+                  ? 'Génération Gemini en cours...'
+                  : selectedOpportunity.type === 'numérique'
+                  ? 'Aucun dossier numérique généré pour cette opportunité'
+                  : 'Aucun plan physique généré pour cette opportunité'}
+              </h3>
+              <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
+                {loading
+                  ? 'Construction du dossier opérationnel adapté au pays cible à partir de l opportunité sélectionnée.'
+                  : 'Cliquez sur le bouton ci-dessus pour générer ce dossier via Gemini. Aucune donnée de démonstration pré-remplie n est affichée.'}
+              </p>
+            </div>
+          </div>
+        )}
+
       {/* ===================== VIEW A: NUMÉRIQUE ===================== */}
-      {(selectedOpportunity?.type === 'numérique' || (!selectedOpportunity && activeKitType === 'numérique')) && (
+      {selectedOpportunity?.type === 'numérique' && digitalKit && (
         <div className="space-y-6">
           {/* Section 1: Offre et Tarification Locale */}
           <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-5">
@@ -384,24 +433,19 @@ export const KitsView: React.FC<KitsViewProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-1.5 md:border-r md:border-white/[0.07] md:pr-6">
-                <span className="text-[11px] text-slate-400 block">Tarif Recommandé</span>
+                <span className="text-[11px] text-slate-400 block">Tarif Indicatif</span>
                 <div className="text-xl font-bold font-mono text-white tabular-nums">
-                  {digitalKit?.offerAndPricing.localPrice || (countryCode === 'NER' ? '650 000 FCFA / mois' : '1 200 € / mois')}
+                  {digitalKit.offerAndPricing?.localPrice || 'Estimation non fournie'}
                 </div>
                 <span className="text-[11px] text-slate-500 block">
-                  Modèle : {digitalKit?.offerAndPricing.billingModel || 'Abonnement mensuel B2B'}
+                  Modèle : {digitalKit.offerAndPricing?.billingModel || 'Estimation non fournie'}
                 </span>
               </div>
 
               <div className="md:col-span-2 space-y-2">
                 <span className="text-[11px] text-slate-400 font-medium block">Livrables Inclus</span>
                 <ul className="text-xs text-slate-300 space-y-1.5">
-                  {(digitalKit?.offerAndPricing.deliverables || [
-                    'Audit express et cartographie des flux d encaissement',
-                    'Intégration des connecteurs WhatsApp / Mobile Money',
-                    'Rapports hebdomadaires de conformité et réconciliation',
-                    'Support technique direct sur Niamey et à distance',
-                  ]).map((deliv, idx) => (
+                  {(digitalKit.offerAndPricing?.deliverables || []).map((deliv, idx) => (
                     <li key={idx} className="flex items-start gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
                       <span>{deliv}</span>
@@ -443,12 +487,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
                 </div>
 
                 <button
-                  onClick={() =>
-                    handleCopy(
-                      digitalKit?.htmlSalesPage || '<h1>Page de vente OmniVectis</h1>',
-                      'html_page'
-                    )
-                  }
+                  onClick={() => handleCopy(digitalKit.htmlSalesPage || '', 'html_page')}
                   className="cursor-pointer px-3 py-1.5 text-xs rounded-lg bg-white/[0.05] hover:bg-white/[0.09] text-slate-200 border border-white/[0.08] flex items-center gap-1.5 transition-colors"
                 >
                   <Copy className="w-3.5 h-3.5" />
@@ -469,34 +508,14 @@ export const KitsView: React.FC<KitsViewProps> = ({
               <div className="rounded-lg overflow-hidden border border-white/[0.08] bg-white">
                 <iframe
                   title="Aperçu Page de Vente"
-                  srcDoc={
-                    digitalKit?.htmlSalesPage || `
-                    <!DOCTYPE html>
-                    <html lang="fr">
-                    <head>
-                      <meta charset="UTF-8">
-                      <script src="https://cdn.tailwindcss.com"></script>
-                    </head>
-                    <body class="bg-slate-900 text-white p-8 font-sans">
-                      <div class="max-w-2xl mx-auto text-center space-y-4">
-                        <span class="text-xs uppercase tracking-wider text-cyan-400 font-bold">Solution d'arbitrage vérifiée</span>
-                        <h1 class="text-3xl font-extrabold">${selectedOpportunity?.title || 'Offre Digitale Clé en Main'}</h1>
-                        <p class="text-slate-300 text-sm">${selectedOpportunity?.description || 'Capturez la demande du marché avec un modèle récurrent éprouvé.'}</p>
-                        <div class="p-6 bg-slate-800 rounded-xl mt-6 border border-slate-700">
-                          <div class="text-2xl font-bold font-mono text-emerald-400">${currentProfile.countryCode === 'NER' ? '650 000 FCFA / mois' : '1 200 € / mois'}</div>
-                          <button class="mt-4 px-6 py-2 bg-cyan-500 text-black font-bold rounded-lg">Souscrire au Pilote</button>
-                        </div>
-                      </div>
-                    </body>
-                    </html>`
-                  }
+                  srcDoc={digitalKit.htmlSalesPage}
                   sandbox="allow-scripts"
                   className="w-full h-80 border-0"
                 />
               </div>
             ) : (
               <pre className="p-4 rounded-lg bg-[#0D1017] border border-white/[0.08] text-[11px] font-mono text-slate-300 overflow-x-auto max-h-80 whitespace-pre-wrap">
-                {digitalKit?.htmlSalesPage || '<!-- Code HTML complet généré automatiquement -->'}
+                {digitalKit.htmlSalesPage}
               </pre>
             )}
           </div>
@@ -517,9 +536,9 @@ export const KitsView: React.FC<KitsViewProps> = ({
                     <button
                       onClick={() =>
                         handleQueueItem(
-                          `Message Direct - ${selectedOpportunity?.title || 'Prospection'}`,
+                          `Message Direct - ${selectedOpportunity.title}`,
                           'prospection_message',
-                          digitalKit?.outreachCopy?.directMessage || 'Bonjour...',
+                          digitalKit.outreachCopy?.directMessage || '',
                           'Directeurs Généraux'
                         )
                       }
@@ -530,8 +549,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
                     </button>
                   </div>
                   <p className="text-xs text-slate-300 italic leading-relaxed bg-[#0D1017] p-3.5 rounded-lg border border-white/[0.06]">
-                    "{digitalKit?.outreachCopy?.directMessage ||
-                      `Bonjour [Nom], au vu des nouvelles réglementations sur ${selectedOpportunity?.title || 'votre secteur'}, nous avons mis en place une passerelle directe permettant d optimiser vos encaissements. Seriez-vous ouvert à 10 min d échange ?`}"
+                    "{digitalKit.outreachCopy?.directMessage || 'Non généré'}"
                   </p>
                 </div>
 
@@ -541,9 +559,9 @@ export const KitsView: React.FC<KitsViewProps> = ({
                     <button
                       onClick={() =>
                         handleQueueItem(
-                          `Email Pitch B2B - ${selectedOpportunity?.title || 'Pitch Commercial'}`,
+                          `Email Pitch B2B - ${selectedOpportunity.title}`,
                           'prospection_message',
-                          digitalKit?.outreachCopy?.emailPitch || 'Objet : Partenariat...',
+                          digitalKit.outreachCopy?.emailPitch || '',
                           'Direction Financière'
                         )
                       }
@@ -554,8 +572,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
                     </button>
                   </div>
                   <pre className="text-xs text-slate-300 whitespace-pre-wrap font-sans leading-relaxed bg-[#0D1017] p-3.5 rounded-lg border border-white/[0.06]">
-                    {digitalKit?.outreachCopy?.emailPitch ||
-                      `Objet : Optimisation immédiate de vos flux\n\nBonjour [Nom],\n\nNous accompagnons les décideurs sur le marché du Niger dans la digitalisation de leurs encaissements et la réduction de leurs délais de paiement.\n\nDiscutons-en cette semaine.`}
+                    {digitalKit.outreachCopy?.emailPitch || 'Non généré'}
                   </pre>
                 </div>
               </div>
@@ -575,9 +592,9 @@ export const KitsView: React.FC<KitsViewProps> = ({
                     <button
                       onClick={() =>
                         handleQueueItem(
-                          `Relance J+3 - ${selectedOpportunity?.title || 'Relance'}`,
+                          `Relance J+3 - ${selectedOpportunity.title}`,
                           'prospection_message',
-                          digitalKit?.followupSequence?.day3 || 'Bonjour, je fais suite...',
+                          digitalKit.followupSequence?.day3 || '',
                           'Prospect non-répondant'
                         )
                       }
@@ -588,7 +605,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
                     </button>
                   </div>
                   <p className="text-xs text-slate-300 italic leading-relaxed">
-                    "{digitalKit?.followupSequence?.day3 || 'Bonjour, je me permets de remonter mon précédent message. Avez-vous eu l occasion d y jeter un œil ?'}"
+                    "{digitalKit.followupSequence?.day3 || 'Non généré'}"
                   </p>
                 </div>
 
@@ -598,9 +615,9 @@ export const KitsView: React.FC<KitsViewProps> = ({
                     <button
                       onClick={() =>
                         handleQueueItem(
-                          `Relance J+7 - ${selectedOpportunity?.title || 'Relance'}`,
+                          `Relance J+7 - ${selectedOpportunity.title}`,
                           'prospection_message',
-                          digitalKit?.followupSequence?.day7 || 'Bonjour, un retour rapide...',
+                          digitalKit.followupSequence?.day7 || '',
                           'Prospect non-répondant'
                         )
                       }
@@ -611,7 +628,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
                     </button>
                   </div>
                   <p className="text-xs text-slate-300 italic leading-relaxed">
-                    "{digitalKit?.followupSequence?.day7 || 'Dernière relance rapide : seriez-vous disponible pour 10 minutes ce jeudi ?'}"
+                    "{digitalKit.followupSequence?.day7 || 'Non généré'}"
                   </p>
                 </div>
 
@@ -621,9 +638,9 @@ export const KitsView: React.FC<KitsViewProps> = ({
                     <button
                       onClick={() =>
                         handleQueueItem(
-                          `Breakup J+14 - ${selectedOpportunity?.title || 'Clôture'}`,
+                          `Breakup J+14 - ${selectedOpportunity.title}`,
                           'prospection_message',
-                          digitalKit?.followupSequence?.day14Breakup || 'Sans nouvelles...',
+                          digitalKit.followupSequence?.day14Breakup || '',
                           'Prospect non-répondant'
                         )
                       }
@@ -634,7 +651,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
                     </button>
                   </div>
                   <p className="text-xs text-slate-300 italic leading-relaxed">
-                    "{digitalKit?.followupSequence?.day14Breakup || 'Je constate que ce n est pas votre priorité actuelle. Je clôture votre dossier et vous souhaite plein succès.'}"
+                    "{digitalKit.followupSequence?.day14Breakup || 'Non généré'}"
                   </p>
                 </div>
               </div>
@@ -650,13 +667,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
               </div>
 
               <div className="divide-y divide-white/[0.06]">
-                {(digitalKit?.accountsChecklist || [
-                  { accountName: 'Compte Marchand Airtel Money / Moov Money Flooz Niger', description: 'Permet de recevoir les règlements locaux instantanés des clients particuliers et TPE.' },
-                  { accountName: 'Compte Bancaire Pro B2B (SONIBANK, ECOBANK ou BOA)', description: 'Nécessaire pour les virements d entreprises et l émission de factures conformes.' },
-                  { accountName: 'Carte Visa Virtuelle / Compte NITA ou Aminata', description: 'Pour régler les abonnements d outils digitaux internationaux sans blocage.' },
-                  { accountName: 'Nom de domaine (.com / .ne) & Adresse mail professionnelle', description: 'Essentiel pour la délivrabilité des emails de prospection et la crédibilité.' },
-                  { accountName: 'Passerelle d encaissement FedaPay ou Stripe', description: 'Pour encaisser les paiements par carte bancaire locale et internationale.' },
-                ]).map((acc, i) => (
+                {(digitalKit.accountsChecklist || []).map((acc, i) => (
                   <div key={i} className="py-3 flex items-start gap-3">
                     <input
                       type="checkbox"
@@ -679,11 +690,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
               </div>
 
               <div className="divide-y divide-white/[0.06]">
-                {(digitalKit?.automationActions || [
-                  { title: 'Alerte WhatsApp de Nouvelle Demande', tool: 'Webhook n8n / Make', description: 'Envoi d un message instantané sur votre mobile dès qu un prospect remplit la page de vente.' },
-                  { title: 'Génération Automatique de Facture Pro-Forma', tool: 'Template PDF auto', description: 'Émission immédiate du devis/facture en FCFA conforme OHADA dès validation du panier.' },
-                  { title: 'Réconciliation d Encaissement Mobile Money', tool: 'Notification SMS / Webhook', description: 'Vérification automatique du numéro de quittance Airtel/Flooz avant déblocage de l accès.' },
-                ]).map((auto, i) => (
+                {(digitalKit.automationActions || []).map((auto, i) => (
                   <div key={i} className="py-3 space-y-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-semibold text-white">{auto.title}</span>
@@ -701,7 +708,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
       )}
 
       {/* ===================== VIEW B: PHYSIQUE ===================== */}
-      {(selectedOpportunity?.type === 'physique' || (!selectedOpportunity && activeKitType === 'physique')) && (
+      {selectedOpportunity?.type === 'physique' && physicalPlan && (
         <div className="space-y-6">
           {/* Section 1: Budget d'Investissement avec Hypothèses 100% Modifiables */}
           <div className="p-6 rounded-xl bg-[#11141C] border border-white/[0.08] space-y-5">
@@ -894,26 +901,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 divide-y md:divide-y-0 md:divide-x divide-white/[0.07]">
-              {(physicalPlan?.localSuppliersAndPartners || [
-                {
-                  name: 'Négociants Grossistes du Marché de Katako & Grand Marché',
-                  role: 'Approvisionnement matières premières & emballages',
-                  location: 'Niamey, Niger',
-                  contactGuide: 'Prendre contact physiquement aux hangars avec un échantillon ou cahier des charges.',
-                },
-                {
-                  name: 'Groupements d Intérêt Économique Maraîchers de Maradi & Dosso',
-                  role: 'Fournisseurs de production agricole directe',
-                  location: 'Régions de Maradi / Dosso',
-                  contactGuide: 'Contrat d achat d avance avec acompte de 20% à la récolte.',
-                },
-                {
-                  name: 'Syndicat des Transporteurs Routiers et Transitaires',
-                  role: 'Fret routier, convoyage et dédouanement',
-                  location: 'Axe Cotonou-Niamey',
-                  contactGuide: 'Lettre de voiture officielle et bordereau de déchargement.',
-                },
-              ]).map((partner, idx) => (
+              {(physicalPlan.localSuppliersAndPartners || []).map((partner, idx) => (
                 <div key={idx} className="pt-4 first:pt-0 md:pt-0 md:pl-5 md:first:pl-0 space-y-2 flex flex-col justify-between">
                   <div className="space-y-1">
                     <span className="text-[11px] font-mono text-amber-400 block">{partner.role}</span>
@@ -940,36 +928,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
             </div>
 
             <div className="divide-y divide-white/[0.07]">
-              {(physicalPlan?.regulatoryAuthorizations || [
-                {
-                  stepNumber: 1,
-                  authority: 'Maison de l Entreprise du Niger (CCIN Niamey)',
-                  requirement: 'Immatriculation au Registre du Commerce et du Crédit Mobilier (RCCM) et délivrance du NIF.',
-                  estimatedCost: '50 000 FCFA',
-                  delay: '48h à 72h',
-                },
-                {
-                  stepNumber: 2,
-                  authority: 'Direction Générale des Impôts (DGI Niamey)',
-                  requirement: 'Déclaration d existence et choix du régime synthétique simplifié (ISF).',
-                  estimatedCost: '0 FCFA',
-                  delay: '2 jours',
-                },
-                {
-                  stepNumber: 3,
-                  authority: 'Direction de la Normalisation et de la Qualité (DNQM / Ministère Commerce)',
-                  requirement: 'Certificat de conformité des produits et autorisations sanitaires d exploitation.',
-                  estimatedCost: '35 000 FCFA',
-                  delay: '5 jours',
-                },
-                {
-                  stepNumber: 4,
-                  authority: 'Ville de Niamey / Délégation Spéciale',
-                  requirement: 'Taxe d occupation du domaine commercial et patente locale.',
-                  estimatedCost: '25 000 FCFA / an',
-                  delay: '1 semaine',
-                },
-              ]).map((auth, idx) => (
+              {(physicalPlan.regulatoryAuthorizations || []).map((auth, idx) => (
                 <div
                   key={idx}
                   className="py-4 first:pt-1 last:pb-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
@@ -983,18 +942,18 @@ export const KitsView: React.FC<KitsViewProps> = ({
                     </div>
                     <p className="text-xs text-slate-300">{auth.requirement}</p>
                     <div className="text-[11px] text-slate-400 font-mono flex items-center gap-2.5 pt-0.5 tabular-nums">
-                      <span>Coût estimé : {auth.estimatedCost}</span>
+                      <span>Coût indicatif : {auth.estimatedCost || 'Estimation non fournie'}</span>
                       <span aria-hidden="true" className="text-slate-600">·</span>
-                      <span>Délai : {auth.delay}</span>
+                      <span>Délai : {auth.delay || 'Non spécifié'}</span>
                     </div>
                   </div>
 
                   <button
                     onClick={() =>
                       handleQueueItem(
-                        `Formalité ${auth.authority} - ${selectedOpportunity?.title || 'Démarche'}`,
+                        `Formalité ${auth.authority} - ${selectedOpportunity.title}`,
                         'administrative_step',
-                        `Dossier d immatriculation et déclaration : ${auth.requirement}. Coût prévu : ${auth.estimatedCost}. Délai : ${auth.delay}.`,
+                        `Dossier d immatriculation et déclaration : ${auth.requirement}. Coût indicatif : ${auth.estimatedCost}. Délai : ${auth.delay}.`,
                         auth.authority
                       )
                     }
@@ -1020,30 +979,28 @@ export const KitsView: React.FC<KitsViewProps> = ({
                 <div className="space-y-1">
                   <span className="text-[11px] text-slate-400 font-medium block">Itinéraire & Corridor</span>
                   <p className="text-slate-200 leading-relaxed">
-                    {physicalPlan?.supplyChainAndLogistics?.transportRoute ||
-                      'Axe principal Cotonou-Malanville-Gaya-Dosso-Niamey avec relais sécurisé.'}
+                    {physicalPlan.supplyChainAndLogistics?.transportRoute || 'Non spécifié'}
                   </p>
                 </div>
 
                 <div className="pt-3 border-t border-white/[0.06] space-y-1">
                   <span className="text-[11px] text-slate-400 font-medium block">Conditions de Stockage</span>
                   <p className="text-slate-200 leading-relaxed">
-                    {physicalPlan?.supplyChainAndLogistics?.storageConditions ||
-                      'Entrepôt aéré, palettes bois traitées, température contrôlée par ventilation solaire.'}
+                    {physicalPlan.supplyChainAndLogistics?.storageConditions || 'Non spécifié'}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 pt-3 border-t border-white/[0.06] divide-x divide-white/[0.07]">
                   <div className="pr-4">
-                    <span className="text-[11px] text-slate-400 block">Délai d Acheminement</span>
+                    <span className="text-[11px] text-slate-400 block">Délai d Acheminement Indicatif</span>
                     <div className="text-lg font-bold font-mono text-white mt-0.5 tabular-nums">
-                      {physicalPlan?.supplyChainAndLogistics?.leadTimeDays || 4} jours
+                      {physicalPlan.supplyChainAndLogistics?.leadTimeDays ?? 0} jours
                     </div>
                   </div>
                   <div className="pl-4">
-                    <span className="text-[11px] text-slate-400 block">Stock de Sécurité Minimal</span>
+                    <span className="text-[11px] text-slate-400 block">Stock de Sécurité Indicatif</span>
                     <div className="text-lg font-bold font-mono text-white mt-0.5 tabular-nums">
-                      {physicalPlan?.supplyChainAndLogistics?.safetyStockUnits || 150} unités
+                      {physicalPlan.supplyChainAndLogistics?.safetyStockUnits ?? 0} unités
                     </div>
                   </div>
                 </div>
@@ -1057,12 +1014,7 @@ export const KitsView: React.FC<KitsViewProps> = ({
               </div>
 
               <div className="divide-y divide-white/[0.06]">
-                {(physicalPlan?.implementationTimeline || [
-                  { week: 'Semaine 1-2', milestone: 'Légal & Local commercial', criticalAction: 'Dépôt des statuts à la Maison de l Entreprise et bail du dépôt.' },
-                  { week: 'Semaine 3-4', milestone: 'Contrats Fournisseurs', criticalAction: 'Paiement acompte premier lot et sécurisation du fret routier.' },
-                  { week: 'Semaine 5-6', milestone: 'Réception & Lancement Ventes', criticalAction: 'Déchargement stock, contrôle qualité et prospection des premiers clients.' },
-                  { week: 'Semaine 7-8', milestone: 'Atteinte du Point Mort', criticalAction: 'Recouvrement des premières ventes et réapprovisionnement régulier.' },
-                ]).map((step, idx) => (
+                {(physicalPlan.implementationTimeline || []).map((step, idx) => (
                   <div key={idx} className="py-3 first:pt-1 last:pb-1 space-y-1 text-xs">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono font-semibold text-amber-400">{step.week}</span>

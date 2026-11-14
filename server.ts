@@ -7,6 +7,9 @@ import {
   harvestRealTimeSignals,
   getCachedSignals,
   getCachedRates,
+  getSourceHealth,
+  onSignalsUpdated,
+  onWorkspaceEvent,
   getPersistentPipeline,
   savePersistentPipeline,
   PersistentPipelineItem,
@@ -14,6 +17,15 @@ import {
   savePersistentOpportunities,
   getPersistentKits,
   savePersistentKit,
+  getSavedBlueprints,
+  saveBlueprintRecord,
+  deleteSavedBlueprint,
+  getSavedArbitrages,
+  saveArbitrageRecord,
+  deleteSavedArbitrage,
+  getSavedLaunchpads,
+  saveLaunchpadRecord,
+  deleteSavedLaunchpad,
   getValidationQueue,
   saveValidationQueue,
   addValidationItem,
@@ -47,81 +59,60 @@ const ai = new GoogleGenAI({
   },
 });
 
-// Sector fallback intelligence generator
-function generateSynthesizedBlueprint(params: {
-  sectorId: string;
-  sectorName: string;
-  niche: string;
-  targetRevenue: string;
-  capitalBudget: string;
-  userSkills: string;
-  businessModel: string;
-}) {
-  const { sectorName, niche, targetRevenue, capitalBudget, userSkills, businessModel } = params;
-
-  return {
-    executiveSummary: `L opportunité sur le créneau "${niche}" au sein du secteur ${sectorName} repose sur une asymétrie de marché flagrante : une demande B2B croissante pour la réduction des coûts et la conformité, face à des acteurs historiques lents et chers. En adoptant un modèle ${businessModel}, vous pouvez capter des marges de 70%+ dès les 30 premiers jours avec un budget lean (${capitalBudget}).`,
-    revenueMechanics: {
-      pricingModel: businessModel.includes('SaaS')
-        ? 'Abonnement mensuel étagé : Starter (290€/m), Pro (890€/m), Enterprise (2 400€/m)'
-        : 'Retainer mensuel fixe de 2 500€ à 5 000€/client + prime de succès 10%',
-      expectedGrossMargin: '75% à 88%',
-      targetTicket: targetRevenue.includes('50 000') ? '3 500€ / mois / compte' : '750€ à 1 500€ / mois',
-      scalabilityGrade: 'Élevée (Coûts marginaux quasi-nuls via automatisation)',
-      explanation: `Pour atteindre l objectif de ${targetRevenue}, il vous suffit de signer entre 8 et 15 clients réguliers. La marge brute élevée permet de réinvestir 25% du cash flow en acquisition programmatique tout en maintenant un EBITDA supérieur à 60%.`,
-    },
-    acquisitionStrategy: [
-      {
-        channel: 'Prospection Outbound Hyper-Ciblée (Cold Email + LinkedIn Direct)',
-        action: 'Identifier 300 décideurs précis (DAF, CEO, Directeurs Métiers) sur LinkedIn/Apollo avec signaux d intention récents. Envoyer 3 emails axés sur un audit gratuit de 15 minutes sans engagement.',
-        expectedConversion: '12% de taux de réponse, 4% de rendez-vous qualifiés bookés',
-      },
-      {
-        channel: 'Partenariats Stratégiques & Rétrocessions B2B',
-        action: 'Nouer 5 accords d apporteurs d affaires avec des consultants, experts-comptables ou intégrateurs de la filière en leur reversant 15% de commission sur la première année.',
-        expectedConversion: '2 à 3 leads chauds entrants par partenaire par trimestre',
-      },
-      {
-        channel: 'Contenu d Autorité & Études de Cas ROIstes',
-        action: 'Publier 2 déconstructions concrètes par semaine sur LinkedIn démontrant comment une entreprise a économisé 12 000€ ou gagné 40h/mois grâce à votre méthode.',
-        expectedConversion: 'Inbound continu qualifié avec cycle de vente raccourci de 50%',
-      },
-    ],
-    operationalStack: [
-      'Gemini API / Orchestration d Agents autonomes',
-      'Make.com / n8n pour les workflows automatisés',
-      'Stripe Billing pour les encaissements récurrents automatiques',
-      'HubSpot / Clay.com pour l enrichissement et le CRM',
-      'Cal.com / Typeform pour la qualification sans friction',
-    ],
-    roadmap30_60_90: {
-      day30: `Phase de Validation & 1er Cash : Construire une offre irrésistible de lancement, contacter 150 prospects qualifiés, signer les 3 premiers clients pilotes avec paiement anticipé pour valider le modèle.`,
-      day60: `Phase d Automatisation & Délivrance : Documenter les process, brancher les connecteurs automatiques, éliminer 80% des tâches manuelles, monter le pricing au tarif catalogue définitif.`,
-      day90: `Phase de Rente & Croissance : Mettre en place la boucle d acquisition prévisible, activer les partenariats de distribution, consolider l objectif de ${targetRevenue} en revenus récurrents (MRR).`,
-    },
-    crossSectorSynergies: [
-      `Synergie avec l Intelligence Artificielle : Automatiser la génération des livrables pour multiplier par 5 la capacité de traitement sans embaucher.`,
-      `Synergie avec les Services B2B : Vendre des briques de conseil stratégique premium à forte valeur ajoutée aux clients abonnés.`,
-      `Synergie FinTech : Proposer des facilités de paiement ou d escompte pour accélérer le cash-flow client et sécuriser le vôtre.`,
-    ],
-    keyRisksAndMoat: {
-      primaryRisk: 'Cycle de vente B2B qui s allonge en l absence d urgence perçue par le prospect.',
-      defenseMoat: 'Créer un effet de réseau et des intégrations directes aux outils quotidiens du client rendant le coût de bascule prohibitif.',
-    },
-  };
+function hasConfiguredGeminiKey(): boolean {
+  const k = process.env.GEMINI_API_KEY?.trim() || '';
+  return Boolean(k && k !== 'MY_GEMINI_API_KEY');
 }
 
-// Fallback for arbitrage
-function generateSynthesizedArbitrage(sectorA: string, sectorB: string) {
-  return {
-    conceptName: `Convergence ${sectorA} × ${sectorB}`,
-    arbitrageMechanism: `Exploitation de l écart technologique et de vitesse : appliquer les gains d automatisation et de précision de ${sectorA} au marché traditionnel de ${sectorB}, où les clients sont habitués à payer des honoraires élevés pour des processus encore manuels.`,
-    revenueStreamA: `Abonnement logiciel ou frais de mise en place technologique récurrents (licence B2B)`,
-    revenueStreamB: `Commission sur volume ou partage des gains financiers générés (% sur les économies ou revenus incrémentaux)`,
-    estimatedMonthlyCashflow: '12 000€ à 45 000€ / mois',
-    unfairAdvantage: `Les spécialistes de ${sectorB} n ont pas l expertise technologique pour automatiser, tandis que les acteurs de ${sectorA} manquent de relations sectorielles pour vendre aux décideurs traditionnels.`,
-  };
+async function generateGeminiJson(contents: string, config: any) {
+  try {
+    return await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents,
+      config,
+    });
+  } catch (e: any) {
+    if (e?.message?.includes('503') || e?.status === 503 || e?.toString().includes('high demand')) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return await ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite',
+        contents,
+        config,
+      });
+    }
+    throw e;
+  }
 }
+
+// SSE connected clients registry
+const sseClients = new Set<express.Response>();
+
+function broadcastSseEvent(eventName: string, payload: unknown) {
+  const serialized = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.write(serialized);
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+}
+
+onSignalsUpdated((payload) => {
+  broadcastSseEvent('signals_updated', {
+    status: 'ok',
+    lastSync: payload.lastSync,
+    timestamp: payload.timestamp,
+    totalSignals: payload.signals.length,
+    signals: payload.signals,
+    sourceHealth: payload.sourceHealth,
+    rates: payload.rates,
+  });
+});
+
+onWorkspaceEvent((eventName, payload) => {
+  broadcastSseEvent(eventName, payload);
+});
 
 // API Routes
 app.get('/api/health', (req, res) => {
@@ -193,12 +184,11 @@ app.use('/api', (req, res, next) => {
   });
 });
 
-// Live Signals Harvester (Real External Sources: AllAfrica, Le Figaro, World Bank, BCE/OpenFX)
+// Live Signals Harvester (Multi-country Real External Sources + Health Tracking)
 app.get('/api/signals/live', async (req, res) => {
   const region = (req.query.region as string) || 'all';
   let signals = getCachedSignals();
 
-  // If empty on first request, harvest live
   if (signals.length === 0) {
     try {
       signals = await harvestRealTimeSignals();
@@ -207,10 +197,9 @@ app.get('/api/signals/live', async (req, res) => {
     }
   }
 
-  // Filter by region if requested
   const filtered = region === 'all'
     ? signals
-    : signals.filter((s) => s.region === region || s.region === 'global');
+    : signals.filter((s) => s.region === region || (s.region === 'global' && s.isGlobal));
 
   const now = new Date();
   const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -221,6 +210,49 @@ app.get('/api/signals/live', async (req, res) => {
     timestamp: now.toISOString(),
     totalSignals: filtered.length,
     signals: filtered,
+    sourceHealth: getSourceHealth(),
+    rates: getCachedRates(),
+  });
+});
+
+// Real-Time Server-Sent Events Stream for Signals & FX
+app.get('/api/signals/stream', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+
+  sseClients.add(res);
+
+  const now = new Date();
+  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  const currentSignals = getCachedSignals();
+
+  res.write(
+    `event: signals_snapshot\ndata: ${JSON.stringify({
+      status: 'ok',
+      lastSync: timeStr,
+      timestamp: now.toISOString(),
+      totalSignals: currentSignals.length,
+      signals: currentSignals,
+      sourceHealth: getSourceHealth(),
+      rates: getCachedRates(),
+    })}\n\n`
+  );
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(': keepalive\n\n');
+    } catch {
+      clearInterval(heartbeat);
+      sseClients.delete(res);
+    }
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    sseClients.delete(res);
   });
 });
 
@@ -233,10 +265,12 @@ app.post('/api/signals/refresh', async (req, res) => {
 
     res.json({
       status: 'ok',
-      message: 'Signaux rafraîchis en direct depuis AllAfrica, Le Figaro, Banque Mondiale et BCE/FX.',
+      message: 'Signaux rafraîchis en direct depuis les sources multi-pays.',
       lastSync: timeStr,
       timestamp: now.toISOString(),
       signals: refreshed,
+      sourceHealth: getSourceHealth(),
+      rates: getCachedRates(),
     });
   } catch (e: any) {
     res.status(500).json({ error: e?.message || 'Erreur lors du rafraîchissement' });
@@ -249,16 +283,19 @@ app.get('/api/rates/live', async (req, res) => {
   res.json({
     status: 'ok',
     base: 'EUR',
+    sourceStatus: rates.status || 'fallback',
     rates: {
       EUR: 1,
-      XOF: rates.XOF, // e.g. 655.957 FCFA (BCEAO fixed peg)
+      XOF: rates.XOF,
       USD: rates.USD,
+      lastUpdate: rates.lastUpdate,
+      status: rates.status || 'fallback',
     },
     lastUpdate: rates.lastUpdate,
   });
 });
 
-// Live World Bank Macroeconomic Data
+// Live World Bank Macroeconomic Data (strict, no fake value fallback)
 app.get('/api/worldbank/country/:iso', async (req, res) => {
   const iso = (req.params.iso || 'NER').toUpperCase();
   try {
@@ -267,20 +304,26 @@ app.get('/api/worldbank/country/:iso', async (req, res) => {
       { signal: AbortSignal.timeout(6000) }
     );
     if (!response.ok) {
-      return res.status(404).json({ error: 'Indicateurs non trouvés' });
+      return res.status(response.status).json({
+        status: 'indisponible',
+        country: iso,
+        indicators: [],
+        error: `Source Banque Mondiale HTTP ${response.status}`,
+      });
     }
     const data = await response.json();
     res.json({
-      status: 'ok',
+      status: 'live',
       country: iso,
       metadata: data[0] || {},
-      indicators: data[1] || [],
+      indicators: Array.isArray(data[1]) ? data[1].filter((i: any) => i?.value !== null) : [],
     });
   } catch (e: any) {
-    res.json({
-      status: 'fallback',
+    res.status(503).json({
+      status: 'indisponible',
       country: iso,
-      indicators: [{ indicator: { value: 'Croissance PIB' }, date: '2025', value: 7.0 }],
+      indicators: [],
+      error: e?.message || 'Source Banque Mondiale inaccessible',
     });
   }
 });
@@ -289,6 +332,18 @@ app.get('/api/worldbank/country/:iso', async (req, res) => {
 
 app.get('/api/pipeline', (req, res) => {
   const items = getPersistentPipeline();
+  res.json({ status: 'ok', items });
+});
+
+app.post('/api/pipeline/sync', (req, res) => {
+  const items = req.body?.items;
+  if (!Array.isArray(items)) {
+    return res.status(400).json({ error: 'Tableau items requis pour la synchronisation.' });
+  }
+  const ok = savePersistentPipeline(items as PersistentPipelineItem[]);
+  if (!ok) {
+    return res.status(500).json({ error: 'Erreur lors de l enregistrement du pipeline.' });
+  }
   res.json({ status: 'ok', items });
 });
 
@@ -586,80 +641,152 @@ app.post('/api/kits/generate-digital', async (req, res) => {
   const { opportunity, countryCode = 'NER' } = req.body;
   if (!opportunity) return res.status(400).json({ error: 'Opportunité requise' });
 
+  if (!hasConfiguredGeminiKey()) {
+    return res.status(503).json({ error: 'Clé GEMINI_API_KEY manquante pour générer le dossier numérique.' });
+  }
+
   const startTime = Date.now();
+  const currency = ['NER', 'SEN', 'CIV'].includes(countryCode) ? 'FCFA' : countryCode === 'USA' ? 'USD' : 'EUR';
   const systemPrompt = `Tu es l'ingénieur de lancement d'OmniVectis pour opportunités NUMÉRIQUES.
 Génère le dossier de lancement opérationnel complet pour : "${opportunity.title}" dans le pays (${countryCode}).
-Devise : ${countryCode === 'NER' || countryCode === 'SEN' || countryCode === 'CIV' ? 'FCFA (XOF)' : 'EUR (€)'}.
+Devise : ${currency}.
+RÈGLE DE PROVENANCE : les tarifs proposés doivent être clairement présentés comme une estimation indicative adaptée au pays cible, sans inventer de statistiques clients passées.
 Exigences strictes :
-1. "offerAndPricing" : prix local, modèle de facturation (abonnement/retainer/licence), 4 livrables concrets, garantie satisfait ou remboursé.
-2. "htmlSalesPage" : Page de vente en HTML5 complet (avec balises Tailwind CSS inline, header accrocheur, section problème, solution, 3 cartes de tarifs en devise locale, FAQ, et formulaire de contact).
-3. "contentPack" : tagline percutante, 1 post LinkedIn d'autorité, 1 message WhatsApp court et teaser, 1 angle de preuve sociale.
-4. "outreachCopy" : 1 message direct de prospection, 1 email de pitch complet, gestion des 3 objections fréquentes.
+1. "offerAndPricing" : prix local indicatif (ou "Estimation non fournie" si impossible), devise, modèle de facturation, 4 livrables concrets, garantie.
+2. "htmlSalesPage" : Page de vente complète en HTML5 avec Tailwind CSS CDN et formulaire de contact.
+3. "contentPack" : tagline, post LinkedIn, teaser WhatsApp, angle de preuve.
+4. "outreachCopy" : message direct, email de pitch complet, 3 objections et réponses.
 5. "followupSequence" : relance J+3, relance J+7, rupture polie J+14.
-6. "accountsChecklist" : 5 comptes ou outils précis à créer (ex: opérateurs Mobile Money Airtel Money / Moov Flooz au Niger, compte bancaire, nom de domaine, passerelle FedaPay/Stripe, outil d'inbound).
-7. "automationActions" : 3 flux d'automatisation réalisables (Make/n8n, webhook de notification, rappels auto).`;
+6. "accountsChecklist" : 4 à 5 comptes/outils réels adaptés à ${countryCode}.
+7. "automationActions" : 3 flux d'automatisation réalisables.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: `Opportunité : ${JSON.stringify(opportunity, null, 2)}`,
-      config: {
-        systemInstruction: systemPrompt,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-        responseMimeType: 'application/json',
+    const response = await generateGeminiJson(`Opportunité : ${JSON.stringify(opportunity, null, 2)}`, {
+      systemInstruction: systemPrompt,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          offerAndPricing: {
+            type: Type.OBJECT,
+            properties: {
+              localPrice: { type: Type.STRING },
+              currency: { type: Type.STRING },
+              billingModel: { type: Type.STRING },
+              deliverables: { type: Type.ARRAY, items: { type: Type.STRING } },
+              guarantee: { type: Type.STRING },
+            },
+            required: ['localPrice', 'currency', 'billingModel', 'deliverables', 'guarantee'],
+          },
+          htmlSalesPage: { type: Type.STRING },
+          contentPack: {
+            type: Type.OBJECT,
+            properties: {
+              tagline: { type: Type.STRING },
+              linkedinPost: { type: Type.STRING },
+              whatsappTeaser: { type: Type.STRING },
+              socialProofAngle: { type: Type.STRING },
+            },
+            required: ['tagline', 'linkedinPost', 'whatsappTeaser', 'socialProofAngle'],
+          },
+          outreachCopy: {
+            type: Type.OBJECT,
+            properties: {
+              directMessage: { type: Type.STRING },
+              emailPitch: { type: Type.STRING },
+              objectionHandling: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    objection: { type: Type.STRING },
+                    reply: { type: Type.STRING },
+                  },
+                  required: ['objection', 'reply'],
+                },
+              },
+            },
+            required: ['directMessage', 'emailPitch', 'objectionHandling'],
+          },
+          followupSequence: {
+            type: Type.OBJECT,
+            properties: {
+              day3: { type: Type.STRING },
+              day7: { type: Type.STRING },
+              day14Breakup: { type: Type.STRING },
+            },
+            required: ['day3', 'day7', 'day14Breakup'],
+          },
+          accountsChecklist: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                accountName: { type: Type.STRING },
+                description: { type: Type.STRING },
+              },
+              required: ['accountName', 'description'],
+            },
+          },
+          automationActions: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                tool: { type: Type.STRING },
+                description: { type: Type.STRING },
+                setupDifficulty: { type: Type.STRING, enum: ['rapide', 'moyen'] },
+              },
+              required: ['title', 'tool', 'description', 'setupDifficulty'],
+            },
+          },
+        },
+        required: [
+          'offerAndPricing',
+          'htmlSalesPage',
+          'contentPack',
+          'outreachCopy',
+          'followupSequence',
+          'accountsChecklist',
+          'automationActions',
+        ],
       },
     });
 
     const duration = Date.now() - startTime;
     const parsed = JSON.parse(response.text || '{}');
+
+    if (!parsed?.offerAndPricing || !parsed?.htmlSalesPage || !parsed?.outreachCopy) {
+      throw new Error('Réponse Gemini incomplète pour le dossier numérique.');
+    }
+
     const kitData = {
       opportunityId: opportunity.id,
       opportunityTitle: opportunity.title,
-      offerAndPricing: parsed.offerAndPricing || {
-        localPrice: countryCode === 'NER' ? '650 000 FCFA / mois' : '1 200 € / mois',
-        currency: countryCode === 'NER' ? 'FCFA' : 'EUR',
-        billingModel: 'Abonnement mensuel renouvelable',
-        deliverables: [
-          'Audit initial des processus sous 48h',
-          'Déploiement du connecteur d automatisation clé en main',
-          'Suivi hebdomadaire de conformité et de gains',
-          'Support réactif WhatsApp & Email',
-        ],
-        guarantee: 'Garantie pilote de 30 jours satisfait ou remboursé',
+      offerAndPricing: {
+        localPrice: parsed.offerAndPricing.localPrice?.trim() || 'Estimation non fournie',
+        currency: parsed.offerAndPricing.currency?.trim() || currency,
+        billingModel: parsed.offerAndPricing.billingModel?.trim() || 'Estimation non fournie',
+        deliverables: Array.isArray(parsed.offerAndPricing.deliverables) ? parsed.offerAndPricing.deliverables : [],
+        guarantee: parsed.offerAndPricing.guarantee?.trim() || 'Non spécifiée',
       },
-      htmlSalesPage: parsed.htmlSalesPage || `<div class="p-8 text-white"><h1>${opportunity.title}</h1><p>${opportunity.description}</p></div>`,
-      contentPack: parsed.contentPack || {
-        tagline: `${opportunity.title} : Automatisez et optimisez vos opérations dès ce mois.`,
-        linkedinPost: `Comment nous aidons les entreprises à capturer la valeur sur ${opportunity.title}...`,
-        whatsappTeaser: `Bonjour, nous avons développé une solution dédiée à ${opportunity.title}. 15 min d échange cette semaine ?`,
-        socialProofAngle: `Solution adoptée par des directeurs généraux et gérants exigeants.`,
-      },
-      outreachCopy: parsed.outreachCopy || {
-        directMessage: `Bonjour [Prénom], en lien avec les récentes évolutions sur ${opportunity.title}, seriez-vous ouvert à échanger ?`,
-        emailPitch: `Bonjour [Prénom],\n\nNous accompagnons les décideurs sur ${opportunity.title}...\n\nBien à vous.`,
-        objectionHandling: [{ objection: 'Pas le temps', reply: 'Le pilote ne requiert que 15 minutes de cadrage.' }],
-      },
-      followupSequence: parsed.followupSequence || {
-        day3: 'Bonjour, je fais suite à mon premier message concernant...',
-        day7: 'Dernière relance : avez-vous 10 min ce jeudi ?',
-        day14Breakup: 'Je clôture votre dossier pour l instant.',
-      },
-      accountsChecklist: (parsed.accountsChecklist || [
-        { accountName: 'Airtel Money / Moov Flooz Marchand', description: 'Pour encaisser les règlements locaux instantanément.' },
-        { accountName: 'Compte Bancaire Pro (SONIBANK / ECOBANK)', description: 'Pour les virements d entreprises B2B.' },
-        { accountName: 'Nom de domaine & Email Pro', description: 'Pour la crédibilité de prospection.' },
-        { accountName: 'Passerelle de paiement en ligne (FedaPay / Stripe)', description: 'Pour les cartes bancaires.' },
-      ]).map((a: any, i: number) => ({ id: `acc-${i}`, status: 'todo', ...a })),
-      automationActions: parsed.automationActions || [
-        { title: 'Capture de leads & notification instantanée', tool: 'Make / Webhook', description: 'Envoie une alerte WhatsApp dès qu un prospect remplit le formulaire.', setupDifficulty: 'rapide' },
-        { title: 'Génération automatique de devis pro-forma', tool: 'Template PDF auto', description: 'Crée la facture pro-forma OHADA dès acceptation de l offre.', setupDifficulty: 'rapide' },
-      ],
+      htmlSalesPage: parsed.htmlSalesPage,
+      contentPack: parsed.contentPack,
+      outreachCopy: parsed.outreachCopy,
+      followupSequence: parsed.followupSequence,
+      accountsChecklist: (Array.isArray(parsed.accountsChecklist) ? parsed.accountsChecklist : []).map((a: any, i: number) => ({
+        id: `acc-${i}`,
+        status: 'todo',
+        ...a,
+      })),
+      automationActions: Array.isArray(parsed.automationActions) ? parsed.automationActions : [],
     };
 
     savePersistentKit(opportunity.id, { digital: kitData });
     recordGeminiCall(duration, true, undefined, { kitsGenerated: 1 });
 
-    // Automatically queue outreach messages into the "À valider" queue (Rien n'est envoyé sans validation)
     addValidationItem({
       title: `Message de prospection LinkedIn - ${opportunity.title}`,
       category: 'prospection_message',
@@ -682,7 +809,7 @@ Exigences strictes :
       actionType: 'kit_generated',
       actor: 'gemini_api',
       description: `Dossier de lancement numérique généré pour : ${opportunity.title}`,
-      provenanceDetails: `Offre : ${kitData.offerAndPricing.localPrice}`,
+      provenanceDetails: `Offre indicative : ${kitData.offerAndPricing.localPrice}`,
       status: 'success',
     });
 
@@ -700,114 +827,200 @@ app.post('/api/kits/generate-physical', async (req, res) => {
   const { opportunity, countryCode = 'NER' } = req.body;
   if (!opportunity) return res.status(400).json({ error: 'Opportunité requise' });
 
+  if (!hasConfiguredGeminiKey()) {
+    return res.status(503).json({ error: 'Clé GEMINI_API_KEY manquante pour générer le plan physique.' });
+  }
+
   const startTime = Date.now();
-  const currency = countryCode === 'NER' || countryCode === 'SEN' || countryCode === 'CIV' ? 'FCFA' : 'EUR';
+  const currency = ['NER', 'SEN', 'CIV'].includes(countryCode) ? 'FCFA' : countryCode === 'USA' ? 'USD' : 'EUR';
 
   const systemPrompt = `Tu es l'expert en exploitation d'entreprises physiques pour OmniVectis.
 Génère le plan d'exploitation opérationnel complet pour : "${opportunity.title}" dans le pays (${countryCode}).
 Devise : ${currency}.
+RÈGLE DE PROVENANCE : Les montants budgétaires sont des estimations indicatives modifiables par l'utilisateur. N'invente pas de faux fournisseurs précis si tu ne les connais pas ; indique plutôt le type de partenaire ou pôle commercial réel du pays.
 Exigences strictes :
-1. "investmentBudget" : Budget initial détaillé avec hypothèses 100% modifiables (loyer/dépôt local, stock de démarrage, transport/carburant, emballage/conditionnement, salaires/main d œuvre, fonds de roulement de sécurité).
-2. "localSuppliersAndPartners" : 3 à 5 fournisseurs et partenaires locaux réels ou typiques du pays (ex au Niger : grossistes de Katako, SONIDEP, coopératives agricoles de Maradi/Tahoua/Zinder, transitaires douane Niamey).
-3. "regulatoryAuthorizations" : 4 étapes officielles d'autorisations administratives du pays (RCCM, NIF à la Maison de l Entreprise, agrément ministériel ou d hygiène, contrôle phytosanitaire/douanier).
-4. "supplyChainAndLogistics" : itinéraire de transport, conditions de stockage, délais de livraison en jours, stock de sécurité en unités.
-5. "implementationTimeline" : planning sur 8 semaines (Semaines 1 à 8 avec jalons précis).
-6. "breakEvenAnalysis" : prix de vente unitaire, coût de revient unitaire, marge brute unitaire, charges fixes mensuelles, point mort en volume d unités et en chiffre d affaires.
-7. "risksAndMitigation" : 3 risques opérationnels concrets et leurs stratégies d atténuation.`;
+1. "investmentBudget" : Budget initial détaillé avec hypothèses modifiables (id, category, label, amount, isEditable=true, note), workingCapitalReserve et totalInitial.
+2. "localSuppliersAndPartners" : 3 à 5 types de fournisseurs/partenaires du pays cible.
+3. "regulatoryAuthorizations" : 4 étapes d'autorisations administratives du pays.
+4. "supplyChainAndLogistics" : itinéraire de transport, conditions de stockage, leadTimeDays, safetyStockUnits.
+5. "implementationTimeline" : planning sur 8 semaines (4 jalons).
+6. "breakEvenAnalysis" : unitSalePrice, unitCost, unitGrossMargin, monthlyFixedCosts, breakEvenUnits, breakEvenRevenue.
+7. "risksAndMitigation" : 3 risques opérationnels concrets et atténuation.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: `Opportunité physique : ${JSON.stringify(opportunity, null, 2)}`,
-      config: {
-        systemInstruction: systemPrompt,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-        responseMimeType: 'application/json',
+    const response = await generateGeminiJson(`Opportunité physique : ${JSON.stringify(opportunity, null, 2)}`, {
+      systemInstruction: systemPrompt,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          investmentBudget: {
+            type: Type.OBJECT,
+            properties: {
+              totalInitial: { type: Type.NUMBER },
+              currency: { type: Type.STRING },
+              workingCapitalReserve: { type: Type.NUMBER },
+              hypotheses: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    id: { type: Type.STRING },
+                    category: { type: Type.STRING },
+                    label: { type: Type.STRING },
+                    amount: { type: Type.NUMBER },
+                    isEditable: { type: Type.BOOLEAN },
+                    note: { type: Type.STRING },
+                  },
+                  required: ['id', 'category', 'label', 'amount', 'isEditable', 'note'],
+                },
+              },
+            },
+            required: ['totalInitial', 'currency', 'workingCapitalReserve', 'hypotheses'],
+          },
+          localSuppliersAndPartners: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                role: { type: Type.STRING },
+                location: { type: Type.STRING },
+                contactGuide: { type: Type.STRING },
+              },
+              required: ['name', 'role', 'location', 'contactGuide'],
+            },
+          },
+          regulatoryAuthorizations: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                stepNumber: { type: Type.INTEGER },
+                authority: { type: Type.STRING },
+                requirement: { type: Type.STRING },
+                estimatedCost: { type: Type.STRING },
+                delay: { type: Type.STRING },
+              },
+              required: ['stepNumber', 'authority', 'requirement', 'estimatedCost', 'delay'],
+            },
+          },
+          supplyChainAndLogistics: {
+            type: Type.OBJECT,
+            properties: {
+              transportRoute: { type: Type.STRING },
+              storageConditions: { type: Type.STRING },
+              leadTimeDays: { type: Type.NUMBER },
+              safetyStockUnits: { type: Type.NUMBER },
+            },
+            required: ['transportRoute', 'storageConditions', 'leadTimeDays', 'safetyStockUnits'],
+          },
+          implementationTimeline: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                week: { type: Type.STRING },
+                milestone: { type: Type.STRING },
+                criticalAction: { type: Type.STRING },
+              },
+              required: ['week', 'milestone', 'criticalAction'],
+            },
+          },
+          breakEvenAnalysis: {
+            type: Type.OBJECT,
+            properties: {
+              unitSalePrice: { type: Type.NUMBER },
+              unitCost: { type: Type.NUMBER },
+              unitGrossMargin: { type: Type.NUMBER },
+              monthlyFixedCosts: { type: Type.NUMBER },
+              breakEvenUnits: { type: Type.NUMBER },
+              breakEvenRevenue: { type: Type.NUMBER },
+            },
+            required: ['unitSalePrice', 'unitCost', 'unitGrossMargin', 'monthlyFixedCosts', 'breakEvenUnits', 'breakEvenRevenue'],
+          },
+          risksAndMitigation: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                risk: { type: Type.STRING },
+                mitigationStrategy: { type: Type.STRING },
+              },
+              required: ['risk', 'mitigationStrategy'],
+            },
+          },
+        },
+        required: [
+          'investmentBudget',
+          'localSuppliersAndPartners',
+          'regulatoryAuthorizations',
+          'supplyChainAndLogistics',
+          'implementationTimeline',
+          'breakEvenAnalysis',
+          'risksAndMitigation',
+        ],
       },
     });
 
     const duration = Date.now() - startTime;
     const parsed = JSON.parse(response.text || '{}');
 
-    const defaultHypotheses = countryCode === 'NER' ? [
-      { id: 'hyp-1', category: 'Local & Dépôt', label: 'Bail commercial / entrepôt (avance 3 mois)', amount: 450000, isEditable: true, note: 'Location zone artisanale ou périphérique Niamey' },
-      { id: 'hyp-2', category: 'Stock Initial', label: 'Achat du premier lot de marchandises brutes', amount: 1800000, isEditable: true, note: 'Approvisionnement grossiste' },
-      { id: 'hyp-3', category: 'Logistique', label: 'Fret routier, déchargement et transport local', amount: 350000, isEditable: true, note: 'Transporteur axe Maradi/Niamey ou Cotonou' },
-      { id: 'hyp-4', category: 'Conformité & Légal', label: 'Frais de formalités RCCM, NIF et licences', amount: 150000, isEditable: true, note: 'Maison de l Entreprise du Niger' },
-      { id: 'hyp-5', category: 'Fonds de roulement', label: 'Trésorerie de réserve opérationnelle (BFR)', amount: 600000, isEditable: true, note: 'Sécurité de trésorerie 45 jours' },
-    ] : [
-      { id: 'hyp-1', category: 'Local & Dépôt', label: 'Location atelier / stockage (avance 3 mois)', amount: 2400, isEditable: true, note: 'Dépôt sécurisé' },
-      { id: 'hyp-2', category: 'Stock Initial', label: 'Premier lot de matières premières et packaging', amount: 5000, isEditable: true, note: 'Fournisseur direct' },
-      { id: 'hyp-3', category: 'Logistique', label: 'Transporteur et livraison initiale', amount: 800, isEditable: true, note: 'Fret messagerie' },
-      { id: 'hyp-4', category: 'Conformité & Légal', label: 'Assurance professionnelle et immatriculation', amount: 600, isEditable: true, note: 'Frais légaux' },
-      { id: 'hyp-5', category: 'Fonds de roulement', label: 'Trésorerie de sécurité', amount: 2000, isEditable: true, note: 'Trésorerie de réserve' },
-    ];
+    if (!parsed?.investmentBudget || !parsed?.breakEvenAnalysis) {
+      throw new Error('Réponse Gemini incomplète pour le plan d exploitation physique.');
+    }
+
+    const hypotheses = Array.isArray(parsed.investmentBudget.hypotheses)
+      ? parsed.investmentBudget.hypotheses.map((h: any, idx: number) => ({
+          id: h.id || `hyp-${idx + 1}`,
+          category: h.category || 'Poste budgétaire',
+          label: h.label || 'Estimation',
+          amount: Number(h.amount) || 0,
+          isEditable: true,
+          note: h.note || 'Estimation indicative modifiable',
+        }))
+      : [];
+
+    const totalInitial = hypotheses.reduce((sum: number, h: any) => sum + Number(h.amount || 0), 0);
 
     const planData = {
       opportunityId: opportunity.id,
       opportunityTitle: opportunity.title,
-      investmentBudget: parsed.investmentBudget || {
-        totalInitial: defaultHypotheses.reduce((sum, h) => sum + h.amount, 0),
-        currency,
-        hypotheses: defaultHypotheses,
-        workingCapitalReserve: countryCode === 'NER' ? 600000 : 2000,
+      investmentBudget: {
+        totalInitial,
+        currency: parsed.investmentBudget.currency || currency,
+        hypotheses,
+        workingCapitalReserve: Number(parsed.investmentBudget.workingCapitalReserve) || 0,
       },
-      localSuppliersAndPartners: parsed.localSuppliersAndPartners || [
-        { name: 'Grossistes et négociants du Grand Marché / Katako', role: 'Fournisseur principal de matières', location: 'Niamey, Niger', contactGuide: 'Prendre contact en direct avec acompte de 30% à la pesée.' },
-        { name: 'Union des Coopératives Maraîchères Sahéliennes', role: 'Partenaire d approvisionnement régulier', location: 'Région de Tillabéri & Maradi', contactGuide: 'Convention de contractualisation à prix garanti.' },
-        { name: 'Transporteurs Routiers Privés (GIE Fret)', role: 'Acheminement logistique et livraison', location: 'Gares routières Niamey', contactGuide: 'Lettre de voiture officielle et paiement à la livraison.' },
-      ],
-      regulatoryAuthorizations: parsed.regulatoryAuthorizations || [
-        { stepNumber: 1, authority: 'Maison de l Entreprise du Niger (CCIN)', requirement: 'Immatriculation au Registre de Commerce (RCCM) et attribution du NIF', estimatedCost: '50 000 FCFA', delay: '48h à 72h' },
-        { stepNumber: 2, authority: 'Direction Générale des Impôts (DGI Niger)', requirement: 'Déclaration d existence et choix du régime synthétique (ISF)', estimatedCost: '0 FCFA', delay: '2 jours' },
-        { stepNumber: 3, authority: 'Direction de la Protection des Végétaux / Ministère Commerce', requirement: 'Certificat de salubrité et conformité des denrées', estimatedCost: '35 000 FCFA', delay: '5 jours' },
-        { stepNumber: 4, authority: 'Mairie / Communauté Urbaine de Niamey', requirement: 'Autorisation d occupation temporaire du domaine commercial', estimatedCost: '25 000 FCFA / an', delay: '1 semaine' },
-      ],
-      supplyChainAndLogistics: parsed.supplyChainAndLogistics || {
-        transportRoute: 'Axe principal corridor Cotonou-Dosso-Niamey et liaisons agricoles intérieures.',
-        storageConditions: 'Hangar ventilé à l abri de l humidité, surélevé sur palettes bois traitées.',
-        leadTimeDays: 4,
-        safetyStockUnits: 150,
-      },
-      implementationTimeline: parsed.implementationTimeline || [
-        { week: 'Semaine 1-2', milestone: 'Formalités administratives & Local', criticalAction: 'Validation du bail et retrait du RCCM/NIF à la Maison de l Entreprise.' },
-        { week: 'Semaine 3-4', milestone: 'Commandes fournisseurs & Logistique', criticalAction: 'Signature des contrats d approvisionnement et réception du premier stock.' },
-        { week: 'Semaine 5-6', milestone: 'Lancement commercial & Distribution', criticalAction: 'Prospection directe des premiers points de vente et clients institutionnels.' },
-        { week: 'Semaine 7-8', milestone: 'Seuil de rentabilité & Stabilisation', criticalAction: 'Atteinte des volumes cibles de vente pour couvrir les charges fixes.' },
-      ],
-      breakEvenAnalysis: parsed.breakEvenAnalysis || {
-        unitSalePrice: countryCode === 'NER' ? 12500 : 25,
-        unitCost: countryCode === 'NER' ? 7500 : 15,
-        unitGrossMargin: countryCode === 'NER' ? 5000 : 10,
-        monthlyFixedCosts: countryCode === 'NER' ? 350000 : 800,
-        breakEvenUnits: countryCode === 'NER' ? 70 : 80,
-        breakEvenRevenue: countryCode === 'NER' ? 875000 : 2000,
-      },
-      risksAndMitigation: parsed.risksAndMitigation || [
-        { risk: 'Retards d acheminement liés aux contrôles routiers', mitigationStrategy: 'Conserver en permanence 15 jours de stock tampon dans le dépôt local.' },
-        { risk: 'Fluctuation des cours d achat des intrants', mitigationStrategy: 'Négocier des contrats cadres trimestriels avec clauses de prix plancher.' },
-        { risk: 'Pannes d énergie ou ruptures de chaîne du froid', mitigationStrategy: 'Installation d un onduleur solaire 3kW autonome sur le site de stockage.' },
-      ],
+      localSuppliersAndPartners: Array.isArray(parsed.localSuppliersAndPartners) ? parsed.localSuppliersAndPartners : [],
+      regulatoryAuthorizations: Array.isArray(parsed.regulatoryAuthorizations) ? parsed.regulatoryAuthorizations : [],
+      supplyChainAndLogistics: parsed.supplyChainAndLogistics,
+      implementationTimeline: Array.isArray(parsed.implementationTimeline) ? parsed.implementationTimeline : [],
+      breakEvenAnalysis: parsed.breakEvenAnalysis,
+      risksAndMitigation: Array.isArray(parsed.risksAndMitigation) ? parsed.risksAndMitigation : [],
     };
 
     savePersistentKit(opportunity.id, { physical: planData });
     recordGeminiCall(duration, true, undefined, { kitsGenerated: 1 });
 
-    // Automatically queue administrative steps into the "À valider" queue
-    addValidationItem({
-      title: `Dépôt de dossier RCCM & NIF - ${opportunity.title}`,
-      category: 'administrative_step',
-      targetRecipient: 'Maison de l Entreprise du Niger (CCIN Niamey)',
-      contentPayload: `Dossier de création d établissement commercial pour l activité : ${opportunity.title}. Capital : 0 FCFA. Régime ISF.`,
-      sourceOpportunityTitle: opportunity.title,
-      countryCode,
-    });
+    if (planData.regulatoryAuthorizations.length > 0) {
+      const firstStep = planData.regulatoryAuthorizations[0];
+      addValidationItem({
+        title: `Démarche administrative : ${firstStep.authority} - ${opportunity.title}`,
+        category: 'administrative_step',
+        targetRecipient: firstStep.authority,
+        contentPayload: `${firstStep.requirement} (Coût indicatif : ${firstStep.estimatedCost}, Délai : ${firstStep.delay})`,
+        sourceOpportunityTitle: opportunity.title,
+        countryCode,
+      });
+    }
 
     appendAuditLog({
       actionType: 'kit_generated',
       actor: 'gemini_api',
       description: `Plan d exploitation physique généré pour : ${opportunity.title}`,
-      provenanceDetails: `Budget initial calculé : ${planData.investmentBudget.totalInitial.toLocaleString()} ${currency}`,
+      provenanceDetails: `Budget indicatif calculé : ${planData.investmentBudget.totalInitial.toLocaleString()} ${currency}`,
       status: 'success',
     });
 
@@ -921,10 +1134,18 @@ app.get('/api/usage', (req, res) => {
 });
 
 
-// Generate deep custom execution blueprint
+// Generate deep custom execution blueprint (strict Gemini, no fake fallback)
 app.post('/api/blueprint/generate', async (req, res) => {
   const { sectorId, sectorName, niche, targetRevenue, capitalBudget, userSkills, businessModel } = req.body;
 
+  if (!hasConfiguredGeminiKey()) {
+    return res.status(503).json({
+      success: false,
+      error: 'Clé GEMINI_API_KEY manquante côté serveur pour générer le plan stratégique.',
+    });
+  }
+
+  const startTime = Date.now();
   const resolvedSectorName = sectorName || 'Intelligence Artificielle & DeepTech';
   const resolvedNiche = niche || 'Automatisation de processus B2B';
   const resolvedTarget = targetRevenue || '15 000€ / mois';
@@ -932,13 +1153,9 @@ app.post('/api/blueprint/generate', async (req, res) => {
   const resolvedSkills = userSkills || 'Automatisation, vente B2B, no-code';
   const resolvedModel = businessModel || 'SaaS B2B & Abonnements Récurrents';
 
-  // Check if API key is present
-  const hasKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY');
-
-  if (hasKey) {
-    try {
-      const prompt = `Tu es un stratège macro-économique d'élite, serial entrepreneur et expert en capture d'opportunités de marché multi-sectorielles à haute rentabilité.
-Analyse en profondeur l'opportunité de marché suivante et conçois un plan d'action commercial et opérationnel d'élite pour générer le maximum de revenus et de marge :
+  try {
+    const prompt = `Tu es un stratège macro-économique et expert en exécution commerciale.
+Analyse l'opportunité suivante et conçois un plan d'action opérationnel (les montants et conversions sont des estimations indicatives) :
 
 - Secteur économique : ${resolvedSectorName} (Identifiant : ${sectorId || 'général'})
 - Niche ciblée : ${resolvedNiche}
@@ -948,336 +1165,212 @@ Analyse en profondeur l'opportunité de marché suivante et conçois un plan d'a
 - Compétences / Atouts : ${resolvedSkills}
 
 Fournis une réponse structurée en JSON strict contenant :
-1. "executiveSummary": Résumé percutant de l'opportunité et pourquoi ce créneau est sous-exploité maintenant.
-2. "revenueMechanics": Analyse détaillée du modèle de revenus (pricing préconisé, panier moyen, récurrence MRR, marge brute estimée en %).
-3. "acquisitionStrategy": 3 tactiques concrètes et éprouvées d'acquisition client à coût quasi nul au début (cold outbound précis, leviers d'audience, partenariats B2B).
-4. "operationalStack": Les outils, automatisations et technologies pour opérer ce business avec 1 à 2 personnes au départ.
-5. "roadmap30_60_90":
-   - "day30": Objectif des 30 premiers jours (validation, première offre irrésistible, 3 premiers prospects signés).
-   - "day60": Objectif des 60 jours (délivrance, automatisation du flux, reach 5k€-15k€).
-   - "day90": Objectif des 90 jours (scaling, délégation, stabilisation récurrente).
-6. "crossSectorSynergies": Comment interconnecter cette opportunité avec d'autres secteurs pour créer un volant d'inertie (flywheel) de revenus multiples.
-7. "keyRisksAndMoat": Le principal risque et la barrière à l'entrée (moat) pour protéger ses marges.`;
+1. "executiveSummary": Résumé percutant de l'opportunité.
+2. "revenueMechanics": Analyse du modèle de revenus (pricing conseillé, panier moyen indicatif, marge brute estimée, scalabilité, explication).
+3. "acquisitionStrategy": 3 tactiques concrètes d'acquisition client.
+4. "operationalStack": Outils et technologies pour opérer en équipe réduite.
+5. "roadmap30_60_90": day30, day60, day90.
+6. "crossSectorSynergies": Synergies cross-sectorielles concrètes.
+7. "keyRisksAndMoat": primaryRisk et defenseMoat.`;
 
-      const callPromise = ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseMimeType: 'application/json',
-          responseSchema: {
+    const response = await generateGeminiJson(prompt, {
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          executiveSummary: { type: Type.STRING },
+          revenueMechanics: {
             type: Type.OBJECT,
             properties: {
-              executiveSummary: { type: Type.STRING },
-              revenueMechanics: {
-                type: Type.OBJECT,
-                properties: {
-                  pricingModel: { type: Type.STRING },
-                  expectedGrossMargin: { type: Type.STRING },
-                  targetTicket: { type: Type.STRING },
-                  scalabilityGrade: { type: Type.STRING },
-                  explanation: { type: Type.STRING },
-                },
-                required: ['pricingModel', 'expectedGrossMargin', 'targetTicket', 'scalabilityGrade', 'explanation'],
-              },
-              acquisitionStrategy: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    channel: { type: Type.STRING },
-                    action: { type: Type.STRING },
-                    expectedConversion: { type: Type.STRING },
-                  },
-                  required: ['channel', 'action', 'expectedConversion'],
-                },
-              },
-              operationalStack: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-              },
-              roadmap30_60_90: {
-                type: Type.OBJECT,
-                properties: {
-                  day30: { type: Type.STRING },
-                  day60: { type: Type.STRING },
-                  day90: { type: Type.STRING },
-                },
-                required: ['day30', 'day60', 'day90'],
-              },
-              crossSectorSynergies: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-              },
-              keyRisksAndMoat: {
-                type: Type.OBJECT,
-                properties: {
-                  primaryRisk: { type: Type.STRING },
-                  defenseMoat: { type: Type.STRING },
-                },
-                required: ['primaryRisk', 'defenseMoat'],
-              },
+              pricingModel: { type: Type.STRING },
+              expectedGrossMargin: { type: Type.STRING },
+              targetTicket: { type: Type.STRING },
+              scalabilityGrade: { type: Type.STRING },
+              explanation: { type: Type.STRING },
             },
-            required: [
-              'executiveSummary',
-              'revenueMechanics',
-              'acquisitionStrategy',
-              'operationalStack',
-              'roadmap30_60_90',
-              'crossSectorSynergies',
-              'keyRisksAndMoat',
-            ],
+            required: ['pricingModel', 'expectedGrossMargin', 'targetTicket', 'scalabilityGrade', 'explanation'],
+          },
+          acquisitionStrategy: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                channel: { type: Type.STRING },
+                action: { type: Type.STRING },
+                expectedConversion: { type: Type.STRING },
+              },
+              required: ['channel', 'action', 'expectedConversion'],
+            },
+          },
+          operationalStack: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+          },
+          roadmap30_60_90: {
+            type: Type.OBJECT,
+            properties: {
+              day30: { type: Type.STRING },
+              day60: { type: Type.STRING },
+              day90: { type: Type.STRING },
+            },
+            required: ['day30', 'day60', 'day90'],
+          },
+          crossSectorSynergies: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+          },
+          keyRisksAndMoat: {
+            type: Type.OBJECT,
+            properties: {
+              primaryRisk: { type: Type.STRING },
+              defenseMoat: { type: Type.STRING },
+            },
+            required: ['primaryRisk', 'defenseMoat'],
           },
         },
-      });
+        required: [
+          'executiveSummary',
+          'revenueMechanics',
+          'acquisitionStrategy',
+          'operationalStack',
+          'roadmap30_60_90',
+          'crossSectorSynergies',
+          'keyRisksAndMoat',
+        ],
+      },
+    });
 
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('AI blueprint latency threshold')), 8000)
-      );
-
-      const response = await Promise.race([callPromise, timeoutPromise]);
-      const parsed = JSON.parse(response.text || '{}');
-      return res.json({ success: true, blueprint: parsed, source: 'ai' });
-    } catch (apiError: any) {
-      console.info('Serving optimized blueprint synthesis:', apiError?.message || 'ready');
-    }
+    const duration = Date.now() - startTime;
+    const parsed = JSON.parse(response.text || '{}');
+    const savedRecord = saveBlueprintRecord({
+      sectorId: sectorId || 'ai_deeptech',
+      sectorName: resolvedSectorName,
+      niche: resolvedNiche,
+      targetRevenue: resolvedTarget,
+      capitalBudget: resolvedBudget,
+      userSkills: resolvedSkills,
+      businessModel: resolvedModel,
+      blueprint: parsed,
+    });
+    recordGeminiCall(duration, true);
+    return res.json({ success: true, blueprint: parsed, record: savedRecord, source: 'ai' });
+  } catch (apiError: any) {
+    const duration = Date.now() - startTime;
+    const message = apiError?.message || 'Erreur lors de la génération du blueprint via Gemini.';
+    recordGeminiCall(duration, false, message);
+    return res.status(500).json({ success: false, error: message });
   }
-
-  // Fallback to high-fidelity synthesized blueprint
-  const synthesized = generateSynthesizedBlueprint({
-    sectorId: sectorId || 'default',
-    sectorName: resolvedSectorName,
-    niche: resolvedNiche,
-    targetRevenue: resolvedTarget,
-    capitalBudget: resolvedBudget,
-    userSkills: resolvedSkills,
-    businessModel: resolvedModel,
-  });
-
-  res.json({ success: true, blueprint: synthesized, source: 'synthesized' });
 });
 
-// Cross-sector arbitrage & synergy generator
+app.get('/api/blueprints', (req, res) => {
+  res.json({ status: 'ok', blueprints: getSavedBlueprints() });
+});
+
+app.delete('/api/blueprints/:id', (req, res) => {
+  const remaining = deleteSavedBlueprint(req.params.id);
+  res.json({ status: 'ok', blueprints: remaining });
+});
+
+// Cross-sector arbitrage & synergy generator (strict Gemini, no fake fallback)
 app.post('/api/arbitrage/analyze', async (req, res) => {
   const { sectorA, sectorB, riskTolerance } = req.body;
 
   if (!sectorA || !sectorB) {
-    return res.status(400).json({ error: 'Deux secteurs sont requis pour analyser l arbitrage.' });
+    return res.status(400).json({ success: false, error: 'Deux secteurs sont requis pour analyser l arbitrage.' });
   }
 
-  const hasKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY');
+  if (!hasConfiguredGeminiKey()) {
+    return res.status(503).json({
+      success: false,
+      error: 'Clé GEMINI_API_KEY manquante côté serveur pour l analyse d arbitrage.',
+    });
+  }
 
-  if (hasKey) {
-    try {
-      const prompt = `Analyse l'opportunité d'arbitrage et de synergie économique entre ces deux secteurs :
+  const startTime = Date.now();
+  try {
+    const prompt = `Analyse l'opportunité d'arbitrage et de synergie économique entre ces deux secteurs :
 Secteur 1: ${sectorA}
 Secteur 2: ${sectorB}
 Tolérance au risque: ${riskTolerance || 'Équilibré'}
 
-Génère une stratégie d'arbitrage qui tire parti des asymétries de marges, de technologies ou de flux de trésorerie entre ces deux secteurs pour maximiser les profits d'un opérateur indépendant ou d'une PME.
+Génère une stratégie d'arbitrage qui tire parti des asymétries de marges, de technologies ou de flux de trésorerie entre ces deux secteurs.
 Réponds en JSON avec :
 1. "conceptName": Nom du modèle de convergence
 2. "arbitrageMechanism": Explication de l'asymétrie exploitée
 3. "revenueStreamA": Flux généré via le premier secteur
 4. "revenueStreamB": Flux généré via le second secteur
-5. "estimatedMonthlyCashflow": Fourchette de cash-flow mensuel réaliste
+5. "estimatedMonthlyCashflow": Estimation indicative réaliste de cash-flow mensuel
 6. "unfairAdvantage": Pourquoi les acteurs traditionnels ne le font pas encore`;
 
-      const callPromise = ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              conceptName: { type: Type.STRING },
-              arbitrageMechanism: { type: Type.STRING },
-              revenueStreamA: { type: Type.STRING },
-              revenueStreamB: { type: Type.STRING },
-              estimatedMonthlyCashflow: { type: Type.STRING },
-              unfairAdvantage: { type: Type.STRING },
-            },
-            required: [
-              'conceptName',
-              'arbitrageMechanism',
-              'revenueStreamA',
-              'revenueStreamB',
-              'estimatedMonthlyCashflow',
-              'unfairAdvantage',
-            ],
-          },
+    const response = await generateGeminiJson(prompt, {
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          conceptName: { type: Type.STRING },
+          arbitrageMechanism: { type: Type.STRING },
+          revenueStreamA: { type: Type.STRING },
+          revenueStreamB: { type: Type.STRING },
+          estimatedMonthlyCashflow: { type: Type.STRING },
+          unfairAdvantage: { type: Type.STRING },
         },
-      });
+        required: [
+          'conceptName',
+          'arbitrageMechanism',
+          'revenueStreamA',
+          'revenueStreamB',
+          'estimatedMonthlyCashflow',
+          'unfairAdvantage',
+        ],
+      },
+    });
 
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('AI arbitrage latency threshold')), 8000)
-      );
-
-      const response = await Promise.race([callPromise, timeoutPromise]);
-      const parsed = JSON.parse(response.text || '{}');
-      return res.json({ success: true, analysis: parsed, source: 'ai' });
-    } catch (apiError: any) {
-      console.info('Serving optimized arbitrage synthesis:', apiError?.message || 'ready');
-    }
+    const duration = Date.now() - startTime;
+    const parsed = JSON.parse(response.text || '{}');
+    const savedRecord = saveArbitrageRecord({
+      sectorA,
+      sectorB,
+      riskTolerance: riskTolerance || 'Équilibré',
+      analysis: parsed,
+    });
+    recordGeminiCall(duration, true);
+    return res.json({ success: true, analysis: parsed, record: savedRecord, source: 'ai' });
+  } catch (apiError: any) {
+    const duration = Date.now() - startTime;
+    const message = apiError?.message || 'Erreur lors de l analyse d arbitrage via Gemini.';
+    recordGeminiCall(duration, false, message);
+    return res.status(500).json({ success: false, error: message });
   }
-
-  const fallback = generateSynthesizedArbitrage(sectorA, sectorB);
-  res.json({ success: true, analysis: fallback, source: 'synthesized' });
 });
 
-// Synthesized Launchpad Circuit Generator (Instant real-money execution engine)
-function generateSynthesizedLaunchpad(params: {
-  sectorId: string;
-  sectorName: string;
-  opportunityTitle: string;
-  targetPrice?: string;
-}) {
-  const { sectorName, opportunityTitle, targetPrice } = params;
+app.get('/api/arbitrages', (req, res) => {
+  res.json({ status: 'ok', arbitrages: getSavedArbitrages() });
+});
 
-  return {
-    opportunityTitle,
-    sectorName,
-    tagline: `Circuit commercial complet & automatisé pour monétiser : ${opportunityTitle}`,
-    commercialOffer: {
-      heroPromise: `Automatisez vos opérations sur ${sectorName} et réduisez vos coûts de 40% dès les 30 premiers jours, sans embauche.`,
-      targetPersona: `Directeurs Administratifs et Financiers (DAF), Directeurs des Opérations et Gérants de PME (10 à 250 salariés).`,
-      riskReversalGuarantee: `Garantie 'Pilote Satisfait ou Remboursé' : si aucun gain de temps mesurable n est constaté sous 30 jours, remboursement intégral sans question.`,
-      tiers: [
-        {
-          name: 'Starter / Pilote',
-          price: targetPrice || '490 € / mois',
-          billingCycle: 'Facturation mensuelle sans engagement',
-          deliverables: [
-            'Audit initial des flux et identification des inefficacités',
-            '1 agent ou connecteur automatisé clé en main',
-            'Rapport mensuel de conformité et gains générés',
-            'Support réactif par email sous 24h',
-          ],
-          stripeLinkParams: 'mode=subscription&amount=49000&currency=eur&interval=month',
-        },
-        {
-          name: 'Pro / Scaling',
-          price: '1 490 € / mois',
-          billingCycle: 'Facturation mensuelle avec remise trimestrielle',
-          deliverables: [
-            'Jusqu à 5 workflows ou agents opérationnels',
-            'Intégration directe à votre ERP ou CRM de référence',
-            'Surveillance des anomalies en temps réel',
-            'Ligne WhatsApp directe avec votre gestionnaire dédié',
-          ],
-          stripeLinkParams: 'mode=subscription&amount=149000&currency=eur&interval=month',
-        },
-        {
-          name: 'Entreprise & Sur-Mesure',
-          price: '3 900 € / mois',
-          billingCycle: 'Facturation trimestrielle avec SLA contractuel',
-          deliverables: [
-            'Déploiement illimité et architecture dédiée',
-            'Audit réglementaire approfondi et certification légale',
-            'Formation personnalisée de vos équipes internes',
-            'SLA 99.9% et astreinte prioritaire 7j/7',
-          ],
-          stripeLinkParams: 'mode=subscription&amount=390000&currency=eur&interval=month',
-        },
-      ],
-    },
-    outreachSequence: {
-      channel: 'LinkedIn Sales Navigator + Séquence Cold Email ciblée (Domaines secondaires)',
-      targetFilters: `Critères de ciblage précis : Titre = Gérant OU DAF OU Directeur Général, Secteur = ${sectorName}, Effectif = 20-200 personnes, Géographie = France / Benelux.`,
-      email1Subject: `Question sur vos processus [Entreprise] & opportunité d optimisation`,
-      email1Body: `Bonjour [Prénom],
+app.delete('/api/arbitrages/:id', (req, res) => {
+  const remaining = deleteSavedArbitrage(req.params.id);
+  res.json({ status: 'ok', arbitrages: remaining });
+});
 
-En observant les récentes évolutions du secteur ${sectorName}, nous constatons que la majorité des dirigeants perdent entre 12 et 20 heures par semaine sur des tâches administratives et de contrôle qui pourraient être 100% fiabilisées.
-
-Nous avons mis au point une solution opérationnelle qui permet à des entreprises comme [Exemple d Entreprise Similaire] de diviser ce temps par 4 tout en sécurisant leurs marges.
-
-Seriez-vous ouvert à un audit pilote gratuit de 15 minutes cette semaine pour évaluer le potentiel net chez [Entreprise] ?
-
-Bien cordialement,
-[Votre Nom]
-[Votre Téléphone / Calendly]`,
-      email2Followup: `Bonjour [Prénom],
-
-Je me permets de vous relancer suite à mon message de mardi. 
-
-Pour vous donner un exemple très concret : nous avons récemment permis à une structure de votre taille dans le domaine ${sectorName} d économiser 14 200 € dès son premier trimestre d utilisation, sans modifier ses logiciels existants.
-
-Avez-vous 10 minutes ce jeudi à 14h ou vendredi à 11h ?
-
-Bien à vous,
-[Votre Nom]`,
-      email3Breakup: `Bonjour [Prénom],
-
-Je comprends tout à fait que ce ne soit pas votre priorité du moment et je ne souhaite pas encombrer votre messagerie.
-
-Je clôture donc votre dossier pour l instant. Si le sujet redevient stratégique pour vos équipes, vous pouvez réserver un échange direct ici : [Lien Calendly].
-
-Je vous souhaite une excellente continuation dans vos projets.
-
-Cordialement,
-[Votre Nom]`,
-    },
-    legalAgreement: {
-      contractTitle: `CONTRAT CADRE DE PRESTATION DE SERVICES & MANDAT OPÉRATIONNEL B2B`,
-      purposeClause: `Le présent contrat a pour objet la fourniture par le Prestataire au Client de prestations de services et de solutions d optimisation opérationnelle et d arbitrage dans le domaine : ${opportunityTitle}.`,
-      financialTerms: `Le prix des Prestations est payable d avance à chaque début de période par virement bancaire ou prélèvement automatique carte/SEPA. Tout retard de paiement donnera lieu de plein droit à des pénalités au taux légal en vigueur ainsi qu à une indemnité forfaitaire de recouvrement de 40 euros.`,
-      confidentialityAndIP: `Chaque Partie s engage à préserver la stricte confidentialité des informations commerciales et techniques. Le Client conserve la pleine propriété de l ensemble de ses données. Le Prestataire concède une licence d utilisation non-exclusive et incessible sur les livrables créés.`,
-      terminationClause: `Le Contrat est conclu pour une durée initiale d un mois, renouvelable par tacite reconduction. Il peut être résilié par l une ou l autre des Parties avec un préavis écrit de quinze (15) jours avant l échéance.`,
-    },
-    landingPageWireframe: {
-      heroHeadline: `Générez plus de marge sur ${sectorName} grâce à l automatisation d élite`,
-      heroSubheadline: `La solution clé en main adoptée par les dirigeants exigeants pour éliminer la friction opérationnelle, sécuriser la conformité et accélérer les rentrées de trésorerie.`,
-      ctaButtonText: `Demander un Audit Pilote Offert (15 min)`,
-      problemSection: [
-        `Des processus manuels lents qui mobilisent vos collaborateurs à forte valeur ajoutée.`,
-        `Des marges grignotées par les intermédiaires et le manque de visibilité en temps réel.`,
-        `Le risque de non-conformité face aux nouvelles réglementations européennes.`,
-      ],
-      solutionFeatures: [
-        {
-          title: `Déploiement Express en Moins de 7 Jours`,
-          desc: `Aucun développement lourd ni modification de vos outils existants : nous nous branchons sur vos flux actuels.`,
-        },
-        {
-          title: `Sécurité & Fiabilité Maximale`,
-          desc: `Conformité RGPD totale, hébergement sécurisé et validation systématique de chaque transaction.`,
-        },
-        {
-          title: `Retour sur Investissement Immédiat`,
-          desc: `Un modèle pensé pour rentabiliser l abonnement dès le premier mois d utilisation grâce aux gains d efficacité mesurables.`,
-        },
-      ],
-      socialProofHook: `Recommandé par des directeurs généraux, directeurs financiers et experts de la filière ${sectorName}.`,
-    },
-    deliveryEngine: {
-      inputTrigger: `Formulaire de cadrage Typeform complété par le client ou Webhook Stripe 'checkout.session.completed'.`,
-      processingSteps: [
-        `Étape 1 : Réception instantanée des paramètres du client et création de son espace dédié dans le CRM.`,
-        `Étape 2 : Analyse automatisée des données documentaires via le moteur d inférence IA (extraction des clauses, calcul des marges).`,
-        `Étape 3 : Génération du rapport de synthèse certifié et des livrables contractuels au format PDF et Dashboard.`,
-        `Étape 4 : Envoi automatique du livrable par email au décideur et déclenchement du suivi qualité à J+7.`,
-      ],
-      aiPromptTemplate: `En tant qu expert analyste pour ${sectorName}, audite les documents suivants du client [Données]. Identifie les 3 principales anomalies, quantifie le gain financier en euros et formule 2 recommandations immédiates exploitables sans investissement supplémentaire.`,
-      outputDeliverableFormat: `Dossier d Audit Opérationnel PDF haute définition + Accès au Portail Client Interactif.`,
-      timeSavedHoursPerClient: 18,
-    },
-  };
-}
-
-// Endpoint: Generate Full Operational Launchpad Circuit
+// Endpoint: Generate Full Operational Launchpad Circuit (strict Gemini, no fake fallback)
 app.post('/api/launchpad/generate', async (req, res) => {
-  const { sectorId, sectorName, opportunityTitle, targetPrice } = req.body;
+  const { sectorName, opportunityTitle } = req.body;
 
+  if (!hasConfiguredGeminiKey()) {
+    return res.status(503).json({
+      success: false,
+      error: 'Clé GEMINI_API_KEY manquante côté serveur pour générer le circuit Launchpad.',
+    });
+  }
+
+  const startTime = Date.now();
   const resolvedSector = sectorName || 'Intelligence Artificielle & B2B';
   const resolvedTitle = opportunityTitle || 'Service B2B à Haute Valeur Ajoutée';
 
-  const hasKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY');
-
-  if (hasKey) {
-    try {
-      const prompt = `Tu es un créateur d'entreprises B2B à succès et expert en monétisation réelle rapide (0 à 10 000€/mois).
+  try {
+    const prompt = `Tu es un créateur d'entreprises B2B et expert en monétisation opérationnelle.
 Conçois le "Circuit de Monétisation Prêt à Encaisser" pour cette opportunité précise :
 - Titre : ${resolvedTitle}
 - Secteur : ${resolvedSector}
@@ -1287,16 +1380,16 @@ Génère en JSON strict :
 2. "sectorName": Secteur
 3. "tagline": Phrase d accroche
 4. "commercialOffer":
-   - "heroPromise": Promesse de valeur chiffrée
+   - "heroPromise": Promesse de valeur
    - "targetPersona": Profil cible exact
-   - "riskReversalGuarantee": Garantie de remboursement ou résultat
+   - "riskReversalGuarantee": Garantie de résultat ou remboursement
    - "tiers": Tableau de 3 offres (name, price, billingCycle, deliverables array, stripeLinkParams)
 5. "outreachSequence":
    - "channel": Canal d acquisition
-   - "targetFilters": Filtres de ciblage précis (Sales Nav / Apollo)
+   - "targetFilters": Filtres de ciblage précis
    - "email1Subject": Objet email 1
-   - "email1Body": Corps email 1 (court, percutant, audit gratuit)
-   - "email2Followup": Email 2 relance avec preuve
+   - "email1Body": Corps email 1 (court, percutant, sans statistiques inventées)
+   - "email2Followup": Email 2 relance
    - "email3Breakup": Email 3 rupture poli
 6. "legalAgreement":
    - "contractTitle": Titre contrat
@@ -1310,138 +1403,139 @@ Génère en JSON strict :
    - "ctaButtonText": Texte du bouton
    - "problemSection": 3 problèmes clients majeurs
    - "solutionFeatures": 3 fonctionnalités clés (title, desc)
-   - "socialProofHook": Preuve sociale
+   - "socialProofHook": Preuve ou garantie crédible sans faux chiffres clients
 8. "deliveryEngine":
    - "inputTrigger": Déclencheur du service
    - "processingSteps": 4 étapes concrètes d exécution
    - "aiPromptTemplate": Prompt type pour délivrer avec l IA
    - "outputDeliverableFormat": Format du livrable
-   - "timeSavedHoursPerClient": Nombre d heures économisées (nombre)`;
+   - "timeSavedHoursPerClient": Nombre d heures indicatif économisées (nombre)`;
 
-      const callPromise = ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          systemInstruction: "Tu es un entrepreneur et créateur de systèmes d'acquisition B2B d'élite. Sois concis, pragmatique et direct pour générer un circuit prêt à l'emploi.",
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseMimeType: 'application/json',
-          responseSchema: {
+    const response = await generateGeminiJson(prompt, {
+      systemInstruction: "Tu es un architecte de systèmes d'acquisition B2B pragmatique. Ne fabrique aucun faux témoignage ou chiffre client inventé.",
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          opportunityTitle: { type: Type.STRING },
+          sectorName: { type: Type.STRING },
+          tagline: { type: Type.STRING },
+          commercialOffer: {
             type: Type.OBJECT,
             properties: {
-              opportunityTitle: { type: Type.STRING },
-              sectorName: { type: Type.STRING },
-              tagline: { type: Type.STRING },
-              commercialOffer: {
-                type: Type.OBJECT,
-                properties: {
-                  heroPromise: { type: Type.STRING },
-                  targetPersona: { type: Type.STRING },
-                  riskReversalGuarantee: { type: Type.STRING },
-                  tiers: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        name: { type: Type.STRING },
-                        price: { type: Type.STRING },
-                        billingCycle: { type: Type.STRING },
-                        deliverables: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        stripeLinkParams: { type: Type.STRING },
-                      },
-                      required: ['name', 'price', 'billingCycle', 'deliverables', 'stripeLinkParams'],
-                    },
+              heroPromise: { type: Type.STRING },
+              targetPersona: { type: Type.STRING },
+              riskReversalGuarantee: { type: Type.STRING },
+              tiers: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    price: { type: Type.STRING },
+                    billingCycle: { type: Type.STRING },
+                    deliverables: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    stripeLinkParams: { type: Type.STRING },
                   },
+                  required: ['name', 'price', 'billingCycle', 'deliverables', 'stripeLinkParams'],
                 },
-                required: ['heroPromise', 'targetPersona', 'riskReversalGuarantee', 'tiers'],
-              },
-              outreachSequence: {
-                type: Type.OBJECT,
-                properties: {
-                  channel: { type: Type.STRING },
-                  targetFilters: { type: Type.STRING },
-                  email1Subject: { type: Type.STRING },
-                  email1Body: { type: Type.STRING },
-                  email2Followup: { type: Type.STRING },
-                  email3Breakup: { type: Type.STRING },
-                },
-                required: ['channel', 'targetFilters', 'email1Subject', 'email1Body', 'email2Followup', 'email3Breakup'],
-              },
-              legalAgreement: {
-                type: Type.OBJECT,
-                properties: {
-                  contractTitle: { type: Type.STRING },
-                  purposeClause: { type: Type.STRING },
-                  financialTerms: { type: Type.STRING },
-                  confidentialityAndIP: { type: Type.STRING },
-                  terminationClause: { type: Type.STRING },
-                },
-                required: ['contractTitle', 'purposeClause', 'financialTerms', 'confidentialityAndIP', 'terminationClause'],
-              },
-              landingPageWireframe: {
-                type: Type.OBJECT,
-                properties: {
-                  heroHeadline: { type: Type.STRING },
-                  heroSubheadline: { type: Type.STRING },
-                  ctaButtonText: { type: Type.STRING },
-                  problemSection: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  solutionFeatures: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: { title: { type: Type.STRING }, desc: { type: Type.STRING } },
-                      required: ['title', 'desc'],
-                    },
-                  },
-                  socialProofHook: { type: Type.STRING },
-                },
-                required: ['heroHeadline', 'heroSubheadline', 'ctaButtonText', 'problemSection', 'solutionFeatures', 'socialProofHook'],
-              },
-              deliveryEngine: {
-                type: Type.OBJECT,
-                properties: {
-                  inputTrigger: { type: Type.STRING },
-                  processingSteps: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  aiPromptTemplate: { type: Type.STRING },
-                  outputDeliverableFormat: { type: Type.STRING },
-                  timeSavedHoursPerClient: { type: Type.NUMBER },
-                },
-                required: ['inputTrigger', 'processingSteps', 'aiPromptTemplate', 'outputDeliverableFormat', 'timeSavedHoursPerClient'],
               },
             },
-            required: [
-              'opportunityTitle',
-              'sectorName',
-              'tagline',
-              'commercialOffer',
-              'outreachSequence',
-              'legalAgreement',
-              'landingPageWireframe',
-              'deliveryEngine',
-            ],
+            required: ['heroPromise', 'targetPersona', 'riskReversalGuarantee', 'tiers'],
+          },
+          outreachSequence: {
+            type: Type.OBJECT,
+            properties: {
+              channel: { type: Type.STRING },
+              targetFilters: { type: Type.STRING },
+              email1Subject: { type: Type.STRING },
+              email1Body: { type: Type.STRING },
+              email2Followup: { type: Type.STRING },
+              email3Breakup: { type: Type.STRING },
+            },
+            required: ['channel', 'targetFilters', 'email1Subject', 'email1Body', 'email2Followup', 'email3Breakup'],
+          },
+          legalAgreement: {
+            type: Type.OBJECT,
+            properties: {
+              contractTitle: { type: Type.STRING },
+              purposeClause: { type: Type.STRING },
+              financialTerms: { type: Type.STRING },
+              confidentialityAndIP: { type: Type.STRING },
+              terminationClause: { type: Type.STRING },
+            },
+            required: ['contractTitle', 'purposeClause', 'financialTerms', 'confidentialityAndIP', 'terminationClause'],
+          },
+          landingPageWireframe: {
+            type: Type.OBJECT,
+            properties: {
+              heroHeadline: { type: Type.STRING },
+              heroSubheadline: { type: Type.STRING },
+              ctaButtonText: { type: Type.STRING },
+              problemSection: { type: Type.ARRAY, items: { type: Type.STRING } },
+              solutionFeatures: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: { title: { type: Type.STRING }, desc: { type: Type.STRING } },
+                  required: ['title', 'desc'],
+                },
+              },
+              socialProofHook: { type: Type.STRING },
+            },
+            required: ['heroHeadline', 'heroSubheadline', 'ctaButtonText', 'problemSection', 'solutionFeatures', 'socialProofHook'],
+          },
+          deliveryEngine: {
+            type: Type.OBJECT,
+            properties: {
+              inputTrigger: { type: Type.STRING },
+              processingSteps: { type: Type.ARRAY, items: { type: Type.STRING } },
+              aiPromptTemplate: { type: Type.STRING },
+              outputDeliverableFormat: { type: Type.STRING },
+              timeSavedHoursPerClient: { type: Type.NUMBER },
+            },
+            required: ['inputTrigger', 'processingSteps', 'aiPromptTemplate', 'outputDeliverableFormat', 'timeSavedHoursPerClient'],
           },
         },
-      });
+        required: [
+          'opportunityTitle',
+          'sectorName',
+          'tagline',
+          'commercialOffer',
+          'outreachSequence',
+          'legalAgreement',
+          'landingPageWireframe',
+          'deliveryEngine',
+        ],
+      },
+    });
 
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('AI launchpad latency threshold')), 8000)
-      );
-
-      const response = await Promise.race([callPromise, timeoutPromise]);
-      const parsed = JSON.parse(response.text || '{}');
-      return res.json({ success: true, circuit: parsed, source: 'ai' });
-    } catch (apiError: any) {
-      console.info('Serving optimized launchpad synthesis:', apiError?.message || 'ready');
-    }
+    const duration = Date.now() - startTime;
+    const parsed = JSON.parse(response.text || '{}');
+    const savedRecord = saveLaunchpadRecord({
+      sectorId: req.body?.sectorId || 'ai_deeptech',
+      sectorName: resolvedSector,
+      opportunityTitle: resolvedTitle,
+      circuit: parsed,
+    });
+    recordGeminiCall(duration, true);
+    return res.json({ success: true, circuit: parsed, record: savedRecord, source: 'ai' });
+  } catch (apiError: any) {
+    const duration = Date.now() - startTime;
+    const message = apiError?.message || 'Erreur lors de la génération du circuit Launchpad via Gemini.';
+    recordGeminiCall(duration, false, message);
+    return res.status(500).json({ success: false, error: message });
   }
+});
 
-  const synthesized = generateSynthesizedLaunchpad({
-    sectorId: sectorId || 'b2b_services',
-    sectorName: resolvedSector,
-    opportunityTitle: resolvedTitle,
-    targetPrice,
-  });
+app.get('/api/launchpads', (req, res) => {
+  res.json({ status: 'ok', launchpads: getSavedLaunchpads() });
+});
 
-  res.json({ success: true, circuit: synthesized, source: 'synthesized' });
+app.delete('/api/launchpads/:id', (req, res) => {
+  const remaining = deleteSavedLaunchpad(req.params.id);
+  res.json({ status: 'ok', launchpads: remaining });
 });
 
 

@@ -19,6 +19,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { ValidationItem, AuditLogEntry, CountryCode } from '../types/market';
+import { subscribeLiveEvent } from '../utils/liveStream';
 
 interface ValidationQueueViewProps {
   countryCode: CountryCode;
@@ -32,9 +33,11 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
   const [statusFilter, setStatusFilter] = useState<'all' | 'en_attente' | 'valide' | 'rejete'>('en_attente');
   const [actionNotes, setActionNotes] = useState<Record<string, string>>({});
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
+    setErrorMsg(null);
     try {
       const [qRes, aRes] = await Promise.all([
         fetch('/api/validation'),
@@ -42,10 +45,12 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       ]);
       const qData = await qRes.json();
       const aData = await aRes.json();
+      if (!qRes.ok) throw new Error(qData?.error || `Erreur serveur HTTP ${qRes.status}`);
+      if (!aRes.ok) throw new Error(aData?.error || `Erreur serveur HTTP ${aRes.status}`);
       if (qData?.items) setQueueItems(qData.items);
       if (aData?.entries) setAuditEntries(aData.entries);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Impossible de charger la file de validation ou le journal.');
     } finally {
       setLoading(false);
     }
@@ -53,10 +58,27 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
 
   useEffect(() => {
     fetchData();
+
+    const unsubVal = subscribeLiveEvent<{ items?: ValidationItem[] }>('validation_updated', (payload) => {
+      if (Array.isArray(payload?.items)) {
+        setQueueItems(payload.items);
+      }
+    });
+    const unsubAudit = subscribeLiveEvent<{ entries?: AuditLogEntry[] }>('audit_updated', (payload) => {
+      if (Array.isArray(payload?.entries)) {
+        setAuditEntries(payload.entries);
+      }
+    });
+
+    return () => {
+      unsubVal();
+      unsubAudit();
+    };
   }, []);
 
   const handleUpdateStatus = async (id: string, newStatus: 'valide' | 'rejete') => {
     const note = actionNotes[id] || '';
+    setErrorMsg(null);
     try {
       const res = await fetch(`/api/validation/${id}`, {
         method: 'PUT',
@@ -64,6 +86,9 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
         body: JSON.stringify({ status: newStatus, reviewNotes: note }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      }
       if (data?.item) {
         setQueueItems((prev) => prev.map((item) => (item.id === id ? data.item : item)));
         setFeedbackMsg(
@@ -77,10 +102,11 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
           .then((r) => r.json())
           .then((d) => {
             if (d?.entries) setAuditEntries(d.entries);
-          });
+          })
+          .catch(() => {});
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Erreur lors de la mise à jour du statut.');
     }
   };
 
@@ -195,6 +221,13 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
           </button>
         </div>
       </div>
+
+      {errorMsg && (
+        <div className="p-3.5 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-2.5">
+          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
 
       {feedbackMsg && (
         <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-200 text-xs flex items-center gap-2.5">

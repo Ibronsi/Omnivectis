@@ -17,24 +17,29 @@ import {
   HelpCircle,
   Globe,
 } from 'lucide-react';
-import { SectorCategory, SimulationInputs, CountryCode } from '../types/market';
+import { SectorCategory, SimulationInputs, CountryCode, LiveFxRates } from '../types/market';
 import { ECONOMIC_SECTORS } from '../data/sectorsData';
 import { GEO_PROFILES } from '../data/geoProfiles';
 import { calculateSimulation } from '../utils/simulatorEngine';
+import { getEffectiveFxRateToEur } from '../utils/currency';
 
 interface SimulatorViewProps {
   initialSectors?: SectorCategory[];
   onTriggerBlueprint: (sectorId: SectorCategory, targetRevenue: string) => void;
   countryCode?: CountryCode;
+  liveRates?: LiveFxRates | null;
 }
 
 export const SimulatorView: React.FC<SimulatorViewProps> = ({
   initialSectors = ['ai_deeptech', 'b2b_services'],
   onTriggerBlueprint,
   countryCode = 'NER',
+  liveRates,
 }) => {
   const currentGeoProfile = GEO_PROFILES[countryCode] || GEO_PROFILES.NER;
+  const isLocalDifferentFromEur = currentGeoProfile.currency !== 'EUR';
   const isAfricanUemoa = ['NER', 'SEN', 'CIV'].includes(countryCode);
+  const fxInfo = getEffectiveFxRateToEur(currentGeoProfile.currency, liveRates);
 
   const [selectedSectorIds, setSelectedSectorIds] = useState<SectorCategory[]>(
     initialSectors.length > 0 ? initialSectors : ['ai_deeptech', 'b2b_services']
@@ -173,7 +178,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
 
         <div className="flex items-center gap-2 shrink-0">
           {/* Currency Toggle */}
-          {isAfricanUemoa && (
+          {isLocalDifferentFromEur && (
             <div className="flex items-center gap-1 p-0.5 bg-[#0D1017] rounded-lg border border-white/[0.08] text-[11px] font-mono">
               <button
                 onClick={() => setCurrencyMode('local')}
@@ -181,7 +186,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   currencyMode === 'local' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                FCFA (XOF)
+                {currentGeoProfile.currencySymbol} ({currentGeoProfile.currency})
               </button>
               <button
                 onClick={() => setCurrencyMode('eur')}
@@ -276,18 +281,20 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
         </div>
       )}
 
-      {/* Calculation Summary Strip (No animated dots) */}
-      <div className="p-3.5 bg-[#11141C] border border-blue-500/25 rounded-xl flex items-center justify-between text-xs text-slate-300">
+      {/* Calculation Summary Strip (Live FX synced) */}
+      <div className="p-3.5 bg-[#11141C] border border-blue-500/25 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-300">
         <div className="flex items-center gap-2 font-mono tabular-nums">
           <span className="font-sans font-medium text-blue-400">Synthèse Modèle :</span>
           <span className="text-white">
-            {currencyMode === 'local' && isAfricanUemoa
-              ? `MRR ${Math.round(result.projectedMrr * currentGeoProfile.fxRateToEur).toLocaleString('fr-FR')} FCFA · ARR ${Math.round(result.projectedArr * currentGeoProfile.fxRateToEur).toLocaleString('fr-FR')} FCFA`
+            {currencyMode === 'local' && isLocalDifferentFromEur
+              ? `MRR ${Math.round(result.projectedMrr * fxInfo.rate).toLocaleString('fr-FR')} ${currentGeoProfile.currencySymbol} · ARR ${Math.round(result.projectedArr * fxInfo.rate).toLocaleString('fr-FR')} ${currentGeoProfile.currencySymbol}`
               : `MRR ${result.projectedMrr.toLocaleString('fr-FR')} € · ARR ${result.projectedArr.toLocaleString('fr-FR')} €`}
           </span>
         </div>
-        <span className="text-[11px] font-mono text-slate-400 hidden sm:inline tabular-nums">
-          {isAfricanUemoa ? `1 € = ${currentGeoProfile.fxRateToEur} FCFA` : 'Modèle d asymétrie de marges'}
+        <span className="text-[11px] font-mono text-slate-400 tabular-nums">
+          {isLocalDifferentFromEur
+            ? `1 € = ${fxInfo.rate.toFixed(currentGeoProfile.currency === 'XOF' ? 2 : 4)} ${currentGeoProfile.currencySymbol} (${fxInfo.status === 'live' ? 'FX live' : fxInfo.status === 'cache' ? 'FX cache' : 'FX secours'})`
+            : 'Modèle d asymétrie de marges'}
         </span>
       </div>
 

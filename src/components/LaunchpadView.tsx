@@ -27,119 +27,28 @@ import {
   PhoneCall,
   QrCode,
   MapPin,
+  AlertTriangle,
+  History,
+  Trash2,
 } from 'lucide-react';
-import { LaunchpadCircuit, SectorCategory, EconomicSector, CountryCode } from '../types/market';
+import {
+  LaunchpadCircuit,
+  SectorCategory,
+  CountryCode,
+  LiveFxRates,
+  SavedLaunchpadRecord,
+} from '../types/market';
 import { ECONOMIC_SECTORS } from '../data/sectorsData';
 import { GEO_PROFILES } from '../data/geoProfiles';
+import { getEffectiveFxRateToEur, convertCurrency } from '../utils/currency';
+import { subscribeLiveEvent } from '../utils/liveStream';
 
 interface LaunchpadViewProps {
   initialSectorId?: SectorCategory;
   initialOpportunityTitle?: string;
   onAddToPipeline: (title: string, sectorId: SectorCategory, targetMrr: number) => void;
   countryCode?: CountryCode;
-}
-
-function getDefaultCircuit(sectorName: string, opportunityTitle: string): LaunchpadCircuit {
-  return {
-    opportunityTitle,
-    sectorName,
-    tagline: `Circuit commercial complet & automatisé pour monétiser : ${opportunityTitle}`,
-    commercialOffer: {
-      heroPromise: `Automatisez vos opérations sur ${sectorName} et réduisez vos coûts de 40% dès les 30 premiers jours, sans embauche.`,
-      targetPersona: `Directeurs Administratifs et Financiers (DAF), Directeurs des Opérations et Gérants de PME (10 à 250 salariés).`,
-      riskReversalGuarantee: `Garantie 'Pilote Satisfait ou Remboursé' : si aucun gain de temps mesurable n est constaté sous 30 jours, remboursement intégral sans question.`,
-      tiers: [
-        {
-          name: 'Starter / Pilote',
-          price: '490 € / mois',
-          billingCycle: 'Facturation mensuelle sans engagement',
-          deliverables: [
-            'Audit initial des flux et identification des inefficacités',
-            '1 agent ou connecteur automatisé clé en main',
-            'Rapport mensuel de conformité et gains générés',
-            'Support réactif par email sous 24h',
-          ],
-          stripeLinkParams: 'mode=subscription&amount=49000&currency=eur&interval=month',
-        },
-        {
-          name: 'Pro / Scaling',
-          price: '1 490 € / mois',
-          billingCycle: 'Facturation mensuelle avec remise trimestrielle',
-          deliverables: [
-            'Jusqu à 5 workflows ou agents opérationnels',
-            'Intégration directe à votre ERP ou CRM de référence',
-            'Surveillance des anomalies en temps réel',
-            'Ligne WhatsApp directe avec votre gestionnaire dédié',
-          ],
-          stripeLinkParams: 'mode=subscription&amount=149000&currency=eur&interval=month',
-        },
-        {
-          name: 'Entreprise & Sur-Mesure',
-          price: '3 900 € / mois',
-          billingCycle: 'Facturation trimestrielle avec SLA contractuel',
-          deliverables: [
-            'Déploiement illimité et architecture dédiée',
-            'Audit réglementaire approfondi et certification légale',
-            'Formation personnalisée de vos équipes internes',
-            'SLA 99.9% et astreinte prioritaire 7j/7',
-          ],
-          stripeLinkParams: 'mode=subscription&amount=390000&currency=eur&interval=month',
-        },
-      ],
-    },
-    outreachSequence: {
-      channel: 'LinkedIn Sales Navigator + Séquence Cold Email ciblée (Domaines secondaires)',
-      targetFilters: `Critères de ciblage précis : Titre = Gérant OU DAF OU Directeur Général, Secteur = ${sectorName}, Effectif = 20-200 personnes.`,
-      email1Subject: `Question sur vos processus [Entreprise] & opportunité d optimisation`,
-      email1Body: `Bonjour [Prénom],\n\nEn observant les récentes évolutions du secteur ${sectorName}, nous constatons que la majorité des dirigeants perdent entre 12 et 20 heures par semaine sur des tâches administratives et de contrôle qui pourraient être 100% fiabilisées.\n\nNous avons mis au point une solution opérationnelle qui permet à des entreprises comme [Exemple d Entreprise Similaire] de diviser ce temps par 4 tout en sécurisant leurs marges.\n\nSeriez-vous ouvert à un audit pilote gratuit de 15 minutes cette semaine pour évaluer le potentiel net chez [Entreprise] ?\n\nBien cordialement,\n[Votre Nom]\n[Votre Téléphone / Calendly]`,
-      email2Followup: `Bonjour [Prénom],\n\nJe me permets de vous relancer suite à mon message de mardi.\n\nPour vous donner un exemple très concret : nous avons récemment permis à une structure de votre taille dans le domaine ${sectorName} d économiser 14 200 € dès son premier trimestre d utilisation, sans modifier ses logiciels existants.\n\nAvez-vous 10 minutes ce jeudi à 14h ou vendredi à 11h ?\n\nBien à vous,\n[Votre Nom]`,
-      email3Breakup: `Bonjour [Prénom],\n\nJe comprends tout à fait que ce ne soit pas votre priorité du moment et je ne souhaite pas encombrer votre messagerie.\n\nJe clôture donc votre dossier pour l instant. Si le sujet redevient stratégique pour vos équipes, vous pouvez réserver un échange direct ici : [Lien Calendly].\n\nJe vous souhaite une excellente continuation dans vos projets.\n\nCordialement,\n[Votre Nom]`,
-    },
-    legalAgreement: {
-      contractTitle: `CONTRAT CADRE DE PRESTATION DE SERVICES & MANDAT OPÉRATIONNEL B2B`,
-      purposeClause: `Le présent contrat a pour objet la fourniture par le Prestataire au Client de prestations de services et de solutions d optimisation opérationnelle et d arbitrage dans le domaine : ${opportunityTitle}.`,
-      financialTerms: `Le prix des Prestations est payable d avance à chaque début de période par virement bancaire ou prélèvement automatique carte/SEPA. Tout retard de paiement donnera lieu de plein droit à des pénalités au taux légal en vigueur ainsi qu à une indemnité forfaitaire de recouvrement de 40 euros.`,
-      confidentialityAndIP: `Chaque Partie s engage à préserver la stricte confidentialité des informations commerciales et techniques. Le Client conserve la pleine propriété de l ensemble de ses données. Le Prestataire concède une licence d utilisation non-exclusive et incessible sur les livrables créés.`,
-      terminationClause: `Le Contrat est conclu pour une durée initiale d un mois, renouvelable par tacite reconduction. Il peut être résilié par l une ou l autre des Parties avec un préavis écrit de quinze (15) jours avant l échéance.`,
-    },
-    landingPageWireframe: {
-      heroHeadline: `Générez plus de marge sur ${sectorName} grâce à l automatisation d élite`,
-      heroSubheadline: `La solution clé en main adoptée par les dirigeants exigeants pour éliminer la friction opérationnelle, sécuriser la conformité et accélérer les rentrées de trésorerie.`,
-      ctaButtonText: `Demander un Audit Pilote Offert (15 min)`,
-      problemSection: [
-        `Des processus manuels lents qui mobilisent vos collaborateurs à forte valeur ajoutée.`,
-        `Des marges grignotées par les intermédiaires et le manque de visibilité en temps réel.`,
-        `Le risque de non-conformité face aux nouvelles réglementations européennes.`,
-      ],
-      solutionFeatures: [
-        {
-          title: `Déploiement Express en Moins de 7 Jours`,
-          desc: `Aucun développement lourd ni modification de vos outils existants : nous nous branchons sur vos flux actuels.`,
-        },
-        {
-          title: `Sécurité & Fiabilité Maximale`,
-          desc: `Conformité RGPD totale, hébergement sécurisé et validation systématique de chaque transaction.`,
-        },
-        {
-          title: `Retour sur Investissement Immédiat`,
-          desc: `Un modèle pensé pour rentabiliser l abonnement dès le premier mois d utilisation grâce aux gains d efficacité mesurables.`,
-        },
-      ],
-      socialProofHook: `Recommandé par des directeurs généraux, directeurs financiers et experts de la filière ${sectorName}.`,
-    },
-    deliveryEngine: {
-      inputTrigger: `Formulaire de cadrage Typeform complété par le client ou Webhook Stripe 'checkout.session.completed'.`,
-      processingSteps: [
-        `Étape 1 : Réception instantanée des paramètres du client et création de son espace dédié dans le CRM.`,
-        `Étape 2 : Analyse automatisée des données documentaires via le moteur d inférence IA (extraction des clauses, calcul des marges).`,
-        `Étape 3 : Génération du rapport de synthèse certifié et des livrables contractuels au format PDF et Dashboard.`,
-        `Étape 4 : Envoi automatique du livrable par email au décideur et déclenchement du suivi qualité à J+7.`,
-      ],
-      aiPromptTemplate: `En tant qu expert analyste pour ${sectorName}, audite les documents suivants du client [Données]. Identifie les 3 principales anomalies, quantifie le gain financier en euros et formule 2 recommandations immédiates exploitables sans investissement supplémentaire.`,
-      outputDeliverableFormat: `Dossier d Audit Opérationnel PDF haute définition + Accès au Portail Client Interactif.`,
-      timeSavedHoursPerClient: 18,
-    },
-  };
+  liveRates?: LiveFxRates | null;
 }
 
 export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
@@ -147,17 +56,20 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
   initialOpportunityTitle = 'Agents IA Spécialisés Conformité & Due Diligence B2B',
   onAddToPipeline,
   countryCode = 'NER',
+  liveRates,
 }) => {
   const currentGeoProfile = GEO_PROFILES[countryCode] || GEO_PROFILES.NER;
   const isAfricanUemoa = ['NER', 'SEN', 'CIV'].includes(countryCode);
+  const fxInfo = getEffectiveFxRateToEur(currentGeoProfile.currency, liveRates);
 
   const [selectedSectorId, setSelectedSectorId] = useState<SectorCategory>(initialSectorId);
   const [opportunityTitle, setOpportunityTitle] = useState<string>(initialOpportunityTitle);
   const currentSector = ECONOMIC_SECTORS.find((s) => s.id === selectedSectorId) || ECONOMIC_SECTORS[0];
-  const [circuit, setCircuit] = useState<LaunchpadCircuit>(() =>
-    getDefaultCircuit(currentSector.name, initialOpportunityTitle)
-  );
+  const [circuit, setCircuit] = useState<LaunchpadCircuit | null>(null);
+  const [savedLaunchpads, setSavedLaunchpads] = useState<SavedLaunchpadRecord[]>([]);
+  const [activeRecordId, setActiveRecordId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState<'offer' | 'outreach' | 'contract' | 'landing' | 'delivery' | 'cash_in'>('offer');
 
   // Cash-in interactive tool states
@@ -185,8 +97,65 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
   // Copy feedbacks
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
+  useEffect(() => {
+    fetch('/api/launchpads')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.launchpads)) {
+          setSavedLaunchpads(data.launchpads);
+          const matching = data.launchpads.find(
+            (l: SavedLaunchpadRecord) =>
+              l.opportunityTitle.toLowerCase() === initialOpportunityTitle.toLowerCase()
+          );
+          const initialRec = matching || data.launchpads[0];
+          if (initialRec) {
+            setActiveRecordId(initialRec.id);
+            setCircuit(initialRec.circuit);
+            setSelectedSectorId(initialRec.sectorId);
+            setOpportunityTitle(initialRec.opportunityTitle);
+          }
+        }
+      })
+      .catch(() => {});
+
+    const unsub = subscribeLiveEvent<{ kind?: string; launchpads?: SavedLaunchpadRecord[] }>(
+      'workspace_updated',
+      (payload) => {
+        if (payload?.kind === 'launchpad' && Array.isArray(payload.launchpads)) {
+          setSavedLaunchpads(payload.launchpads);
+        }
+      }
+    );
+    return () => unsub();
+  }, []);
+
+  const handleDeleteSaved = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/launchpads/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data?.launchpads)) {
+        setSavedLaunchpads(data.launchpads);
+        if (activeRecordId === id) {
+          if (data.launchpads.length > 0) {
+            setActiveRecordId(data.launchpads[0].id);
+            setCircuit(data.launchpads[0].circuit);
+            setSelectedSectorId(data.launchpads[0].sectorId);
+            setOpportunityTitle(data.launchpads[0].opportunityTitle);
+          } else {
+            setActiveRecordId(null);
+            setCircuit(null);
+          }
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Erreur lors de la suppression.');
+    }
+  };
+
   const handleGenerateCircuit = async (titleToUse?: string, sectorIdToUse?: SectorCategory) => {
     setLoading(true);
+    setError(null);
     const secId = sectorIdToUse || selectedSectorId;
     const resolvedSector = ECONOMIC_SECTORS.find((s) => s.id === secId) || currentSector;
     const finalTitle = titleToUse || opportunityTitle;
@@ -202,19 +171,36 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
         }),
       });
       const data = await res.json();
-      if (data?.circuit) {
-        setCircuit(data.circuit);
+      if (!res.ok || !data?.success || !data?.circuit) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
       }
-    } catch (e) {
-      console.info('Keeping synchronized local circuit on network delay:', e);
+      setCircuit(data.circuit);
+      if (data.record) {
+        setActiveRecordId(data.record.id);
+        setSavedLaunchpads((prev) => [data.record, ...prev.filter((l) => l.id !== data.record.id)]);
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Impossible de générer le circuit via Gemini.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Instantaneous initial data is already populated via getDefaultCircuit
-  }, []);
+    setSelectedSectorId(initialSectorId);
+    setOpportunityTitle(initialOpportunityTitle);
+    setError(null);
+    const matching = savedLaunchpads.find(
+      (l) => l.opportunityTitle.toLowerCase() === initialOpportunityTitle.toLowerCase()
+    );
+    if (matching) {
+      setActiveRecordId(matching.id);
+      setCircuit(matching.circuit);
+    } else {
+      setActiveRecordId(null);
+      setCircuit(null);
+    }
+  }, [initialSectorId, initialOpportunityTitle]);
 
   const copyToClipboard = (text: string, sectionKey: string) => {
     navigator.clipboard.writeText(text);
@@ -254,7 +240,8 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                   const newSector = ECONOMIC_SECTORS.find((s) => s.id === newId);
                   const firstNiche = newSector?.niches[0]?.title || 'Service B2B de Niche';
                   setOpportunityTitle(firstNiche);
-                  setCircuit(getDefaultCircuit(newSector?.name || 'Secteur B2B', firstNiche));
+                  setCircuit(null);
+                  setError(null);
                 }}
                 className="bg-[#0D1017] border border-white/[0.1] text-xs text-white rounded-lg p-2.5 cursor-pointer focus:outline-none focus:border-blue-500"
               >
@@ -288,20 +275,88 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
             ) : (
               <>
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Régénérer le Circuit Clé en Main</span>
+                <span>{circuit ? 'Régénérer le Circuit Clé en Main' : 'Générer le Circuit Clé en Main'}</span>
               </>
             )}
           </button>
         </div>
       </div>
 
+      {savedLaunchpads.length > 0 && (
+        <div className="p-4 bg-[#11141C] border border-white/[0.08] rounded-lg space-y-2.5">
+          <div className="flex items-center justify-between text-xs text-slate-300">
+            <span className="flex items-center gap-2 font-medium">
+              <History className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Circuits persistés ({savedLaunchpads.length})</span>
+            </span>
+            <span className="text-[11px] font-mono text-slate-500">Sauvegarde serveur</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {savedLaunchpads.map((rec) => (
+              <div
+                key={rec.id}
+                onClick={() => {
+                  setActiveRecordId(rec.id);
+                  setSelectedSectorId(rec.sectorId);
+                  setOpportunityTitle(rec.opportunityTitle);
+                  setCircuit(rec.circuit);
+                }}
+                className={`cursor-pointer px-3 py-1.5 rounded-lg border text-xs flex items-center gap-2 transition-colors ${
+                  activeRecordId === rec.id
+                    ? 'bg-emerald-600/20 border-emerald-500/50 text-white'
+                    : 'bg-[#0D1017] border-white/[0.08] text-slate-300 hover:border-white/[0.16]'
+                }`}
+              >
+                <span className="truncate max-w-[260px]">{rec.opportunityTitle}</span>
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteSaved(rec.id, e)}
+                  className="text-slate-500 hover:text-rose-400 cursor-pointer"
+                  title="Supprimer ce circuit"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-3">
+          <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       {loading && !circuit && (
         <div className="p-12 bg-[#11141C] border border-white/[0.08] rounded-lg text-center space-y-4">
           <Loader2 className="w-7 h-7 text-blue-400 animate-spin mx-auto" />
           <div className="font-display text-sm font-semibold text-white">Assemblage des engrenages d encaissement...</div>
           <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-            Rédaction des offres Stripe, des emails d acquisition, du contrat juridique B2B et du prompt de délivrance.
+            Rédaction des offres, des emails d acquisition, du contrat juridique B2B et du prompt de délivrance via Gemini.
           </p>
+        </div>
+      )}
+
+      {!loading && !circuit && (
+        <div className="p-10 bg-[#11141C] border border-white/[0.08] rounded-lg text-center space-y-4">
+          <Sparkles className="w-6 h-6 text-blue-400 mx-auto" />
+          <div className="space-y-1">
+            <h3 className="font-display text-base font-semibold text-white">
+              Aucun circuit généré pour cette opportunité
+            </h3>
+            <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
+              Aucun modèle statique n est pré-rempli. Cliquez sur « Générer le Circuit Clé en Main » pour produire l offre indicative, la séquence outbound, le contrat et le moteur de délivrance via Gemini.
+            </p>
+          </div>
+          <button
+            onClick={() => handleGenerateCircuit()}
+            className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors inline-flex items-center gap-2"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Générer le Circuit Clé en Main</span>
+          </button>
         </div>
       )}
 
@@ -849,7 +904,7 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                     1. Le Parcours Financier Complet (De la Signature au Retrait d Argent Réel)
                   </span>
                   <span className="text-[11px] text-blue-400 font-mono tabular-nums">
-                    Profil Actif : {currentGeoProfile.countryName} ({currentGeoProfile.currencySymbol}) · 1 € = {currentGeoProfile.fxRateToEur} {currentGeoProfile.currencySymbol}
+                    Profil Actif : {currentGeoProfile.countryName} ({currentGeoProfile.currencySymbol}) · 1 € = {fxInfo.rate.toFixed(currentGeoProfile.currency === 'XOF' ? 2 : 4)} {currentGeoProfile.currencySymbol} ({fxInfo.status === 'live' ? 'FX live' : fxInfo.status === 'cache' ? 'FX cache' : 'FX secours'})
                   </span>
                 </div>
 
@@ -1021,9 +1076,9 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                         {currentGeoProfile.currencySymbol}
                       </span>
                     </div>
-                    {isAfricanUemoa && (
+                    {currentGeoProfile.currency !== 'EUR' && (
                       <div className="text-[10px] text-slate-400 font-mono mt-1 tabular-nums">
-                        ≈ {(cashInAmount / currentGeoProfile.fxRateToEur).toFixed(0)} € EUR (parité fixe 1€ = 655,957 F)
+                        ≈ {convertCurrency(cashInAmount, currentGeoProfile.currency, 'EUR', liveRates).toLocaleString('fr-FR')} € EUR ({fxInfo.status === 'live' ? 'taux live' : fxInfo.status === 'cache' ? 'taux cache' : 'taux secours'} 1€ = {fxInfo.rate.toFixed(currentGeoProfile.currency === 'XOF' ? 2 : 4)} {currentGeoProfile.currencySymbol})
                       </div>
                     )}
                   </div>
@@ -1340,23 +1395,23 @@ ${userCompanyName}`}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs font-medium text-slate-300">
-                          Lien de Paiement Stripe Sécurisé Généré
+                          Modèle de paramètres Stripe Checkout (à lier à votre lien Stripe réel)
                         </span>
                         <button
                           onClick={() => {
-                            const eurAmount = Math.round(cashInAmount / (isAfricanUemoa ? currentGeoProfile.fxRateToEur : 1));
-                            const link = `https://buy.stripe.com/live_omni_${circuit.opportunityTitle.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10)}?amount=${eurAmount}&prefilled_email=${encodeURIComponent(clientContactEmail)}`;
+                            const eurAmount = Math.round(convertCurrency(cashInAmount, currentGeoProfile.currency, 'EUR', liveRates));
+                            const link = `https://buy.stripe.com/VOTRE_PAYMENT_LINK?prefilled_email=${encodeURIComponent(clientContactEmail)}&client_reference_id=${encodeURIComponent(clientCompanyName)}&amount_eur=${eurAmount}`;
                             copyToClipboard(link, 'stripelink');
                           }}
                           className="cursor-pointer px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
                         >
                           <Copy className="w-3 h-3" />
-                          <span>{copiedSection === 'stripelink' ? 'Lien Copié !' : 'Copier le Lien Stripe'}</span>
+                          <span>{copiedSection === 'stripelink' ? 'Modèle Copié !' : 'Copier Paramètres Stripe'}</span>
                         </button>
                       </div>
 
                       <div className="p-3 bg-[#11141C] border border-white/[0.08] rounded-lg font-mono text-xs text-blue-300 truncate">
-                        https://buy.stripe.com/live_omni_{circuit.opportunityTitle.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10)}?amount={Math.round(cashInAmount / (isAfricanUemoa ? currentGeoProfile.fxRateToEur : 1))}eur&client={encodeURIComponent(clientCompanyName)}
+                        https://buy.stripe.com/VOTRE_PAYMENT_LINK?prefilled_email={encodeURIComponent(clientContactEmail)}&amount_eur={Math.round(convertCurrency(cashInAmount, currentGeoProfile.currency, 'EUR', liveRates))}
                       </div>
                     </div>
                   </div>

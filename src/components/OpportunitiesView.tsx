@@ -10,8 +10,13 @@ import {
   ArrowRight,
   Database,
 } from 'lucide-react';
-import { StrictOpportunity, CountryCode } from '../types/market';
+import { StrictOpportunity, CountryCode, MarketSignal, SourceHealthItem, SignalsSnapshotPayload } from '../types/market';
 import { GEO_PROFILES } from '../data/geoProfiles';
+import {
+  getLastSignalsSnapshot,
+  subscribeLiveEvent,
+  subscribeSseStatus,
+} from '../utils/liveStream';
 
 interface OpportunitiesViewProps {
   countryCode: CountryCode;
@@ -32,8 +37,72 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
   const [confidenceFilter, setConfidenceFilter] = useState<'all' | 'élevé' | 'moyen' | 'faible'>('all');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [insufficientMsg, setInsufficientMsg] = useState<string | null>(null);
+  const [liveSignals, setLiveSignals] = useState<MarketSignal[]>([]);
+  const [sourceHealth, setSourceHealth] = useState<SourceHealthItem[]>([]);
+  const [sseConnected, setSseConnected] = useState<boolean>(false);
 
   const currentProfile = GEO_PROFILES[countryCode] || GEO_PROFILES.NER;
+
+  const getRegionForCountry = (code: CountryCode): 'niger_uemoa' | 'europe' | 'global' => {
+    if (['NER', 'SEN', 'CIV'].includes(code)) return 'niger_uemoa';
+    if (code === 'FRA') return 'europe';
+    return 'global';
+  };
+
+  const countryRegion = getRegionForCountry(countryCode);
+  const relevantSignalsCount = liveSignals.filter((s) => {
+    if (s.countryCode && s.countryCode === countryCode) return true;
+    if (countryRegion !== 'global' && s.region && s.region === countryRegion) return true;
+    if (s.region === 'global' && s.isGlobal === true) return true;
+    return false;
+  }).length;
+
+  useEffect(() => {
+    const cached = getLastSignalsSnapshot();
+    if (cached) {
+      if (Array.isArray(cached.signals)) setLiveSignals(cached.signals);
+      if (Array.isArray(cached.sourceHealth)) setSourceHealth(cached.sourceHealth);
+    }
+
+    const handlePayload = (data: SignalsSnapshotPayload) => {
+      if (Array.isArray(data?.signals)) setLiveSignals(data.signals);
+      if (Array.isArray(data?.sourceHealth)) setSourceHealth(data.sourceHealth);
+    };
+
+    const unsubSnap = subscribeLiveEvent<SignalsSnapshotPayload>('signals_snapshot', handlePayload);
+    const unsubUpd = subscribeLiveEvent<SignalsSnapshotPayload>('signals_updated', handlePayload);
+    const unsubStatus = subscribeSseStatus((status) => {
+      setSseConnected(status === 'live');
+    });
+
+    fetch('/api/signals/live')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.signals)) setLiveSignals(data.signals);
+        if (Array.isArray(data?.sourceHealth)) setSourceHealth(data.sourceHealth);
+      })
+      .catch(() => {});
+
+    return () => {
+      unsubSnap();
+      unsubUpd();
+      unsubStatus();
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsubOpp = subscribeLiveEvent<{ opportunities?: StrictOpportunity[] }>(
+      'opportunities_updated',
+      (payload) => {
+        if (Array.isArray(payload?.opportunities)) {
+          setOpportunities(
+            payload.opportunities.filter((o) => o.countryCode === countryCode)
+          );
+        }
+      }
+    );
+    return () => unsubOpp();
+  }, [countryCode]);
 
   const fetchOpportunities = async () => {
     setLoading(true);
@@ -41,11 +110,14 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
     try {
       const res = await fetch(`/api/opportunities?countryCode=${countryCode}`);
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      }
       if (data?.opportunities) {
         setOpportunities(data.opportunities);
       }
-    } catch {
-      setErrorMsg('Impossible de charger les opportunités locales.');
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Impossible de charger les opportunités locales.');
     } finally {
       setLoading(false);
     }
@@ -66,6 +138,9 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
         body: JSON.stringify({ countryCode }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      }
       if (data?.status === 'insufficient_data') {
         setInsufficientMsg(data.message || 'données insuffisantes');
       } else if (data?.opportunities) {
@@ -137,8 +212,26 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
             <code className="text-amber-300 font-mono">données insuffisantes</code>.
           </p>
         </div>
-        <div className="text-[11px] font-mono text-slate-400 shrink-0 tabular-nums">
-          Devise : {currentProfile.currency} ({currentProfile.currencySymbol})
+        <div className="text-[11px] font-mono text-slate-400 shrink-0 tabular-nums flex flex-wrap items-center gap-2">
+          <span className={relevantSignalsCount >= 2 ? 'text-emerald-400' : 'text-amber-400'}>
+            {relevantSignalsCount} signal(aux) {countryCode}
+          </span>
+          {sourceHealth.length > 0 && (
+            <>
+              <span aria-hidden="true" className="text-slate-600">·</span>
+              <span>
+                {sourceHealth.filter((s) => s.status === 'live').length} live / {sourceHealth.length} sources
+              </span>
+            </>
+          )}
+          <span aria-hidden="true" className="text-slate-600">·</span>
+          <span className={sseConnected ? 'text-cyan-400' : 'text-slate-500'}>
+            {sseConnected ? 'SSE actif' : 'SSE hors ligne'}
+          </span>
+          <span aria-hidden="true" className="text-slate-600">·</span>
+          <span>
+            {currentProfile.currency} ({currentProfile.currencySymbol})
+          </span>
         </div>
       </div>
 

@@ -25,8 +25,21 @@ import {
   Globe,
   Rocket,
 } from 'lucide-react';
-import { EconomicSector, OpportunityNiche, MarketSignal, SectorCategory } from '../types/market';
-import { ECONOMIC_SECTORS, LIVE_MARKET_SIGNALS } from '../data/sectorsData';
+import {
+  EconomicSector,
+  OpportunityNiche,
+  MarketSignal,
+  SectorCategory,
+  SourceHealthItem,
+  SignalsSnapshotPayload,
+  CountryCode,
+} from '../types/market';
+import { ECONOMIC_SECTORS } from '../data/sectorsData';
+import {
+  getLastSignalsSnapshot,
+  subscribeLiveEvent,
+  subscribeSseStatus,
+} from '../utils/liveStream';
 
 interface RadarViewProps {
   onSelectSector: (sector: EconomicSector, niche?: OpportunityNiche) => void;
@@ -46,33 +59,73 @@ export const RadarView: React.FC<RadarViewProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'margin' | 'speed' | 'tam'>('margin');
 
-  // Live signals state
-  const [signals, setSignals] = useState<MarketSignal[]>(LIVE_MARKET_SIGNALS);
+  // Live signals & SSE real-time state
+  const [signals, setSignals] = useState<MarketSignal[]>([]);
+  const [sourceHealth, setSourceHealth] = useState<SourceHealthItem[]>([]);
+  const [sseStatus, setSseStatus] = useState<'connecting' | 'live' | 'error'>('connecting');
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [signalsFilter, setSignalsFilter] = useState<string>('all');
   const [regionFilter, setRegionFilter] = useState<'all' | 'niger_uemoa' | 'europe' | 'global'>('all');
+  const [countryFilter, setCountryFilter] = useState<'all' | CountryCode>('all');
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [lastSyncTime, setLastSyncTime] = useState<string>('En direct');
+  const [lastSyncTime, setLastSyncTime] = useState<string>('—');
+
+  const applyPayload = (data: Partial<SignalsSnapshotPayload>) => {
+    if (Array.isArray(data?.signals)) {
+      setSignals(data.signals);
+    }
+    if (Array.isArray(data?.sourceHealth)) {
+      setSourceHealth(data.sourceHealth);
+    }
+    if (data?.lastSync) {
+      setLastSyncTime(data.lastSync);
+    }
+  };
 
   const fetchLiveSignals = async (forceRefresh = false) => {
     setRefreshing(true);
+    setFetchError(null);
     try {
       const endpoint = forceRefresh ? '/api/signals/refresh' : '/api/signals/live';
       const method = forceRefresh ? 'POST' : 'GET';
       const res = await fetch(endpoint, { method });
       const data = await res.json();
-      if (data?.signals) {
-        setSignals(data.signals);
-        setLastSyncTime(data.lastSync || 'En direct');
+      if (!res.ok) {
+        throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
       }
-    } catch (e) {
-      console.info('Using local signals cache:', e);
+      applyPayload(data);
+    } catch (e: any) {
+      setFetchError(e?.message || 'Impossible de collecter les signaux en direct.');
     } finally {
       setRefreshing(false);
     }
   };
 
   useEffect(() => {
+    const cached = getLastSignalsSnapshot();
+    if (cached) {
+      applyPayload(cached);
+    }
     fetchLiveSignals(false);
+
+    const handleSnapshot = (payload: SignalsSnapshotPayload) => {
+      applyPayload(payload);
+      setFetchError(null);
+    };
+
+    const unsubSnap = subscribeLiveEvent<SignalsSnapshotPayload>('signals_snapshot', handleSnapshot);
+    const unsubUpd = subscribeLiveEvent<SignalsSnapshotPayload>('signals_updated', handleSnapshot);
+    const unsubStatus = subscribeSseStatus((status) => {
+      if (status === 'live') setSseStatus('live');
+      else if (status === 'error') setSseStatus('error');
+      else setSseStatus('connecting');
+    });
+
+    return () => {
+      unsubSnap();
+      unsubUpd();
+      unsubStatus();
+    };
   }, []);
 
   const getIcon = (name: string) => {
@@ -138,7 +191,11 @@ export const RadarView: React.FC<RadarViewProps> = ({
 
     const matchesCategory = signalsFilter === 'all' || sig.category === signalsFilter;
     const matchesRegion = regionFilter === 'all' || sig.region === regionFilter;
-    return matchesCategory && matchesRegion;
+    const matchesCountry =
+      countryFilter === 'all' ||
+      sig.countryCode === countryFilter ||
+      (sig.region === 'global' && sig.isGlobal === true);
+    return matchesCategory && matchesRegion && matchesCountry;
   });
 
   return (
@@ -197,8 +254,26 @@ export const RadarView: React.FC<RadarViewProps> = ({
               : 'Données structurelles (TAM, marges, CAGR) avec sources publiques citées (Banque Mondiale, GSMA, BCEAO).'}
           </p>
         </div>
-        <div className="text-[11px] text-slate-400 font-mono shrink-0 tabular-nums">
-          Sync serveur : <span className="text-slate-200">{lastSyncTime}</span>
+        <div className="text-[11px] font-mono shrink-0 tabular-nums flex items-center gap-2.5">
+          <span
+            className={
+              sseStatus === 'live'
+                ? 'text-emerald-400'
+                : sseStatus === 'connecting'
+                ? 'text-amber-400'
+                : 'text-rose-400'
+            }
+          >
+            {sseStatus === 'live'
+              ? 'Flux SSE actif'
+              : sseStatus === 'connecting'
+              ? 'Connexion SSE...'
+              : 'Flux SSE interrompu'}
+          </span>
+          <span aria-hidden="true" className="text-slate-600">·</span>
+          <span className="text-slate-400">
+            Sync <span className="text-slate-200">{lastSyncTime}</span>
+          </span>
         </div>
       </div>
 
@@ -418,49 +493,67 @@ export const RadarView: React.FC<RadarViewProps> = ({
               </div>
             </div>
 
-            {/* Row 2: Category Filters and Refresh Button */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-              <div className="flex items-center gap-1 p-1 bg-[#0D1017] rounded-lg border border-white/[0.07] overflow-x-auto text-xs">
-                <button
-                  onClick={() => setSignalsFilter('all')}
-                  className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
-                    signalsFilter === 'all' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Tous thèmes
-                </button>
-                <button
-                  onClick={() => setSignalsFilter('reglementaire')}
-                  className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
-                    signalsFilter === 'reglementaire' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Réglementation & Lois
-                </button>
-                <button
-                  onClick={() => setSignalsFilter('energie_matiere')}
-                  className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
-                    signalsFilter === 'energie_matiere' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Énergie & Matières
-                </button>
-                <button
-                  onClick={() => setSignalsFilter('ia_tech')}
-                  className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
-                    signalsFilter === 'ia_tech' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  IA & Inférence
-                </button>
-                <button
-                  onClick={() => setSignalsFilter('finance_taux')}
-                  className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
-                    signalsFilter === 'finance_taux' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Finance, Taux & Devises
-                </button>
+            {/* Row 2: Country Filter + Category Filters + Refresh Button */}
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 p-1 bg-[#0D1017] rounded-lg border border-white/[0.07] overflow-x-auto text-xs">
+                  {(['all', 'NER', 'SEN', 'CIV', 'FRA', 'USA'] as const).map((code) => (
+                    <button
+                      key={code}
+                      onClick={() => setCountryFilter(code)}
+                      className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap font-mono ${
+                        countryFilter === code
+                          ? 'bg-blue-600 text-white font-medium'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {code === 'all' ? 'Tous pays' : code}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-1 p-1 bg-[#0D1017] rounded-lg border border-white/[0.07] overflow-x-auto text-xs">
+                  <button
+                    onClick={() => setSignalsFilter('all')}
+                    className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                      signalsFilter === 'all' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Tous thèmes
+                  </button>
+                  <button
+                    onClick={() => setSignalsFilter('reglementaire')}
+                    className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                      signalsFilter === 'reglementaire' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Réglementation & Lois
+                  </button>
+                  <button
+                    onClick={() => setSignalsFilter('energie_matiere')}
+                    className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                      signalsFilter === 'energie_matiere' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Énergie & Matières
+                  </button>
+                  <button
+                    onClick={() => setSignalsFilter('ia_tech')}
+                    className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                      signalsFilter === 'ia_tech' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    IA & Inférence
+                  </button>
+                  <button
+                    onClick={() => setSignalsFilter('finance_taux')}
+                    className={`cursor-pointer px-2.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                      signalsFilter === 'finance_taux' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Finance, Taux & Devises
+                  </button>
+                </div>
               </div>
 
               <button
@@ -473,6 +566,51 @@ export const RadarView: React.FC<RadarViewProps> = ({
               </button>
             </div>
           </div>
+
+          {fetchError && (
+            <div className="p-4 bg-rose-950/30 border border-rose-500/30 rounded-xl text-xs text-rose-200 flex items-center gap-3">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{fetchError}</span>
+            </div>
+          )}
+
+          {sourceHealth.length > 0 && (
+            <div className="p-4 bg-[#11141C] border border-white/[0.08] rounded-xl space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-slate-300">État des sources collectées</span>
+                <span className="font-mono text-[11px] text-slate-400 tabular-nums">
+                  {sourceHealth.filter((s) => s.status === 'live').length} live ·{' '}
+                  {sourceHealth.filter((s) => s.status === 'cache').length} cache ·{' '}
+                  {sourceHealth.filter((s) => s.status === 'indisponible').length} indisponible
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {sourceHealth.map((src) => (
+                  <div
+                    key={src.id}
+                    title={src.error || src.url}
+                    className="px-3 py-2 bg-[#0D1017] border border-white/[0.07] rounded-lg flex items-center justify-between gap-2 text-[11px]"
+                  >
+                    <span className="text-slate-300 truncate">{src.name}</span>
+                    <div className="flex items-center gap-2 font-mono shrink-0 tabular-nums">
+                      <span className="text-slate-500">{src.signalCount}</span>
+                      <span
+                        className={
+                          src.status === 'live'
+                            ? 'text-emerald-400'
+                            : src.status === 'cache'
+                            ? 'text-amber-400'
+                            : 'text-rose-400'
+                        }
+                      >
+                        {src.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Signals Cards Feed */}
           <div className="space-y-4">
@@ -495,6 +633,24 @@ export const RadarView: React.FC<RadarViewProps> = ({
                     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-slate-400">
                       <span className="font-medium text-blue-400">
                         {signal.sectorName}
+                      </span>
+                      {signal.countryCode && (
+                        <>
+                          <span aria-hidden="true" className="text-slate-600">·</span>
+                          <span className="font-mono text-slate-200">{signal.countryCode}</span>
+                        </>
+                      )}
+                      <span aria-hidden="true" className="text-slate-600">·</span>
+                      <span
+                        className={`font-mono ${
+                          signal.status === 'live'
+                            ? 'text-emerald-400'
+                            : signal.status === 'cache'
+                            ? 'text-amber-400'
+                            : 'text-rose-400'
+                        }`}
+                      >
+                        {signal.status}
                       </span>
                       <span aria-hidden="true" className="text-slate-600">·</span>
                       <span className="font-mono text-cyan-300">{signal.urgency}</span>

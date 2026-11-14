@@ -12,9 +12,17 @@ import {
   ArrowRight,
   ShieldCheck,
   Zap,
+  Trash2,
+  History,
 } from 'lucide-react';
-import { AIExecutionBlueprint, EconomicSector, OpportunityNiche, SectorCategory } from '../types/market';
+import {
+  AIExecutionBlueprint,
+  EconomicSector,
+  SectorCategory,
+  SavedBlueprintRecord,
+} from '../types/market';
 import { ECONOMIC_SECTORS } from '../data/sectorsData';
+import { subscribeLiveEvent } from '../utils/liveStream';
 
 interface BlueprintViewProps {
   initialSectorId?: SectorCategory;
@@ -37,10 +45,72 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [blueprint, setBlueprint] = useState<AIExecutionBlueprint | null>(null);
+  const [savedBlueprints, setSavedBlueprints] = useState<SavedBlueprintRecord[]>([]);
+  const [activeRecordId, setActiveRecordId] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
   const currentSector = ECONOMIC_SECTORS.find((s) => s.id === selectedSectorId) || ECONOMIC_SECTORS[0];
+
+  const loadBlueprintRecord = (record: SavedBlueprintRecord) => {
+    setActiveRecordId(record.id);
+    setSelectedSectorId(record.sectorId || 'ai_deeptech');
+    setCustomNiche(record.niche || '');
+    setTargetRevenue(record.targetRevenue || initialTargetRevenue);
+    setCapitalBudget(record.capitalBudget || '0€ à 1 500€ (Amorçage Lean)');
+    setBusinessModel(record.businessModel || 'SaaS B2B & Abonnements Récurrents');
+    setUserSkills(record.userSkills || '');
+    setBlueprint(record.blueprint);
+    setError(null);
+  };
+
+  React.useEffect(() => {
+    fetch('/api/blueprints')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.blueprints) && data.blueprints.length > 0) {
+          setSavedBlueprints(data.blueprints);
+          setBlueprint((prev) => {
+            if (prev) return prev;
+            const first = data.blueprints[0] as SavedBlueprintRecord;
+            setActiveRecordId(first.id);
+            return first.blueprint;
+          });
+        }
+      })
+      .catch(() => {});
+
+    const unsub = subscribeLiveEvent<{ kind?: string; blueprints?: SavedBlueprintRecord[] }>(
+      'workspace_updated',
+      (payload) => {
+        if (payload?.kind === 'blueprint' && Array.isArray(payload.blueprints)) {
+          setSavedBlueprints(payload.blueprints);
+        }
+      }
+    );
+    return () => unsub();
+  }, []);
+
+  const handleDeleteSaved = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/blueprints/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data?.blueprints)) {
+        setSavedBlueprints(data.blueprints);
+        if (activeRecordId === id) {
+          if (data.blueprints.length > 0) {
+            loadBlueprintRecord(data.blueprints[0]);
+          } else {
+            setActiveRecordId(null);
+            setBlueprint(null);
+          }
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Erreur lors de la suppression.');
+    }
+  };
 
   const handleGenerate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -70,6 +140,10 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
       }
 
       setBlueprint(data.blueprint);
+      if (data.record) {
+        setActiveRecordId(data.record.id);
+        setSavedBlueprints((prev) => [data.record, ...prev.filter((b) => b.id !== data.record.id)]);
+      }
     } catch (err: any) {
       console.error(err);
       setError(err?.message || 'Erreur lors de la génération. Veuillez vérifier votre connexion.');
@@ -268,6 +342,46 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
               </button>
             </div>
           </div>
+
+          {savedBlueprints.length > 0 && (
+            <div className="pt-4 border-t border-white/[0.07] space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <History className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Plans persistés ({savedBlueprints.length})</span>
+                </span>
+                <span className="font-mono text-slate-500">Sauvegarde serveur</span>
+              </div>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {savedBlueprints.map((rec) => (
+                  <div
+                    key={rec.id}
+                    onClick={() => loadBlueprintRecord(rec)}
+                    className={`cursor-pointer p-2.5 rounded-lg border text-xs flex items-center justify-between gap-2 transition-colors ${
+                      activeRecordId === rec.id
+                        ? 'bg-blue-600/15 border-blue-500/40 text-white'
+                        : 'bg-[#0D1017] border-white/[0.07] text-slate-300 hover:border-white/[0.15]'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{rec.niche}</div>
+                      <div className="text-[10px] text-slate-400 font-mono truncate">
+                        {rec.sectorName} · {new Date(rec.createdAt).toLocaleDateString('fr-FR')}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteSaved(rec.id, e)}
+                      className="p-1 text-slate-500 hover:text-rose-400 shrink-0 cursor-pointer"
+                      title="Supprimer ce plan"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Blueprint Dossier Output (7 cols) */}
