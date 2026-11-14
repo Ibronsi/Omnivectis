@@ -93,9 +93,24 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
   );
   const [userCompanyName, setUserCompanyName] = useState<string>('OmniVectis Solutions Niger');
   const [userNif, setUserNif] = useState<string>('NIF 48219/R · RCCM NI-NIA-2025-A-142');
+  const [customPaymentLink, setCustomPaymentLink] = useState<string>(() => {
+    try {
+      return localStorage.getItem('launchpad_custom_payment_link') || '';
+    } catch {
+      return '';
+    }
+  });
 
   // Copy feedbacks
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('launchpad_custom_payment_link', customPaymentLink);
+    } catch {
+      // ignore storage quota errors
+    }
+  }, [customPaymentLink]);
 
   useEffect(() => {
     fetch('/api/launchpads')
@@ -1052,9 +1067,9 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                     }`}
                   >
                     <Globe className="w-4 h-4 text-slate-300 mb-1.5" />
-                    <div className="text-xs font-semibold">4. International / Stripe</div>
+                    <div className="text-xs font-semibold">4. Lien de Paiement</div>
                     <div className="text-[11px] text-slate-400 mt-0.5 truncate">
-                      Paiement CB & Clients Mondiaux
+                      Mobile Money, Prestataire ou CB
                     </div>
                   </button>
                 </div>
@@ -1374,44 +1389,58 @@ ${userCompanyName}`}
                   </div>
                 )}
 
-                {/* SPECIFIC RAIL VIEW 4: STRIPE & INTERNATIONAL */}
+                {/* SPECIFIC RAIL VIEW 4: LIEN DE PAIEMENT OU NUMÉRO PRESTATAIRE RÉEL */}
                 {activePaymentRail === 'stripe' && (
                   <div className="p-5 bg-[#0D1017] border border-blue-500/25 rounded-lg space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.07] pb-3">
                       <div>
                         <span className="text-[11px] font-medium text-blue-400 uppercase tracking-wider block">
-                          Paiement en Ligne Sécurisé par Carte Bancaire (Clients Internationaux)
+                          Votre Lien ou Numéro de Paiement Réel
                         </span>
                         <div className="text-xs text-slate-300 mt-0.5">
-                          Permet d encaisser des clients en Europe, USA ou diaspora via Carte Bancaire, Apple Pay ou SEPA.
+                          Collez votre lien de paiement prestataire (Stripe, FedaPay, CinetPay, PayTech, Wave) ou votre numéro marchand Mobile Money.
                         </div>
                       </div>
-                      <div className="text-[11px] font-mono text-blue-400 shrink-0">
-                        Stripe Billing & Payout J+2
+                      <div className="text-[11px] font-mono text-slate-400 shrink-0">
+                        {customPaymentLink.trim() ? 'Configuré' : 'Non configuré'}
                       </div>
                     </div>
 
-                    {/* Stripe Payment Link */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block mb-1.5">
+                          Lien de paiement ou numéro de paiement réel
+                        </label>
+                        <input
+                          type="text"
+                          value={customPaymentLink}
+                          onChange={(e) => setCustomPaymentLink(e.target.value)}
+                          placeholder="Collez ici votre vrai lien (https://...) ou numéro Mobile Money..."
+                          className="w-full bg-[#11141C] border border-white/[0.1] text-white font-mono text-xs rounded-lg px-3 py-2.5 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs font-medium text-slate-300">
-                          Modèle de paramètres Stripe Checkout (à lier à votre lien Stripe réel)
+                          Référence transmise au client
                         </span>
                         <button
-                          onClick={() => {
-                            const eurAmount = Math.round(convertCurrency(cashInAmount, currentGeoProfile.currency, 'EUR', liveRates));
-                            const link = `https://buy.stripe.com/VOTRE_PAYMENT_LINK?prefilled_email=${encodeURIComponent(clientContactEmail)}&client_reference_id=${encodeURIComponent(clientCompanyName)}&amount_eur=${eurAmount}`;
-                            copyToClipboard(link, 'stripelink');
-                          }}
-                          className="cursor-pointer px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
+                          type="button"
+                          disabled={!customPaymentLink.trim()}
+                          onClick={() => copyToClipboard(customPaymentLink.trim(), 'stripelink')}
+                          className="cursor-pointer px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
                         >
                           <Copy className="w-3 h-3" />
-                          <span>{copiedSection === 'stripelink' ? 'Modèle Copié !' : 'Copier Paramètres Stripe'}</span>
+                          <span>{copiedSection === 'stripelink' ? 'Copié !' : 'Copier'}</span>
                         </button>
                       </div>
 
-                      <div className="p-3 bg-[#11141C] border border-white/[0.08] rounded-lg font-mono text-xs text-blue-300 truncate">
-                        https://buy.stripe.com/VOTRE_PAYMENT_LINK?prefilled_email={encodeURIComponent(clientContactEmail)}&amount_eur={Math.round(convertCurrency(cashInAmount, currentGeoProfile.currency, 'EUR', liveRates))}
+                      <div className="p-3 bg-[#11141C] border border-white/[0.08] rounded-lg font-mono text-xs break-all">
+                        {customPaymentLink.trim() ? (
+                          <span className="text-blue-300">{customPaymentLink.trim()}</span>
+                        ) : (
+                          <span className="text-amber-400">Lien de paiement non configuré</span>
+                        )}
                       </div>
                     </div>
                   </div>
