@@ -337,6 +337,29 @@ export interface ValidationItem {
   status: 'en_attente' | 'valide' | 'rejete';
   reviewedAt?: string;
   reviewNotes?: string;
+  deliveryChannel?: 'email' | 'whatsapp' | 'webhook' | 'none';
+  deliveryStatus?: 'not_sent' | 'sent' | 'failed';
+  deliveryTarget?: string;
+  deliverySubject?: string;
+  deliveryProvider?: string;
+  deliveryMessageId?: string;
+  deliveryError?: string;
+  deliveredAt?: string;
+}
+
+export interface DeliveryChannelStatus {
+  email: {
+    configured: boolean;
+    providers: ('resend' | 'smtp')[];
+    fromAddress: string | null;
+  };
+  whatsapp: {
+    configured: boolean;
+    provider: 'meta_cloud_api' | null;
+  };
+  webhook: {
+    configured: boolean;
+  };
 }
 
 export interface AuditLogEntry {
@@ -349,6 +372,9 @@ export interface AuditLogEntry {
     | 'item_queued'
     | 'item_validated'
     | 'item_rejected'
+    | 'email_sent'
+    | 'message_sent'
+    | 'delivery_failed'
     | 'sale_recorded'
     | 'hypothesis_updated'
     | 'api_error';

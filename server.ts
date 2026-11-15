@@ -8,6 +8,10 @@ import {
   getCachedSignals,
   getCachedRates,
   getSourceHealth,
+  loadSignalsFromDbIfNeeded,
+  loadSourceHealthFromDbIfNeeded,
+  loadRatesFromDbIfNeeded,
+  migrateLegacyJsonIfNeeded,
   onSignalsUpdated,
   onWorkspaceEvent,
   getPersistentPipeline,
@@ -27,9 +31,10 @@ import {
   saveLaunchpadRecord,
   deleteSavedLaunchpad,
   getValidationQueue,
-  saveValidationQueue,
+  getValidationItemById,
   addValidationItem,
   updateValidationStatus,
+  updateValidationDelivery,
   getAuditLog,
   appendAuditLog,
   getRealSales,
@@ -38,6 +43,12 @@ import {
   getUsageStats,
   recordGeminiCall,
 } from './src/server/dataService.ts';
+import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
+import {
+  getDeliveryChannelStatus,
+  dispatchValidatedMessage,
+  DeliveryChannel,
+} from './src/server/deliveryService.ts';
 
 dotenv.config();
 
@@ -84,12 +95,13 @@ async function generateGeminiJson(contents: string, config: any) {
   }
 }
 
-// SSE connected clients registry
-const sseClients = new Set<express.Response>();
+// SSE connected clients registry (Response -> Firebase userUid)
+const sseClients = new Map<express.Response, string | undefined>();
 
-function broadcastSseEvent(eventName: string, payload: unknown) {
+function broadcastSseEvent(eventName: string, payload: unknown, targetUserUid?: string) {
   const serialized = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
-  for (const client of sseClients) {
+  for (const [client, clientUid] of sseClients.entries()) {
+    if (targetUserUid && clientUid !== targetUserUid) continue;
     try {
       client.write(serialized);
     } catch {
@@ -110,8 +122,8 @@ onSignalsUpdated((payload) => {
   });
 });
 
-onWorkspaceEvent((eventName, payload) => {
-  broadcastSseEvent(eventName, payload);
+onWorkspaceEvent((eventName, payload, targetUserUid) => {
+  broadcastSseEvent(eventName, payload, targetUserUid);
 });
 
 // API Routes
@@ -123,7 +135,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ----------------- ACCESS PASSWORD PROTECTION (APP_PASSWORD) -----------------
+// ----------------- ACCESS PASSWORD (OPTIONAL) + FIREBASE AUTH -----------------
 
 app.get('/api/auth/status', (req, res) => {
   const configuredPassword = process.env.APP_PASSWORD ? process.env.APP_PASSWORD.trim() : '';
@@ -133,7 +145,6 @@ app.get('/api/auth/status', (req, res) => {
 
   const provided =
     (req.headers['x-app-password'] as string) ||
-    req.headers.authorization?.replace(/^Bearer\s+/i, '') ||
     (req.query.token as string);
 
   const isMatch = Boolean(provided && provided.trim() === configuredPassword);
@@ -158,40 +169,62 @@ app.post('/api/auth/verify', (req, res) => {
   });
 });
 
-app.use('/api', (req, res, next) => {
-  if (req.path === '/auth/status' || req.path === '/auth/verify') {
+app.use('/api', async (req, res, next) => {
+  if (req.path === '/health' || req.path === '/auth/status' || req.path === '/auth/verify') {
     return next();
   }
 
   const configuredPassword = process.env.APP_PASSWORD ? process.env.APP_PASSWORD.trim() : '';
-  if (!configuredPassword || configuredPassword === 'MY_APP_PASSWORD') {
-    return next();
+  if (configuredPassword && configuredPassword !== 'MY_APP_PASSWORD') {
+    const provided =
+      (req.headers['x-app-password'] as string) ||
+      (req.query.token as string);
+
+    if (!provided || provided.trim() !== configuredPassword) {
+      return res.status(401).json({
+        error: 'Accès protégé : mot de passe requis ou invalide.',
+        authenticated: false,
+        code: 'APP_PASSWORD_REQUIRED',
+      });
+    }
   }
 
-  const provided =
-    (req.headers['x-app-password'] as string) ||
-    req.headers.authorization?.replace(/^Bearer\s+/i, '') ||
-    (req.query.token as string);
+  return requireAuth(req as AuthRequest, res, next);
+});
 
-  if (provided && provided.trim() === configuredPassword) {
-    return next();
+app.get('/api/auth/session', async (req, res) => {
+  try {
+    const authReq = req as AuthRequest;
+    const userUid = authReq.userUid!;
+    await migrateLegacyJsonIfNeeded(userUid);
+    res.json({
+      status: 'ok',
+      authenticated: true,
+      user: {
+        uid: userUid,
+        email: authReq.user?.email || null,
+        name: authReq.user?.name || null,
+      },
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la synchronisation de session.' });
   }
-
-  return res.status(401).json({
-    error: 'Accès protégé : mot de passe requis ou invalide.',
-    authenticated: false,
-    code: 'UNAUTHORIZED',
-  });
 });
 
 // Live Signals Harvester (Multi-country Real External Sources + Health Tracking)
 app.get('/api/signals/live', async (req, res) => {
+  const authReq = req as AuthRequest;
   const region = (req.query.region as string) || 'all';
+  await Promise.all([
+    loadSignalsFromDbIfNeeded(),
+    loadSourceHealthFromDbIfNeeded(),
+    loadRatesFromDbIfNeeded(),
+  ]);
   let signals = getCachedSignals();
 
   if (signals.length === 0) {
     try {
-      signals = await harvestRealTimeSignals();
+      signals = await harvestRealTimeSignals(authReq.userUid);
     } catch (e) {
       console.info('Harvesting error on initial request:', e);
     }
@@ -217,13 +250,20 @@ app.get('/api/signals/live', async (req, res) => {
 
 // Real-Time Server-Sent Events Stream for Signals & FX
 app.get('/api/signals/stream', async (req, res) => {
+  const authReq = req as AuthRequest;
+  await Promise.all([
+    loadSignalsFromDbIfNeeded(),
+    loadSourceHealthFromDbIfNeeded(),
+    loadRatesFromDbIfNeeded(),
+  ]);
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders?.();
 
-  sseClients.add(res);
+  sseClients.set(res, authReq.userUid);
 
   const now = new Date();
   const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -259,7 +299,8 @@ app.get('/api/signals/stream', async (req, res) => {
 // Force refresh from live external sources
 app.post('/api/signals/refresh', async (req, res) => {
   try {
-    const refreshed = await harvestRealTimeSignals();
+    const authReq = req as AuthRequest;
+    const refreshed = await harvestRealTimeSignals(authReq.userUid);
     const now = new Date();
     const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
@@ -279,6 +320,7 @@ app.post('/api/signals/refresh', async (req, res) => {
 
 // Live Currency Rates & Foreign Exchange Parity
 app.get('/api/rates/live', async (req, res) => {
+  await loadRatesFromDbIfNeeded();
   const rates = getCachedRates();
   res.json({
     status: 'ok',
@@ -330,83 +372,116 @@ app.get('/api/worldbank/country/:iso', async (req, res) => {
 
 // ----------------- MULTI-DEVICE PERSISTENT PIPELINE API -----------------
 
-app.get('/api/pipeline', (req, res) => {
-  const items = getPersistentPipeline();
-  res.json({ status: 'ok', items });
+app.get('/api/pipeline', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    await migrateLegacyJsonIfNeeded(userUid);
+    const items = await getPersistentPipeline(userUid);
+    res.json({ status: 'ok', items });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du chargement du pipeline.' });
+  }
 });
 
-app.post('/api/pipeline/sync', (req, res) => {
-  const items = req.body?.items;
-  if (!Array.isArray(items)) {
-    return res.status(400).json({ error: 'Tableau items requis pour la synchronisation.' });
+app.post('/api/pipeline/sync', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const items = req.body?.items;
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ error: 'Tableau items requis pour la synchronisation.' });
+    }
+    const ok = await savePersistentPipeline(userUid, items as PersistentPipelineItem[]);
+    if (!ok) {
+      return res.status(500).json({ error: 'Erreur lors de l enregistrement du pipeline.' });
+    }
+    res.json({ status: 'ok', items });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la synchronisation du pipeline.' });
   }
-  const ok = savePersistentPipeline(items as PersistentPipelineItem[]);
-  if (!ok) {
-    return res.status(500).json({ error: 'Erreur lors de l enregistrement du pipeline.' });
-  }
-  res.json({ status: 'ok', items });
 });
 
-app.post('/api/pipeline', (req, res) => {
-  const newItem = req.body as PersistentPipelineItem;
-  if (!newItem || !newItem.title) {
-    return res.status(400).json({ error: 'Titre requis pour l opportunité' });
+app.post('/api/pipeline', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const newItem = req.body as PersistentPipelineItem;
+    if (!newItem || !newItem.title) {
+      return res.status(400).json({ error: 'Titre requis pour l opportunité' });
+    }
+
+    const items = await getPersistentPipeline(userUid);
+    const created: PersistentPipelineItem = {
+      ...newItem,
+      id: newItem.id || `pipe-${Date.now()}`,
+      addedAt: newItem.addedAt || new Date().toLocaleDateString('fr-FR'),
+    };
+
+    const updated = [created, ...items.filter((i) => i.id !== created.id)];
+    await savePersistentPipeline(userUid, updated);
+
+    res.json({ status: 'ok', item: created, items: updated });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la création dans le pipeline.' });
   }
-
-  const items = getPersistentPipeline();
-  const created: PersistentPipelineItem = {
-    ...newItem,
-    id: newItem.id || `pipe-${Date.now()}`,
-    addedAt: newItem.addedAt || new Date().toLocaleDateString('fr-FR'),
-  };
-
-  const updated = [created, ...items.filter((i) => i.id !== created.id)];
-  savePersistentPipeline(updated);
-
-  res.json({ status: 'ok', item: created, items: updated });
 });
 
-app.put('/api/pipeline/:id', (req, res) => {
-  const id = req.params.id;
-  const updates = req.body;
-  const items = getPersistentPipeline();
+app.put('/api/pipeline/:id', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const id = req.params.id;
+    const updates = req.body;
+    const items = await getPersistentPipeline(userUid);
 
-  const index = items.findIndex((i) => i.id === id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Élément introuvable' });
+    const index = items.findIndex((i) => i.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Élément introuvable' });
+    }
+
+    items[index] = { ...items[index], ...updates };
+    await savePersistentPipeline(userUid, items);
+
+    res.json({ status: 'ok', item: items[index], items });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la mise à jour du pipeline.' });
   }
-
-  items[index] = { ...items[index], ...updates };
-  savePersistentPipeline(items);
-
-  res.json({ status: 'ok', item: items[index], items });
 });
 
-app.delete('/api/pipeline/:id', (req, res) => {
-  const id = req.params.id;
-  const items = getPersistentPipeline();
-  const updated = items.filter((i) => i.id !== id);
-  savePersistentPipeline(updated);
+app.delete('/api/pipeline/:id', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const id = req.params.id;
+    const items = await getPersistentPipeline(userUid);
+    const updated = items.filter((i) => i.id !== id);
+    await savePersistentPipeline(userUid, updated);
 
-  res.json({ status: 'ok', items: updated });
+    res.json({ status: 'ok', items: updated });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la suppression dans le pipeline.' });
+  }
 });
 
 // ----------------- STRICT OPPORTUNITIES API (Module Opportunités) -----------------
 
-app.get('/api/opportunities', (req, res) => {
-  const countryCode = (req.query.countryCode as string) || 'NER';
-  const opportunities = getPersistentOpportunities(countryCode);
-  res.json({ status: 'ok', opportunities });
+app.get('/api/opportunities', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const countryCode = (req.query.countryCode as string) || 'NER';
+    const opportunities = await getPersistentOpportunities(userUid, countryCode);
+    res.json({ status: 'ok', opportunities });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du chargement des opportunités.' });
+  }
 });
 
 app.post('/api/opportunities/synthesize', async (req, res) => {
+  const userUid = (req as AuthRequest).userUid!;
   const { countryCode = 'NER' } = req.body;
   const startTime = Date.now();
 
+  await loadSignalsFromDbIfNeeded();
   let signals = getCachedSignals();
   if (signals.length === 0) {
     try {
-      signals = await harvestRealTimeSignals();
+      signals = await harvestRealTimeSignals(userUid);
     } catch (e) {
       console.info('Auto harvest on synthesize:', e);
     }
@@ -429,7 +504,13 @@ app.post('/api/opportunities/synthesize', async (req, res) => {
   });
 
   if (relevantSignals.length < 2) {
-    recordGeminiCall(Date.now() - startTime, false, 'Données insuffisantes : moins de 2 signaux collectés disponibles.');
+    await recordGeminiCall(
+      Date.now() - startTime,
+      false,
+      'Données insuffisantes : moins de 2 signaux collectés disponibles.',
+      undefined,
+      userUid
+    );
     return res.json({
       status: 'insufficient_data',
       message: 'données insuffisantes',
@@ -536,7 +617,7 @@ S'il n'y a pas assez de faits concrets pour bâtir une opportunité sérieuse, r
     const parsed = JSON.parse(rawText);
 
     if (!parsed.hasEnoughData || !parsed.opportunities || parsed.opportunities.length === 0) {
-      recordGeminiCall(duration, true, undefined, { opportunitiesSynthesized: 0 });
+      await recordGeminiCall(duration, true, undefined, { opportunitiesSynthesized: 0 }, userUid);
       return res.json({
         status: 'insufficient_data',
         message: parsed.insufficientDataReason || 'données insuffisantes',
@@ -596,7 +677,7 @@ S'il n'y a pas assez de faits concrets pour bâtir une opportunité sérieuse, r
     }
 
     if (validOpps.length === 0) {
-      recordGeminiCall(duration, true, undefined, { opportunitiesSynthesized: 0 });
+      await recordGeminiCall(duration, true, undefined, { opportunitiesSynthesized: 0 }, userUid);
       return res.json({
         status: 'insufficient_data',
         message: 'données insuffisantes',
@@ -605,13 +686,15 @@ S'il n'y a pas assez de faits concrets pour bâtir une opportunité sérieuse, r
     }
 
     // Save and log (preserve opportunities for other countries)
-    const existing = getPersistentOpportunities(countryCode);
-    const otherCountries = getPersistentOpportunities('all').filter((e) => e.countryCode !== countryCode);
+    const existing = await getPersistentOpportunities(userUid, countryCode);
+    const otherCountries = (await getPersistentOpportunities(userUid, 'all')).filter(
+      (e) => e.countryCode !== countryCode
+    );
     const merged = [...validOpps, ...existing.filter((e) => !validOpps.some((f: any) => f.title === e.title))];
-    savePersistentOpportunities([...merged, ...otherCountries]);
+    await savePersistentOpportunities(userUid, [...merged, ...otherCountries]);
 
-    recordGeminiCall(duration, true, undefined, { opportunitiesSynthesized: validOpps.length });
-    appendAuditLog({
+    await recordGeminiCall(duration, true, undefined, { opportunitiesSynthesized: validOpps.length }, userUid);
+    await appendAuditLog(userUid, {
       actionType: 'opportunity_generated',
       actor: 'gemini_api',
       description: `${validOpps.length} opportunités synthétisées pour ${countryCode} à partir des signaux réels collectés.`,
@@ -626,7 +709,7 @@ S'il n'y a pas assez de faits concrets pour bâtir une opportunité sérieuse, r
     });
   } catch (err: any) {
     const duration = Date.now() - startTime;
-    recordGeminiCall(duration, false, err?.message || 'Erreur Gemini');
+    await recordGeminiCall(duration, false, err?.message || 'Erreur Gemini', undefined, userUid);
     res.status(500).json({
       status: 'error',
       error: err?.message || 'Erreur lors de la synthèse des opportunités',
@@ -638,6 +721,7 @@ S'il n'y a pas assez de faits concrets pour bâtir une opportunité sérieuse, r
 // ----------------- NUMÉRIQUE : DOSSIER DE LANCEMENT -----------------
 
 app.post('/api/kits/generate-digital', async (req, res) => {
+  const userUid = (req as AuthRequest).userUid!;
   const { opportunity, countryCode = 'NER' } = req.body;
   if (!opportunity) return res.status(400).json({ error: 'Opportunité requise' });
 
@@ -784,10 +868,10 @@ Exigences strictes :
       automationActions: Array.isArray(parsed.automationActions) ? parsed.automationActions : [],
     };
 
-    savePersistentKit(opportunity.id, { digital: kitData });
-    recordGeminiCall(duration, true, undefined, { kitsGenerated: 1 });
+    await savePersistentKit(userUid, opportunity.id, { digital: kitData });
+    await recordGeminiCall(duration, true, undefined, { kitsGenerated: 1 }, userUid);
 
-    addValidationItem({
+    await addValidationItem(userUid, {
       title: `Message de prospection LinkedIn - ${opportunity.title}`,
       category: 'prospection_message',
       targetRecipient: 'Directeurs et Décideurs ciblés',
@@ -796,7 +880,7 @@ Exigences strictes :
       countryCode,
     });
 
-    addValidationItem({
+    await addValidationItem(userUid, {
       title: `Email de cadrage B2B - ${opportunity.title}`,
       category: 'prospection_message',
       targetRecipient: 'Comptabilité & Direction Générale',
@@ -805,7 +889,7 @@ Exigences strictes :
       countryCode,
     });
 
-    appendAuditLog({
+    await appendAuditLog(userUid, {
       actionType: 'kit_generated',
       actor: 'gemini_api',
       description: `Dossier de lancement numérique généré pour : ${opportunity.title}`,
@@ -816,7 +900,7 @@ Exigences strictes :
     res.json({ status: 'ok', kit: kitData });
   } catch (err: any) {
     const duration = Date.now() - startTime;
-    recordGeminiCall(duration, false, err?.message || 'Erreur génération kit digital');
+    await recordGeminiCall(duration, false, err?.message || 'Erreur génération kit digital', undefined, userUid);
     res.status(500).json({ error: err?.message || 'Erreur génération dossier numérique' });
   }
 });
@@ -824,6 +908,7 @@ Exigences strictes :
 // ----------------- PHYSIQUE : PLAN D'EXPLOITATION OPÉRATIONNEL -----------------
 
 app.post('/api/kits/generate-physical', async (req, res) => {
+  const userUid = (req as AuthRequest).userUid!;
   const { opportunity, countryCode = 'NER' } = req.body;
   if (!opportunity) return res.status(400).json({ error: 'Opportunité requise' });
 
@@ -1001,12 +1086,12 @@ Exigences strictes :
       risksAndMitigation: Array.isArray(parsed.risksAndMitigation) ? parsed.risksAndMitigation : [],
     };
 
-    savePersistentKit(opportunity.id, { physical: planData });
-    recordGeminiCall(duration, true, undefined, { kitsGenerated: 1 });
+    await savePersistentKit(userUid, opportunity.id, { physical: planData });
+    await recordGeminiCall(duration, true, undefined, { kitsGenerated: 1 }, userUid);
 
     if (planData.regulatoryAuthorizations.length > 0) {
       const firstStep = planData.regulatoryAuthorizations[0];
-      addValidationItem({
+      await addValidationItem(userUid, {
         title: `Démarche administrative : ${firstStep.authority} - ${opportunity.title}`,
         category: 'administrative_step',
         targetRecipient: firstStep.authority,
@@ -1016,7 +1101,7 @@ Exigences strictes :
       });
     }
 
-    appendAuditLog({
+    await appendAuditLog(userUid, {
       actionType: 'kit_generated',
       actor: 'gemini_api',
       description: `Plan d exploitation physique généré pour : ${opportunity.title}`,
@@ -1027,115 +1112,339 @@ Exigences strictes :
     res.json({ status: 'ok', plan: planData });
   } catch (err: any) {
     const duration = Date.now() - startTime;
-    recordGeminiCall(duration, false, err?.message || 'Erreur génération plan physique');
+    await recordGeminiCall(duration, false, err?.message || 'Erreur génération plan physique', undefined, userUid);
     res.status(500).json({ error: err?.message || 'Erreur génération plan d exploitation' });
   }
 });
 
-app.get('/api/kits/:oppId', (req, res) => {
-  const oppId = req.params.oppId;
-  const kits = getPersistentKits();
-  res.json({ status: 'ok', kit: kits[oppId] || {} });
-});
-
-app.put('/api/kits/:oppId/physical', (req, res) => {
-  const oppId = req.params.oppId;
-  const updatedPlan = req.body;
-  if (!updatedPlan) return res.status(400).json({ error: 'Plan requis' });
-
-  savePersistentKit(oppId, { physical: updatedPlan });
-  appendAuditLog({
-    actionType: 'hypothesis_updated',
-    actor: 'utilisateur',
-    description: `Hypothèses du plan d exploitation physique mises à jour manuellement pour l opportunité : ${updatedPlan.opportunityTitle || oppId}`,
-    provenanceDetails: `Nouveau budget initial : ${updatedPlan.investmentBudget?.totalInitial?.toLocaleString()} ${updatedPlan.investmentBudget?.currency}`,
-    status: 'success',
-  });
-
-  res.json({ status: 'ok', plan: updatedPlan });
-});
-
-// ----------------- FILE "À VALIDER" (Rien n'est envoyé sans validation) -----------------
-
-app.get('/api/validation', (req, res) => {
-  const queue = getValidationQueue();
-  res.json({ status: 'ok', items: queue });
-});
-
-app.post('/api/validation', (req, res) => {
-  const { title, category, targetRecipient, contentPayload, sourceOpportunityTitle, countryCode } = req.body;
-  if (!title || !contentPayload) {
-    return res.status(400).json({ error: 'Titre et contenu requis' });
+app.get('/api/kits/:oppId', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const oppId = req.params.oppId;
+    const kits = await getPersistentKits(userUid);
+    res.json({ status: 'ok', kit: kits[oppId] || {} });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du chargement du dossier.' });
   }
-  const item = addValidationItem({
-    title,
-    category: category || 'prospection_message',
-    targetRecipient,
-    contentPayload,
-    sourceOpportunityTitle: sourceOpportunityTitle || 'Action manuelle',
-    countryCode: countryCode || 'NER',
-  });
-  res.json({ status: 'ok', item });
 });
 
-app.put('/api/validation/:id', (req, res) => {
-  const { status, reviewNotes } = req.body;
-  if (!['valide', 'rejete'].includes(status)) {
-    return res.status(400).json({ error: 'Statut valide ou rejete requis' });
+app.put('/api/kits/:oppId/physical', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const oppId = req.params.oppId;
+    const updatedPlan = req.body;
+    if (!updatedPlan) return res.status(400).json({ error: 'Plan requis' });
+
+    await savePersistentKit(userUid, oppId, { physical: updatedPlan });
+    await appendAuditLog(userUid, {
+      actionType: 'hypothesis_updated',
+      actor: 'utilisateur',
+      description: `Hypothèses du plan d exploitation physique mises à jour manuellement pour l opportunité : ${updatedPlan.opportunityTitle || oppId}`,
+      provenanceDetails: `Nouveau budget initial : ${updatedPlan.investmentBudget?.totalInitial?.toLocaleString()} ${updatedPlan.investmentBudget?.currency}`,
+      status: 'success',
+    });
+
+    res.json({ status: 'ok', plan: updatedPlan });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la mise à jour du plan.' });
   }
-  const updated = updateValidationStatus(req.params.id, status, reviewNotes);
-  if (!updated) return res.status(404).json({ error: 'Élément introuvable' });
-  res.json({ status: 'ok', item: updated });
+});
+
+// ----------------- REAL DELIVERY CHANNELS & FILE "À VALIDER" -----------------
+
+app.get('/api/delivery/status', (req, res) => {
+  res.json({
+    status: 'ok',
+    channels: getDeliveryChannelStatus(),
+  });
+});
+
+app.get('/api/validation', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const queue = await getValidationQueue(userUid);
+    res.json({ status: 'ok', items: queue });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du chargement de la file de validation.' });
+  }
+});
+
+app.post('/api/validation', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const {
+      title,
+      category,
+      targetRecipient,
+      contentPayload,
+      sourceOpportunityTitle,
+      countryCode,
+    } = req.body;
+    if (!title || !contentPayload) {
+      return res.status(400).json({ error: 'Titre et contenu requis' });
+    }
+    const item = await addValidationItem(userUid, {
+      title,
+      category: category || 'prospection_message',
+      targetRecipient,
+      contentPayload,
+      sourceOpportunityTitle: sourceOpportunityTitle || 'Action manuelle',
+      countryCode: countryCode || 'NER',
+    });
+    res.json({ status: 'ok', item });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de l ajout en file de validation.' });
+  }
+});
+
+app.put('/api/validation/:id', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const { status, reviewNotes, sendNow, deliveryChannel, deliveryTarget, deliverySubject } = req.body || {};
+    if (!['valide', 'rejete'].includes(status)) {
+      return res.status(400).json({ error: 'Statut valide ou rejete requis' });
+    }
+
+    const existing = await getValidationItemById(userUid, req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Élément introuvable' });
+    }
+
+    if (
+      status === 'valide' &&
+      sendNow === true &&
+      deliveryChannel &&
+      deliveryChannel !== 'none'
+    ) {
+      const channel = deliveryChannel as DeliveryChannel;
+      const recipient = (deliveryTarget || existing.targetRecipient || '').trim();
+      const subject = (deliverySubject || existing.title).trim();
+
+      const dispatchResult = await dispatchValidatedMessage({
+        channel,
+        recipient,
+        subject,
+        content: existing.contentPayload,
+        metadata: {
+          validationItemId: existing.id,
+          title: existing.title,
+          countryCode: existing.countryCode,
+          sourceOpportunityTitle: existing.sourceOpportunityTitle,
+        },
+      });
+
+      if (!dispatchResult.success) {
+        const failedItem = await updateValidationDelivery(userUid, existing.id, {
+          deliveryChannel: channel,
+          deliveryStatus: 'failed',
+          deliveryTarget: recipient || undefined,
+          deliverySubject: subject || undefined,
+          deliveryProvider: dispatchResult.provider,
+          deliveryError: dispatchResult.error,
+        });
+        await appendAuditLog(userUid, {
+          actionType: 'delivery_failed',
+          actor: 'agent_serveur',
+          description: `Échec de l’envoi (${channel}) pour « ${existing.title} » : ${dispatchResult.error}`,
+          provenanceDetails: `Destinataire : ${recipient || 'non renseigné'} | Fournisseur : ${dispatchResult.provider}`,
+          status: 'error',
+        });
+        return res.status(422).json({
+          status: 'error',
+          error: dispatchResult.error || 'Échec de l’envoi réel.',
+          item: failedItem,
+          delivery: dispatchResult,
+        });
+      }
+
+      await updateValidationStatus(userUid, existing.id, 'valide', reviewNotes);
+      const deliveredItem = await updateValidationDelivery(userUid, existing.id, {
+        deliveryChannel: channel,
+        deliveryStatus: 'sent',
+        deliveryTarget: recipient,
+        deliverySubject: subject,
+        deliveryProvider: dispatchResult.provider,
+        deliveryMessageId: dispatchResult.messageId,
+        deliveryError: '',
+        deliveredAt: new Date().toISOString(),
+      });
+
+      await appendAuditLog(userUid, {
+        actionType: channel === 'email' ? 'email_sent' : 'message_sent',
+        actor: 'utilisateur',
+        description: `${channel === 'email' ? 'E-mail' : channel === 'whatsapp' ? 'Message WhatsApp' : 'Webhook'} envoyé réellement à ${recipient || 'destinataire webhook'} (${existing.title}).`,
+        provenanceDetails: `Fournisseur : ${dispatchResult.provider}${dispatchResult.messageId ? ` · ID : ${dispatchResult.messageId}` : ''}`,
+        status: 'success',
+      });
+
+      return res.json({ status: 'ok', item: deliveredItem, delivery: dispatchResult });
+    }
+
+    const updated = await updateValidationStatus(userUid, req.params.id, status, reviewNotes);
+    if (!updated) return res.status(404).json({ error: 'Élément introuvable' });
+    res.json({ status: 'ok', item: updated });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la mise à jour de validation.' });
+  }
+});
+
+app.post('/api/validation/:id/send', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const { deliveryChannel, deliveryTarget, deliverySubject, reviewNotes } = req.body || {};
+
+    if (!['email', 'whatsapp', 'webhook'].includes(deliveryChannel)) {
+      return res.status(400).json({ error: 'Canal d’envoi valide requis (email, whatsapp ou webhook).' });
+    }
+
+    const existing = await getValidationItemById(userUid, req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Élément introuvable' });
+    }
+
+    const channel = deliveryChannel as DeliveryChannel;
+    const recipient = (deliveryTarget || existing.deliveryTarget || existing.targetRecipient || '').trim();
+    const subject = (deliverySubject || existing.deliverySubject || existing.title).trim();
+
+    const dispatchResult = await dispatchValidatedMessage({
+      channel,
+      recipient,
+      subject,
+      content: existing.contentPayload,
+      metadata: {
+        validationItemId: existing.id,
+        title: existing.title,
+        countryCode: existing.countryCode,
+        sourceOpportunityTitle: existing.sourceOpportunityTitle,
+      },
+    });
+
+    if (!dispatchResult.success) {
+      const failedItem = await updateValidationDelivery(userUid, existing.id, {
+        deliveryChannel: channel,
+        deliveryStatus: 'failed',
+        deliveryTarget: recipient || undefined,
+        deliverySubject: subject || undefined,
+        deliveryProvider: dispatchResult.provider,
+        deliveryError: dispatchResult.error,
+      });
+      await appendAuditLog(userUid, {
+        actionType: 'delivery_failed',
+        actor: 'agent_serveur',
+        description: `Échec de l’envoi (${channel}) pour « ${existing.title} » : ${dispatchResult.error}`,
+        provenanceDetails: `Destinataire : ${recipient || 'non renseigné'} | Fournisseur : ${dispatchResult.provider}`,
+        status: 'error',
+      });
+      return res.status(422).json({
+        status: 'error',
+        error: dispatchResult.error || 'Échec de l’envoi réel.',
+        item: failedItem,
+        delivery: dispatchResult,
+      });
+    }
+
+    if (existing.status !== 'valide') {
+      await updateValidationStatus(userUid, existing.id, 'valide', reviewNotes);
+    }
+
+    const deliveredItem = await updateValidationDelivery(userUid, existing.id, {
+      deliveryChannel: channel,
+      deliveryStatus: 'sent',
+      deliveryTarget: recipient,
+      deliverySubject: subject,
+      deliveryProvider: dispatchResult.provider,
+      deliveryMessageId: dispatchResult.messageId,
+      deliveryError: '',
+      deliveredAt: new Date().toISOString(),
+    });
+
+    await appendAuditLog(userUid, {
+      actionType: channel === 'email' ? 'email_sent' : 'message_sent',
+      actor: 'utilisateur',
+      description: `${channel === 'email' ? 'E-mail' : channel === 'whatsapp' ? 'Message WhatsApp' : 'Webhook'} envoyé réellement à ${recipient || 'destinataire webhook'} (${existing.title}).`,
+      provenanceDetails: `Fournisseur : ${dispatchResult.provider}${dispatchResult.messageId ? ` · ID : ${dispatchResult.messageId}` : ''}`,
+      status: 'success',
+    });
+
+    res.json({ status: 'ok', item: deliveredItem, delivery: dispatchResult });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de l’envoi réel.' });
+  }
 });
 
 // ----------------- JOURNAL DE TOUTES LES ACTIONS (Audit Log) -----------------
 
-app.get('/api/audit', (req, res) => {
-  const log = getAuditLog();
-  res.json({ status: 'ok', entries: log });
+app.get('/api/audit', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const log = await getAuditLog(userUid);
+    res.json({ status: 'ok', entries: log });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du chargement du journal d’audit.' });
+  }
 });
 
 // ----------------- MODULE ENCAISSEMENTS RÉELS (Ventes Réelles vs Prévisions) -----------------
 
-app.get('/api/sales', (req, res) => {
-  const sales = getRealSales();
-  res.json({ status: 'ok', sales });
-});
-
-app.post('/api/sales', (req, res) => {
-  const { clientName, opportunityTitle, amount, currency, date, status, paymentMethod, notes, reference } = req.body;
-  if (!clientName || !amount) {
-    return res.status(400).json({ error: 'Client et montant requis' });
+app.get('/api/sales', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const sales = await getRealSales(userUid);
+    res.json({ status: 'ok', sales });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du chargement des encaissements.' });
   }
-  const sale = addRealSale({
-    clientName,
-    opportunityTitle: opportunityTitle || 'Vente directe',
-    amount: Number(amount) || 0,
-    currency: currency || 'XOF',
-    date: date || new Date().toISOString().split('T')[0],
-    status: status || 'encaisse',
-    paymentMethod: paymentMethod || 'Airtel Money / Mobile Money',
-    notes,
-    reference,
-  });
-  res.json({ status: 'ok', sale });
 });
 
-app.delete('/api/sales/:id', (req, res) => {
-  const ok = deleteRealSale(req.params.id);
-  res.json({ status: ok ? 'ok' : 'error' });
+app.post('/api/sales', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const { clientName, opportunityTitle, amount, currency, date, status, paymentMethod, notes, reference } = req.body;
+    if (!clientName || !amount) {
+      return res.status(400).json({ error: 'Client et montant requis' });
+    }
+    const sale = await addRealSale(userUid, {
+      clientName,
+      opportunityTitle: opportunityTitle || 'Vente directe',
+      amount: Number(amount) || 0,
+      currency: currency || 'XOF',
+      date: date || new Date().toISOString().split('T')[0],
+      status: status || 'encaisse',
+      paymentMethod: paymentMethod || 'Airtel Money / Mobile Money',
+      notes,
+      reference,
+    });
+    res.json({ status: 'ok', sale });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de l’enregistrement de la vente.' });
+  }
+});
+
+app.delete('/api/sales/:id', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const ok = await deleteRealSale(userUid, req.params.id);
+    res.json({ status: ok ? 'ok' : 'error' });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la suppression de la vente.' });
+  }
 });
 
 // ----------------- COMPTEUR D'UTILISATION (Pas de quota arbitraire) -----------------
 
-app.get('/api/usage', (req, res) => {
-  const stats = getUsageStats();
-  res.json({ status: 'ok', stats });
+app.get('/api/usage', async (req, res) => {
+  try {
+    const stats = await getUsageStats();
+    res.json({ status: 'ok', stats });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du chargement des statistiques.' });
+  }
 });
 
 
 // Generate deep custom execution blueprint (strict Gemini, no fake fallback)
 app.post('/api/blueprint/generate', async (req, res) => {
+  const userUid = (req as AuthRequest).userUid!;
   const { sectorId, sectorName, niche, targetRevenue, capitalBudget, userSkills, businessModel } = req.body;
 
   if (!hasConfiguredGeminiKey()) {
@@ -1243,7 +1552,7 @@ Fournis une réponse structurée en JSON strict contenant :
 
     const duration = Date.now() - startTime;
     const parsed = JSON.parse(response.text || '{}');
-    const savedRecord = saveBlueprintRecord({
+    const savedRecord = await saveBlueprintRecord(userUid, {
       sectorId: sectorId || 'ai_deeptech',
       sectorName: resolvedSectorName,
       niche: resolvedNiche,
@@ -1253,27 +1562,38 @@ Fournis une réponse structurée en JSON strict contenant :
       businessModel: resolvedModel,
       blueprint: parsed,
     });
-    recordGeminiCall(duration, true);
+    await recordGeminiCall(duration, true, undefined, undefined, userUid);
     return res.json({ success: true, blueprint: parsed, record: savedRecord, source: 'ai' });
   } catch (apiError: any) {
     const duration = Date.now() - startTime;
     const message = apiError?.message || 'Erreur lors de la génération du blueprint via Gemini.';
-    recordGeminiCall(duration, false, message);
+    await recordGeminiCall(duration, false, message, undefined, userUid);
     return res.status(500).json({ success: false, error: message });
   }
 });
 
-app.get('/api/blueprints', (req, res) => {
-  res.json({ status: 'ok', blueprints: getSavedBlueprints() });
+app.get('/api/blueprints', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    res.json({ status: 'ok', blueprints: await getSavedBlueprints(userUid) });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du chargement des plans.' });
+  }
 });
 
-app.delete('/api/blueprints/:id', (req, res) => {
-  const remaining = deleteSavedBlueprint(req.params.id);
-  res.json({ status: 'ok', blueprints: remaining });
+app.delete('/api/blueprints/:id', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const remaining = await deleteSavedBlueprint(userUid, req.params.id);
+    res.json({ status: 'ok', blueprints: remaining });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la suppression du plan.' });
+  }
 });
 
 // Cross-sector arbitrage & synergy generator (strict Gemini, no fake fallback)
 app.post('/api/arbitrage/analyze', async (req, res) => {
+  const userUid = (req as AuthRequest).userUid!;
   const { sectorA, sectorB, riskTolerance } = req.body;
 
   if (!sectorA || !sectorB) {
@@ -1329,33 +1649,44 @@ Réponds en JSON avec :
 
     const duration = Date.now() - startTime;
     const parsed = JSON.parse(response.text || '{}');
-    const savedRecord = saveArbitrageRecord({
+    const savedRecord = await saveArbitrageRecord(userUid, {
       sectorA,
       sectorB,
       riskTolerance: riskTolerance || 'Équilibré',
       analysis: parsed,
     });
-    recordGeminiCall(duration, true);
+    await recordGeminiCall(duration, true, undefined, undefined, userUid);
     return res.json({ success: true, analysis: parsed, record: savedRecord, source: 'ai' });
   } catch (apiError: any) {
     const duration = Date.now() - startTime;
     const message = apiError?.message || 'Erreur lors de l analyse d arbitrage via Gemini.';
-    recordGeminiCall(duration, false, message);
+    await recordGeminiCall(duration, false, message, undefined, userUid);
     return res.status(500).json({ success: false, error: message });
   }
 });
 
-app.get('/api/arbitrages', (req, res) => {
-  res.json({ status: 'ok', arbitrages: getSavedArbitrages() });
+app.get('/api/arbitrages', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    res.json({ status: 'ok', arbitrages: await getSavedArbitrages(userUid) });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du chargement des arbitrages.' });
+  }
 });
 
-app.delete('/api/arbitrages/:id', (req, res) => {
-  const remaining = deleteSavedArbitrage(req.params.id);
-  res.json({ status: 'ok', arbitrages: remaining });
+app.delete('/api/arbitrages/:id', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const remaining = await deleteSavedArbitrage(userUid, req.params.id);
+    res.json({ status: 'ok', arbitrages: remaining });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la suppression de l arbitrage.' });
+  }
 });
 
 // Endpoint: Generate Full Operational Launchpad Circuit (strict Gemini, no fake fallback)
 app.post('/api/launchpad/generate', async (req, res) => {
+  const userUid = (req as AuthRequest).userUid!;
   const { sectorName, opportunityTitle } = req.body;
 
   if (!hasConfiguredGeminiKey()) {
@@ -1513,29 +1844,39 @@ Génère en JSON strict :
 
     const duration = Date.now() - startTime;
     const parsed = JSON.parse(response.text || '{}');
-    const savedRecord = saveLaunchpadRecord({
+    const savedRecord = await saveLaunchpadRecord(userUid, {
       sectorId: req.body?.sectorId || 'ai_deeptech',
       sectorName: resolvedSector,
       opportunityTitle: resolvedTitle,
       circuit: parsed,
     });
-    recordGeminiCall(duration, true);
+    await recordGeminiCall(duration, true, undefined, undefined, userUid);
     return res.json({ success: true, circuit: parsed, record: savedRecord, source: 'ai' });
   } catch (apiError: any) {
     const duration = Date.now() - startTime;
     const message = apiError?.message || 'Erreur lors de la génération du circuit Launchpad via Gemini.';
-    recordGeminiCall(duration, false, message);
+    await recordGeminiCall(duration, false, message, undefined, userUid);
     return res.status(500).json({ success: false, error: message });
   }
 });
 
-app.get('/api/launchpads', (req, res) => {
-  res.json({ status: 'ok', launchpads: getSavedLaunchpads() });
+app.get('/api/launchpads', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    res.json({ status: 'ok', launchpads: await getSavedLaunchpads(userUid) });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du chargement des circuits.' });
+  }
 });
 
-app.delete('/api/launchpads/:id', (req, res) => {
-  const remaining = deleteSavedLaunchpad(req.params.id);
-  res.json({ status: 'ok', launchpads: remaining });
+app.delete('/api/launchpads/:id', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const remaining = await deleteSavedLaunchpad(userUid, req.params.id);
+    res.json({ status: 'ok', launchpads: remaining });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la suppression du circuit.' });
+  }
 });
 
 

@@ -12,9 +12,11 @@ import { BlueprintView } from './components/BlueprintView';
 import { LaunchpadView } from './components/LaunchpadView';
 import { ArbitrageView } from './components/ArbitrageView';
 import { PipelineView } from './components/PipelineView';
+import type { User } from 'firebase/auth';
 import { SectorDetailModal } from './components/SectorDetailModal';
 import { PasswordGateModal } from './components/PasswordGateModal';
 import { checkAuthStatus, clearStoredPassword } from './utils/auth';
+import { signOutGoogle, subscribeFirebaseAuth } from './lib/firebase';
 import {
   restartLiveStream,
   stopLiveStream,
@@ -44,55 +46,91 @@ export default function App() {
   const [selectedNicheForModal, setSelectedNicheForModal] = useState<OpportunityNiche | null>(null);
   const [selectedOpportunityForKit, setSelectedOpportunityForKit] = useState<StrictOpportunity | null>(null);
 
-  // Authentication barrier state (APP_PASSWORD)
-  const [authChecked, setAuthChecked] = useState<boolean>(false);
+  // Authentication barrier state (APP_PASSWORD + Google Sign-In)
+  const [passwordChecked, setPasswordChecked] = useState<boolean>(false);
   const [isAuthRequired, setIsAuthRequired] = useState<boolean>(false);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
-  const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
+  const [isPasswordVerified, setIsPasswordVerified] = useState<boolean>(true);
+  const [firebaseReady, setFirebaseReady] = useState<boolean>(false);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [sessionSyncedUid, setSessionSyncedUid] = useState<string | null>(null);
   const [liveRates, setLiveRates] = useState<LiveFxRates | null>(null);
+
+  const authChecked = passwordChecked && firebaseReady;
+  const needsPassword = isAuthRequired && !isPasswordVerified;
+  const needsGoogleAuth = !firebaseUser;
+  const isAuthenticated = authChecked && !needsPassword && !needsGoogleAuth;
+  const showAuthModal = authChecked && (needsPassword || needsGoogleAuth);
 
   useEffect(() => {
     checkAuthStatus()
       .then((status) => {
         setIsAuthRequired(status.required);
-        if (status.required && !status.authenticated) {
-          setIsAuthenticated(false);
-          setShowPasswordModal(true);
-        } else {
-          setIsAuthenticated(true);
-        }
+        setIsPasswordVerified(!status.required || status.authenticated);
       })
       .finally(() => {
-        setAuthChecked(true);
+        setPasswordChecked(true);
       });
 
-    const handleUnauthorized = () => {
+    const unsubAuth = subscribeFirebaseAuth((user) => {
+      setFirebaseUser(user);
+      if (!user) {
+        setSessionSyncedUid(null);
+      }
+      setFirebaseReady(true);
+    });
+
+    const handleUnauthorized = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ code?: string }>).detail;
       stopLiveStream();
-      setIsAuthenticated(false);
-      setShowPasswordModal(true);
+      if (detail?.code === 'APP_PASSWORD_REQUIRED') {
+        setIsPasswordVerified(false);
+      } else {
+        signOutGoogle().catch(() => {});
+        setFirebaseUser(null);
+        setSessionSyncedUid(null);
+      }
     };
 
     window.addEventListener('omnivectis:unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('omnivectis:unauthorized', handleUnauthorized);
+    return () => {
+      unsubAuth();
+      window.removeEventListener('omnivectis:unauthorized', handleUnauthorized);
+    };
   }, []);
 
-  // Unified real-time SSE lifecycle + Live FX rates sync
+  // Unified real-time SSE lifecycle + Live FX rates sync + initial session migration
   useEffect(() => {
-    if (!authChecked || !isAuthenticated) {
+    if (!isAuthenticated || !firebaseUser) {
       stopLiveStream();
       return;
     }
 
-    restartLiveStream();
+    let cancelled = false;
 
-    fetch('/api/rates/live')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.rates) {
-          setLiveRates(data.rates);
+    const bootstrapSession = async () => {
+      try {
+        const res = await fetch('/api/auth/session');
+        if (res.ok && !cancelled) {
+          setSessionSyncedUid(firebaseUser.uid);
         }
-      })
-      .catch(() => {});
+      } catch {
+        // non-fatal, individual routes handle auth cleanly
+      }
+
+      if (cancelled) return;
+      restartLiveStream();
+
+      fetch('/api/rates/live')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!cancelled && data?.rates) {
+            setLiveRates(data.rates);
+          }
+        })
+        .catch(() => {});
+    };
+
+    bootstrapSession();
 
     const applySignalsFx = (payload: SignalsSnapshotPayload) => {
       if (payload?.rates) {
@@ -104,10 +142,11 @@ export default function App() {
     const unsubUpd = subscribeLiveEvent<SignalsSnapshotPayload>('signals_updated', applySignalsFx);
 
     return () => {
+      cancelled = true;
       unsubSnap();
       unsubUpd();
     };
-  }, [authChecked, isAuthenticated]);
+  }, [isAuthenticated, firebaseUser]);
 
   // Cross-view state transfer
   const [blueprintSectorId, setBlueprintSectorId] = useState<SectorCategory>('ai_deeptech');
@@ -146,9 +185,14 @@ export default function App() {
   const [pipelineHydrated, setPipelineHydrated] = useState<boolean>(false);
   const skipNextPipelineSyncRef = useRef<boolean>(false);
 
-  // Fetch persistent pipeline from server on mount and after authentication
+  // Fetch persistent pipeline from server once authenticated and session synced
   useEffect(() => {
-    if (!authChecked || !isAuthenticated) return;
+    if (!isAuthenticated || !firebaseUser) {
+      setPipelineHydrated(false);
+      return;
+    }
+    if (sessionSyncedUid !== firebaseUser.uid) return;
+
     let cancelled = false;
     fetch('/api/pipeline')
       .then(async (res) => {
@@ -182,11 +226,11 @@ export default function App() {
       cancelled = true;
       unsubPipeline();
     };
-  }, [authChecked, isAuthenticated]);
+  }, [isAuthenticated, firebaseUser, sessionSyncedUid]);
 
   // Save to localStorage and sync to server once hydrated
   useEffect(() => {
-    if (!pipelineHydrated) return;
+    if (!pipelineHydrated || !isAuthenticated) return;
     if (skipNextPipelineSyncRef.current) {
       skipNextPipelineSyncRef.current = false;
       try {
@@ -206,7 +250,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-  }, [pipelineItems, pipelineHydrated]);
+  }, [pipelineItems, pipelineHydrated, isAuthenticated]);
 
   // Handlers for interactions between views
   const handleSelectSector = (sector: EconomicSector, niche?: OpportunityNiche) => {
@@ -308,14 +352,38 @@ export default function App() {
           onLock={() => {
             stopLiveStream();
             clearStoredPassword();
-            setIsAuthenticated(false);
-            setShowPasswordModal(true);
+            setIsPasswordVerified(false);
+          }}
+          userEmail={firebaseUser?.email || null}
+          onSignOut={() => {
+            stopLiveStream();
+            setPipelineHydrated(false);
+            setPipelineItems([]);
+            try {
+              localStorage.removeItem(STORAGE_KEY);
+            } catch {
+              // ignore
+            }
+            signOutGoogle().catch(() => {});
           }}
           onOpenMobileNav={() => setMobileNavOpen(true)}
         />
 
         {/* Main Content Viewport */}
         <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {!isAuthenticated || sessionSyncedUid !== firebaseUser?.uid ? (
+          <div className="py-24 flex flex-col items-center justify-center text-center space-y-3 text-slate-400">
+            <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
+            <p className="text-xs font-medium text-slate-400">
+              {!authChecked
+                ? 'Initialisation de la session sécurisée...'
+                : showAuthModal
+                ? 'Authentification requise pour accéder à votre espace.'
+                : 'Synchronisation de votre espace personnel...'}
+            </p>
+          </div>
+        ) : (
+          <>
         {activeTab === 'opportunities' && (
           <OpportunitiesView
             countryCode={countryCode}
@@ -461,6 +529,8 @@ export default function App() {
             }}
           />
         )}
+          </>
+        )}
         </main>
 
         {/* Quiet Editorial Footer */}
@@ -533,12 +603,17 @@ export default function App() {
         }}
       />
 
-      {/* Password Protection Barrier (APP_PASSWORD) */}
+      {/* Auth Barrier (Optional APP_PASSWORD + Google Sign-In) */}
       <PasswordGateModal
-        isOpen={showPasswordModal}
-        onSuccess={() => {
-          setIsAuthenticated(true);
-          setShowPasswordModal(false);
+        isOpen={showAuthModal}
+        needsPassword={needsPassword}
+        needsGoogleAuth={needsGoogleAuth}
+        userEmail={firebaseUser?.email || null}
+        onPasswordSuccess={() => {
+          setIsPasswordVerified(true);
+        }}
+        onGoogleSuccess={() => {
+          // Firebase onAuthStateChanged updates firebaseUser automatically
         }}
       />
     </div>

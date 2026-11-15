@@ -1,5 +1,5 @@
 import React from 'react';
-import { DollarSign, Lock, Menu } from 'lucide-react';
+import { DollarSign, Lock, LogOut, Menu } from 'lucide-react';
 import { CountryCode } from '../types/market';
 import { GEO_PROFILES } from '../data/geoProfiles';
 
@@ -36,6 +36,8 @@ interface HeaderProps {
   countryCode: CountryCode;
   isProtected?: boolean;
   onLock?: () => void;
+  userEmail?: string | null;
+  onSignOut?: () => void;
   onOpenMobileNav?: () => void;
 }
 
@@ -45,6 +47,8 @@ export const Header: React.FC<HeaderProps> = ({
   countryCode,
   isProtected,
   onLock,
+  userEmail,
+  onSignOut,
   onOpenMobileNav,
 }) => {
   const currentProfile = GEO_PROFILES[countryCode] || GEO_PROFILES.NER;
@@ -78,8 +82,17 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: 1-2 Clean Single-Line Actions */}
+      {/* Right: Clean Single-Line Account & Action Controls */}
       <div className="flex items-center gap-2.5 shrink-0">
+        {userEmail && (
+          <span
+            className="hidden md:inline-block max-w-[180px] truncate text-[11px] font-mono text-slate-400"
+            title={userEmail}
+          >
+            {userEmail}
+          </span>
+        )}
+
         {isProtected && onLock && (
           <button
             onClick={onLock}
@@ -88,6 +101,17 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Lock className="w-3.5 h-3.5 text-slate-400" />
             <span className="hidden sm:inline">Verrouiller</span>
+          </button>
+        )}
+
+        {userEmail && onSignOut && (
+          <button
+            onClick={onSignOut}
+            className="cursor-pointer px-2.5 py-1.5 rounded-lg bg-[#11141C] hover:bg-[#171C28] border border-white/[0.09] text-xs font-medium text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+            title="Se déconnecter du compte Google"
+          >
+            <LogOut className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden sm:inline">Déconnexion</span>
           </button>
         )}
 

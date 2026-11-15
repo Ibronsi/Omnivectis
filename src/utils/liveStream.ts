@@ -1,4 +1,5 @@
 import { SignalsSnapshotPayload } from '../types/market';
+import { getCachedIdToken, refreshIdToken } from '../lib/firebase';
 import { getStoredPassword } from './auth';
 
 export type SseConnectionStatus = 'connecting' | 'live' | 'error' | 'idle';
@@ -52,13 +53,30 @@ function dispatchLiveEvent(eventName: string, data: any) {
   }
 }
 
-export function startLiveStream(): void {
+export function startLiveStream(idTokenOverride?: string): void {
   if (typeof window === 'undefined' || eventSource) return;
 
-  const token = getStoredPassword();
-  const streamUrl = token
-    ? `/api/signals/stream?token=${encodeURIComponent(token)}`
-    : '/api/signals/stream';
+  const idToken = idTokenOverride || getCachedIdToken();
+  if (!idToken) {
+    refreshIdToken()
+      .then((fresh) => {
+        if (fresh && !eventSource) {
+          startLiveStream(fresh);
+        }
+      })
+      .catch(() => {});
+    return;
+  }
+
+  const params = new URLSearchParams();
+  params.set('idToken', idToken);
+
+  const appPasswordToken = getStoredPassword();
+  if (appPasswordToken) {
+    params.set('token', appPasswordToken);
+  }
+
+  const streamUrl = `/api/signals/stream?${params.toString()}`;
 
   setSseStatus('connecting');
   const es = new EventSource(streamUrl);
@@ -103,9 +121,9 @@ export function stopLiveStream(): void {
   setSseStatus('idle');
 }
 
-export function restartLiveStream(): void {
+export function restartLiveStream(idTokenOverride?: string): void {
   stopLiveStream();
-  startLiveStream();
+  startLiveStream(idTokenOverride);
 }
 
 export function subscribeLiveEvent<T = any>(

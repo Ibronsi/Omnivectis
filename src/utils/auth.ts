@@ -1,3 +1,5 @@
+import { getCachedIdToken, refreshIdToken } from '../lib/firebase';
+
 export const PASSWORD_STORAGE_KEY = 'omnivectis_app_password';
 
 export function getStoredPassword(): string {
@@ -42,24 +44,67 @@ export function setupFetchInterceptor(): void {
       url = (input as Request).url;
     }
 
-    // Attach password header if targeting an /api route
+    // Attach password and Firebase Bearer ID token headers if targeting an /api route
     if (url.startsWith('/api') || url.includes('/api/')) {
+      const isPublicAuthRoute =
+        url.includes('/api/health') ||
+        url.includes('/api/auth/verify') ||
+        url.includes('/api/auth/status');
+
       const storedPwd = getStoredPassword();
       const customInit: RequestInit = init ? { ...init } : {};
-      const headers = new Headers(customInit.headers || (input instanceof Request ? input.headers : {}));
+      const headers = new Headers(
+        customInit.headers || (input instanceof Request ? input.headers : {})
+      );
 
       if (storedPwd && !headers.has('x-app-password')) {
         headers.set('x-app-password', storedPwd);
       }
 
+      if (!isPublicAuthRoute && !headers.has('Authorization')) {
+        let idToken = getCachedIdToken();
+        if (!idToken) {
+          try {
+            idToken = await refreshIdToken();
+          } catch {
+            idToken = null;
+          }
+        }
+        if (idToken) {
+          headers.set('Authorization', `Bearer ${idToken}`);
+        }
+      }
+
       customInit.headers = headers;
 
-      const response = await originalFetch(input, customInit);
+      let response = await originalFetch(input, customInit);
 
-      if (response.status === 401 && !url.includes('/api/auth/verify') && !url.includes('/api/auth/status')) {
+      // Retry once with refreshed Firebase ID token if token expired
+      if (response.status === 401 && !isPublicAuthRoute) {
+        try {
+          const freshToken = await refreshIdToken();
+          if (freshToken) {
+            const retryHeaders = new Headers(headers);
+            retryHeaders.set('Authorization', `Bearer ${freshToken}`);
+            response = await originalFetch(input, { ...customInit, headers: retryHeaders });
+          }
+        } catch {
+          // ignore refresh failure
+        }
+      }
+
+      if (response.status === 401 && !isPublicAuthRoute) {
+        let code: string | undefined;
+        try {
+          const cloned = response.clone();
+          const data = await cloned.json();
+          code = data?.code;
+        } catch {
+          // ignore JSON parse errors
+        }
         window.dispatchEvent(
           new CustomEvent('omnivectis:unauthorized', {
-            detail: { url },
+            detail: { url, code },
           })
         );
       }
@@ -76,8 +121,7 @@ export function setupFetchInterceptor(): void {
       writable: true,
       configurable: true,
     });
-  } catch (e) {
-    // Fallback if window.fetch cannot be redefined via defineProperty
+  } catch {
     console.info('Using window.fetch proxy fallback');
   }
 }
@@ -98,7 +142,9 @@ export async function checkAuthStatus(): Promise<{ required: boolean; authentica
   }
 }
 
-export async function verifyPasswordOnServer(password: string): Promise<{ success: boolean; error?: string }> {
+export async function verifyPasswordOnServer(
+  password: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch('/api/auth/verify', {
       method: 'POST',

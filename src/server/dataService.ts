@@ -1,19 +1,33 @@
 import fs from 'fs';
 import path from 'path';
+import { and, desc, eq } from 'drizzle-orm';
+import { db } from '../db/index.ts';
 import {
-  CountryCode,
-  StrictOpportunity,
-  DigitalLaunchKit,
-  PhysicalExploitationPlan,
-  ValidationItem,
+  appState,
+  auditLog,
+  launchKits,
+  opportunities,
+  pipelineItems,
+  realSales,
+  savedArbitrages,
+  savedBlueprints,
+  savedLaunchpads,
+  validationQueue,
+} from '../db/schema.ts';
+import {
   AuditLogEntry,
-  RealSaleRecord,
-  UsageCounterStats,
-  SourceHealthItem,
+  CountryCode,
+  DigitalLaunchKit,
   LiveFxRates,
-  SavedBlueprintRecord,
+  PhysicalExploitationPlan,
+  RealSaleRecord,
   SavedArbitrageRecord,
+  SavedBlueprintRecord,
   SavedLaunchpadRecord,
+  SourceHealthItem,
+  StrictOpportunity,
+  UsageCounterStats,
+  ValidationItem,
 } from '../types/market.js';
 
 export interface SignalItem {
@@ -56,61 +70,35 @@ export interface PersistentPipelineItem {
 }
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
-const SIGNALS_FILE = path.join(DATA_DIR, 'signals.json');
-const SOURCE_HEALTH_FILE = path.join(DATA_DIR, 'source_health.json');
-const PIPELINE_FILE = path.join(DATA_DIR, 'pipeline.json');
-const OPPORTUNITIES_FILE = path.join(DATA_DIR, 'opportunities.json');
-const KITS_FILE = path.join(DATA_DIR, 'kits.json');
-const VALIDATION_FILE = path.join(DATA_DIR, 'validation_queue.json');
-const AUDIT_FILE = path.join(DATA_DIR, 'audit_log.json');
-const SALES_FILE = path.join(DATA_DIR, 'sales.json');
-const USAGE_FILE = path.join(DATA_DIR, 'usage_counter.json');
-const RATES_FILE = path.join(DATA_DIR, 'rates.json');
-const BLUEPRINTS_FILE = path.join(DATA_DIR, 'blueprints.json');
-const ARBITRAGES_FILE = path.join(DATA_DIR, 'arbitrages.json');
-const LAUNCHPADS_FILE = path.join(DATA_DIR, 'launchpads.json');
+const LEGACY_FILES = {
+  pipeline: path.join(DATA_DIR, 'pipeline.json'),
+  opportunities: path.join(DATA_DIR, 'opportunities.json'),
+  kits: path.join(DATA_DIR, 'kits.json'),
+  validation: path.join(DATA_DIR, 'validation_queue.json'),
+  audit: path.join(DATA_DIR, 'audit_log.json'),
+  sales: path.join(DATA_DIR, 'sales.json'),
+  blueprints: path.join(DATA_DIR, 'blueprints.json'),
+  arbitrages: path.join(DATA_DIR, 'arbitrages.json'),
+  launchpads: path.join(DATA_DIR, 'launchpads.json'),
+  signals: path.join(DATA_DIR, 'signals.json'),
+  sourceHealth: path.join(DATA_DIR, 'source_health.json'),
+  rates: path.join(DATA_DIR, 'rates.json'),
+  usage: path.join(DATA_DIR, 'usage_counter.json'),
+};
 
-// Ensure data dir exists
-if (!fs.existsSync(DATA_DIR)) {
-  try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  } catch (e) {
-    console.error('Failed to create data dir:', e);
-  }
-}
-
-function loadRatesFromDisk(): LiveFxRates | null {
-  if (!fs.existsSync(RATES_FILE)) return null;
-  try {
-    const raw = fs.readFileSync(RATES_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    if (typeof parsed?.XOF === 'number' && typeof parsed?.USD === 'number') {
-      return {
-        EUR: 1,
-        XOF: parsed.XOF,
-        USD: parsed.USD,
-        lastUpdate: parsed.lastUpdate || new Date().toISOString(),
-        status: 'cache',
-      };
-    }
-  } catch (e) {
-    console.error('Error reading rates.json:', e);
-  }
-  return null;
-}
-
-// In-memory cache & subscribers
+// In-memory runtime cache (populated lazily by async requests, never via top-level DB probe)
 let cachedSignals: SignalItem[] = [];
 let cachedSourceHealth: SourceHealthItem[] = [];
-let lastHarvestTime: number = 0;
-let isHarvesting: boolean = false;
-let cachedFxRates: LiveFxRates = loadRatesFromDisk() || {
+let lastHarvestTime = 0;
+let isHarvesting = false;
+let cachedFxRates: LiveFxRates = {
   XOF: 655.957,
   USD: 1.08,
   EUR: 1,
   lastUpdate: new Date().toISOString(),
   status: 'fallback',
 };
+let fxRatesLoadedFromDb = false;
 
 type SignalsListener = (payload: {
   signals: SignalItem[];
@@ -120,7 +108,7 @@ type SignalsListener = (payload: {
   timestamp: string;
 }) => void;
 
-type WorkspaceEventListener = (eventName: string, payload: unknown) => void;
+type WorkspaceEventListener = (eventName: string, payload: unknown, userUid?: string) => void;
 
 const signalsListeners = new Set<SignalsListener>();
 const workspaceEventListeners = new Set<WorkspaceEventListener>();
@@ -139,10 +127,10 @@ export function onWorkspaceEvent(listener: WorkspaceEventListener): () => void {
   };
 }
 
-function emitWorkspaceEvent(eventName: string, payload: unknown) {
+function emitWorkspaceEvent(eventName: string, payload: unknown, userUid?: string) {
   for (const listener of workspaceEventListeners) {
     try {
-      listener(eventName, payload);
+      listener(eventName, payload, userUid);
     } catch (e) {
       console.error('Workspace event listener error:', e);
     }
@@ -155,7 +143,7 @@ function emitSignalsUpdated() {
   const payload = {
     signals: getCachedSignals(),
     sourceHealth: getSourceHealth(),
-    rates: getCachedRates(),
+    rates: cachedFxRates,
     lastSync,
     timestamp: now.toISOString(),
   };
@@ -165,6 +153,39 @@ function emitSignalsUpdated() {
     } catch (e) {
       console.error('Signals listener error:', e);
     }
+  }
+}
+
+async function getAppState<T>(key: string): Promise<T | null> {
+  try {
+    const rows = await db.select().from(appState).where(eq(appState.key, key)).limit(1);
+    if (rows.length === 0) return null;
+    return rows[0].value as T;
+  } catch (error) {
+    console.error(`Database query failed in getAppState(${key}):`, error);
+    throw new Error('Database query failed. Please try again later.', { cause: error });
+  }
+}
+
+async function setAppState(key: string, value: unknown): Promise<void> {
+  try {
+    await db
+      .insert(appState)
+      .values({
+        key,
+        value,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: appState.key,
+        set: {
+          value,
+          updatedAt: new Date(),
+        },
+      });
+  } catch (error) {
+    console.error(`Database query failed in setAppState(${key}):`, error);
+    throw new Error('Database query failed. Please try again later.', { cause: error });
   }
 }
 
@@ -198,7 +219,6 @@ function decodeHtmlEntities(str: string): string {
     .trim();
 }
 
-// Parse RSS (<item>) and Atom (<entry>) XML feeds
 function extractXmlItems(xml: string): { title: string; link: string; pubDate: string; desc: string }[] {
   const items: { title: string; link: string; pubDate: string; desc: string }[] = [];
 
@@ -256,10 +276,7 @@ function extractXmlItems(xml: string): { title: string; link: string; pubDate: s
   return items;
 }
 
-function detectCountryCode(
-  textLower: string,
-  defaultCountry?: CountryCode
-): CountryCode | undefined {
+function detectCountryCode(textLower: string, defaultCountry?: CountryCode): CountryCode | undefined {
   if (
     textLower.includes('niger') ||
     textLower.includes('niamey') ||
@@ -317,7 +334,6 @@ function detectCountryCode(
   return defaultCountry;
 }
 
-// Classify and build signal from real RSS/Atom excerpt
 function classifyArticleToSignal(
   item: { title: string; link: string; pubDate: string; desc: string },
   sourceId: string,
@@ -632,11 +648,12 @@ async function fetchFxSource(
       lastUpdate: checkedAt,
       status: 'live',
     };
+    fxRatesLoadedFromDb = true;
 
     try {
-      fs.writeFileSync(RATES_FILE, JSON.stringify(cachedFxRates, null, 2), 'utf-8');
+      await setAppState('fx_rates', cachedFxRates);
     } catch (e) {
-      console.error('Failed to persist rates.json:', e);
+      console.error('Failed to persist fx_rates in PostgreSQL:', e);
     }
 
     const signal: SignalItem = {
@@ -843,7 +860,9 @@ async function fetchWorldBankMultiCountrySource(
       meta,
       previousSignals,
       previousHealth,
-      e?.name === 'TimeoutError' || e?.message?.includes('aborted') ? 'Délai dépassé (API Banque Mondiale)' : e?.message || 'Source inaccessible',
+      e?.name === 'TimeoutError' || e?.message?.includes('aborted')
+        ? 'Délai dépassé (API Banque Mondiale)'
+        : e?.message || 'Source inaccessible',
       checkedAt
     );
   }
@@ -906,40 +925,63 @@ async function fetchRssSource(
   }
 }
 
-function loadSignalsFromDisk(): SignalItem[] {
-  if (!fs.existsSync(SIGNALS_FILE)) return [];
+export async function loadSignalsFromDbIfNeeded(): Promise<SignalItem[]> {
+  if (cachedSignals.length > 0) return getCachedSignals();
   try {
-    const raw = fs.readFileSync(SIGNALS_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    console.error('Error reading signals.json:', e);
-    return [];
+    const stored = await getAppState<SignalItem[]>('signals');
+    if (Array.isArray(stored) && stored.length > 0) {
+      cachedSignals = stored.map((s) => ({ ...s, status: 'cache' as const }));
+      return getCachedSignals();
+    }
+  } catch {
+    // non-fatal, fallback to empty until harvest
   }
+  return [];
 }
 
-function loadSourceHealthFromDisk(): SourceHealthItem[] {
-  if (!fs.existsSync(SOURCE_HEALTH_FILE)) return [];
+export async function loadSourceHealthFromDbIfNeeded(): Promise<SourceHealthItem[]> {
+  if (cachedSourceHealth.length > 0) return cachedSourceHealth;
   try {
-    const raw = fs.readFileSync(SOURCE_HEALTH_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    console.error('Error reading source_health.json:', e);
-    return [];
+    const stored = await getAppState<SourceHealthItem[]>('source_health');
+    if (Array.isArray(stored) && stored.length > 0) {
+      cachedSourceHealth = stored.map((h) => ({
+        ...h,
+        status: h.status === 'live' ? 'cache' : h.status,
+      }));
+      return cachedSourceHealth;
+    }
+  } catch {
+    // non-fatal
   }
+  return [];
 }
 
-// Core multi-country live harvester function
-export async function harvestRealTimeSignals(): Promise<SignalItem[]> {
+export async function loadRatesFromDbIfNeeded(): Promise<LiveFxRates> {
+  if (fxRatesLoadedFromDb) return cachedFxRates;
+  try {
+    const stored = await getAppState<LiveFxRates>('fx_rates');
+    if (stored && typeof stored.XOF === 'number' && typeof stored.USD === 'number') {
+      cachedFxRates = { ...stored, status: stored.status === 'live' ? 'cache' : stored.status || 'cache' };
+      fxRatesLoadedFromDb = true;
+      return cachedFxRates;
+    }
+  } catch {
+    // non-fatal
+  }
+  return cachedFxRates;
+}
+
+export async function harvestRealTimeSignals(auditUserUid?: string): Promise<SignalItem[]> {
   if (isHarvesting && cachedSignals.length > 0) {
     return getCachedSignals();
   }
 
   isHarvesting = true;
   try {
-    const previousSignals = cachedSignals.length > 0 ? cachedSignals : loadSignalsFromDisk();
-    const previousHealth = cachedSourceHealth.length > 0 ? cachedSourceHealth : loadSourceHealthFromDisk();
+    const previousSignals =
+      cachedSignals.length > 0 ? cachedSignals : await loadSignalsFromDbIfNeeded();
+    const previousHealth =
+      cachedSourceHealth.length > 0 ? cachedSourceHealth : await loadSourceHealthFromDbIfNeeded();
 
     const tasks: Promise<SourceTaskResult>[] = [
       fetchFxSource(previousSignals, previousHealth),
@@ -969,33 +1011,39 @@ export async function harvestRealTimeSignals(): Promise<SignalItem[]> {
     lastHarvestTime = Date.now();
 
     try {
-      fs.writeFileSync(SIGNALS_FILE, JSON.stringify(collectedSignals, null, 2), 'utf-8');
-      fs.writeFileSync(SOURCE_HEALTH_FILE, JSON.stringify(nextHealth, null, 2), 'utf-8');
+      await setAppState('signals', collectedSignals);
+      await setAppState('source_health', nextHealth);
     } catch (e) {
-      console.error('Failed to persist signals/source_health:', e);
+      console.error('Failed to persist signals/source_health in PostgreSQL:', e);
     }
 
     const liveCount = nextHealth.filter((h) => h.status === 'live').length;
     const cacheCount = nextHealth.filter((h) => h.status === 'cache').length;
     const unavailableCount = nextHealth.filter((h) => h.status === 'indisponible').length;
 
-    // Increment collected signals counter on usage stats
     try {
-      const stats = getUsageStats();
-      stats.signalsCollected = (stats.signalsCollected || 0) + collectedSignals.filter((s) => s.status === 'live').length;
-      fs.writeFileSync(USAGE_FILE, JSON.stringify(stats, null, 2), 'utf-8');
+      const stats = await getUsageStats();
+      stats.signalsCollected =
+        (stats.signalsCollected || 0) + collectedSignals.filter((s) => s.status === 'live').length;
+      await setAppState('usage_counter', stats);
       emitWorkspaceEvent('usage_updated', { stats });
     } catch (e) {
       console.error('Failed to update signalsCollected counter:', e);
     }
 
-    appendAuditLog({
-      actionType: 'signal_harvested',
-      actor: 'agent_serveur',
-      description: `Collecte multi-pays terminée : ${collectedSignals.length} signaux (${liveCount} sources live, ${cacheCount} en cache, ${unavailableCount} indisponibles).`,
-      provenanceDetails: nextHealth.map((h) => `${h.name}:${h.status}`).join(' | '),
-      status: liveCount > 0 ? 'success' : 'warning',
-    });
+    if (auditUserUid) {
+      try {
+        await appendAuditLog(auditUserUid, {
+          actionType: 'signal_harvested',
+          actor: 'agent_serveur',
+          description: `Collecte multi-pays terminée : ${collectedSignals.length} signaux (${liveCount} sources live, ${cacheCount} en cache, ${unavailableCount} indisponibles).`,
+          provenanceDetails: nextHealth.map((h) => `${h.name}:${h.status}`).join(' | '),
+          status: liveCount > 0 ? 'success' : 'warning',
+        });
+      } catch {
+        // non-fatal
+      }
+    }
 
     emitSignalsUpdated();
     return getCachedSignals();
@@ -1005,47 +1053,18 @@ export async function harvestRealTimeSignals(): Promise<SignalItem[]> {
 }
 
 export function getCachedSignals(): SignalItem[] {
-  if (cachedSignals.length > 0) {
-    return cachedSignals.map((s) => ({
-      ...s,
-      relativeTime: formatRelativeTime(s.publishedAt),
-      timestamp:
-        s.status === 'cache'
-          ? `Cache (${formatRelativeTime(s.publishedAt)})`
-          : `Collecté ${formatRelativeTime(s.publishedAt)}`,
-    }));
-  }
-
-  const diskSignals = loadSignalsFromDisk();
-  if (diskSignals.length > 0) {
-    // Loaded from disk after cold start -> mark status 'cache' until live harvest refreshes
-    cachedSignals = diskSignals.map((s) => ({
-      ...s,
-      status: 'cache' as const,
-    }));
-    return cachedSignals.map((s) => ({
-      ...s,
-      relativeTime: formatRelativeTime(s.publishedAt),
-      timestamp: `Cache (${formatRelativeTime(s.publishedAt)})`,
-    }));
-  }
-
-  return [];
+  return cachedSignals.map((s) => ({
+    ...s,
+    relativeTime: formatRelativeTime(s.publishedAt),
+    timestamp:
+      s.status === 'cache'
+        ? `Cache (${formatRelativeTime(s.publishedAt)})`
+        : `Collecté ${formatRelativeTime(s.publishedAt)}`,
+  }));
 }
 
 export function getSourceHealth(): SourceHealthItem[] {
-  if (cachedSourceHealth.length > 0) {
-    return cachedSourceHealth;
-  }
-  const diskHealth = loadSourceHealthFromDisk();
-  if (diskHealth.length > 0) {
-    cachedSourceHealth = diskHealth.map((h) => ({
-      ...h,
-      status: h.status === 'live' ? 'cache' : h.status,
-    }));
-    return cachedSourceHealth;
-  }
-  return [];
+  return cachedSourceHealth;
 }
 
 export function getCachedRates(): LiveFxRates {
@@ -1056,374 +1075,1009 @@ export function getLastHarvestTimestamp(): number {
   return lastHarvestTime;
 }
 
-// ----------------- PIPELINE PERSISTENCE (Multi-device database) -----------------
+// ----------------- ONE-TIME LEGACY JSON -> POSTGRESQL MIGRATION -----------------
 
-export function getPersistentPipeline(): PersistentPipelineItem[] {
-  if (fs.existsSync(PIPELINE_FILE)) {
-    try {
-      const data = fs.readFileSync(PIPELINE_FILE, 'utf-8');
-      return JSON.parse(data);
-    } catch (e) {
-      console.error('Error reading pipeline.json:', e);
-    }
-  }
-
-  return [];
-}
-
-export function savePersistentPipeline(items: PersistentPipelineItem[]): boolean {
+function readJsonFileSafe<T>(filePath: string): T | null {
   try {
-    fs.writeFileSync(PIPELINE_FILE, JSON.stringify(items, null, 2), 'utf-8');
-    emitWorkspaceEvent('pipeline_updated', { items });
-    return true;
-  } catch (e) {
-    console.error('Error writing pipeline.json:', e);
-    return false;
+    if (!fs.existsSync(filePath)) return null;
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as T;
+  } catch {
+    return null;
   }
 }
 
-// ----------------- STRICT OPPORTUNITIES PERSISTENCE -----------------
+export async function migrateLegacyJsonIfNeeded(userUid: string): Promise<void> {
+  try {
+    const markerKey = `legacy_migrated_${userUid}`;
+    const already = await getAppState<boolean>(markerKey);
+    if (already) return;
 
-export function getPersistentOpportunities(countryCode?: string): StrictOpportunity[] {
-  if (fs.existsSync(OPPORTUNITIES_FILE)) {
-    try {
-      const data = fs.readFileSync(OPPORTUNITIES_FILE, 'utf-8');
-      const all: StrictOpportunity[] = JSON.parse(data);
-      if (countryCode && countryCode !== 'all') {
-        return all.filter((o) => o.countryCode === countryCode);
+    // Only import legacy local files if user currently has zero records across core tables
+    const [existingPipe, existingSales, existingOpps] = await Promise.all([
+      db.select({ id: pipelineItems.id }).from(pipelineItems).where(eq(pipelineItems.userUid, userUid)).limit(1),
+      db.select({ id: realSales.id }).from(realSales).where(eq(realSales.userUid, userUid)).limit(1),
+      db.select({ id: opportunities.id }).from(opportunities).where(eq(opportunities.userUid, userUid)).limit(1),
+    ]);
+
+    if (existingPipe.length === 0 && existingSales.length === 0 && existingOpps.length === 0) {
+      const legacyPipe = readJsonFileSafe<PersistentPipelineItem[]>(LEGACY_FILES.pipeline);
+      if (Array.isArray(legacyPipe) && legacyPipe.length > 0) {
+        await db
+          .insert(pipelineItems)
+          .values(
+            legacyPipe.map((p, idx) => ({
+              id: p.id,
+              userUid,
+              title: p.title,
+              sectorId: p.sectorId,
+              sectorName: p.sectorName,
+              stage: p.stage,
+              targetMrr: Number(p.targetMrr || 0),
+              currentMrr: Number(p.currentMrr || 0),
+              notes: p.notes || '',
+              addedAt: p.addedAt || new Date().toLocaleDateString('fr-FR'),
+              checklists: Array.isArray(p.checklists) ? p.checklists : [],
+              countryCode: p.countryCode || null,
+              currency: p.currency || null,
+              paymentMethod: p.paymentMethod || null,
+              sortOrder: idx,
+              updatedAt: new Date(),
+            }))
+          )
+          .onConflictDoNothing();
       }
-      return all;
-    } catch (e) {
-      console.error('Error reading opportunities.json:', e);
-    }
-  }
-  return [];
-}
 
-export function savePersistentOpportunities(items: StrictOpportunity[]): boolean {
-  try {
-    fs.writeFileSync(OPPORTUNITIES_FILE, JSON.stringify(items, null, 2), 'utf-8');
-    emitWorkspaceEvent('opportunities_updated', { opportunities: items });
-    return true;
+      const legacyOpps = readJsonFileSafe<StrictOpportunity[]>(LEGACY_FILES.opportunities);
+      if (Array.isArray(legacyOpps) && legacyOpps.length > 0) {
+        await db
+          .insert(opportunities)
+          .values(
+            legacyOpps.map((o) => ({
+              id: o.id,
+              userUid,
+              countryCode: o.countryCode,
+              type: o.type,
+              title: o.title,
+              description: o.description,
+              sourceSignals: o.sourceSignals || [],
+              whyItExists: o.whyItExists,
+              confidenceLevel: o.confidenceLevel,
+              risks: o.risks || [],
+              invalidationTriggers: o.invalidationTriggers || [],
+              targetRevenueLocal: o.targetRevenueLocal,
+              estimatedMargin: o.estimatedMargin,
+              hasEnoughData: Boolean(o.hasEnoughData),
+              insufficientDataReason: o.insufficientDataReason || null,
+              createdAt: o.createdAt || new Date().toISOString(),
+            }))
+          )
+          .onConflictDoNothing();
+      }
+
+      const legacySales = readJsonFileSafe<RealSaleRecord[]>(LEGACY_FILES.sales);
+      if (Array.isArray(legacySales) && legacySales.length > 0) {
+        await db
+          .insert(realSales)
+          .values(
+            legacySales.map((s) => ({
+              id: s.id,
+              userUid,
+              clientName: s.clientName,
+              opportunityId: s.opportunityId || null,
+              opportunityTitle: s.opportunityTitle,
+              amount: Number(s.amount || 0),
+              currency: s.currency,
+              date: s.date,
+              status: s.status,
+              paymentMethod: s.paymentMethod,
+              notes: s.notes || null,
+              reference: s.reference || null,
+            }))
+          )
+          .onConflictDoNothing();
+      }
+
+      const legacyValidation = readJsonFileSafe<ValidationItem[]>(LEGACY_FILES.validation);
+      if (Array.isArray(legacyValidation) && legacyValidation.length > 0) {
+        await db
+          .insert(validationQueue)
+          .values(
+            legacyValidation.map((v) => ({
+              id: v.id,
+              userUid,
+              title: v.title,
+              category: v.category,
+              targetRecipient: v.targetRecipient || null,
+              contentPayload: v.contentPayload,
+              sourceOpportunityTitle: v.sourceOpportunityTitle,
+              countryCode: v.countryCode,
+              status: v.status || 'en_attente',
+              createdAt: v.createdAt || new Date().toISOString(),
+              reviewedAt: v.reviewedAt || null,
+              reviewNotes: v.reviewNotes || null,
+              deliveryChannel: v.deliveryChannel || null,
+              deliveryStatus: v.deliveryStatus || 'not_sent',
+              deliveryTarget: v.deliveryTarget || null,
+              deliverySubject: v.deliverySubject || null,
+              deliveryProvider: v.deliveryProvider || null,
+              deliveryMessageId: v.deliveryMessageId || null,
+              deliveryError: v.deliveryError || null,
+              deliveredAt: v.deliveredAt || null,
+            }))
+          )
+          .onConflictDoNothing();
+      }
+
+      const legacyAudit = readJsonFileSafe<AuditLogEntry[]>(LEGACY_FILES.audit);
+      if (Array.isArray(legacyAudit) && legacyAudit.length > 0) {
+        await db
+          .insert(auditLog)
+          .values(
+            legacyAudit.slice(0, 200).map((a) => ({
+              id: a.id,
+              userUid,
+              timestamp: a.timestamp,
+              actionType: a.actionType,
+              actor: a.actor,
+              description: a.description,
+              provenanceDetails: a.provenanceDetails || null,
+              status: a.status,
+            }))
+          )
+          .onConflictDoNothing();
+      }
+
+      const legacyBlueprints = readJsonFileSafe<SavedBlueprintRecord[]>(LEGACY_FILES.blueprints);
+      if (Array.isArray(legacyBlueprints) && legacyBlueprints.length > 0) {
+        await db
+          .insert(savedBlueprints)
+          .values(
+            legacyBlueprints.map((b) => ({
+              id: b.id,
+              userUid,
+              sectorId: b.sectorId,
+              sectorName: b.sectorName,
+              niche: b.niche,
+              targetRevenue: b.targetRevenue,
+              capitalBudget: b.capitalBudget,
+              userSkills: b.userSkills,
+              businessModel: b.businessModel,
+              blueprint: b.blueprint as unknown as Record<string, unknown>,
+              createdAt: b.createdAt,
+            }))
+          )
+          .onConflictDoNothing();
+      }
+
+      const legacyArbitrages = readJsonFileSafe<SavedArbitrageRecord[]>(LEGACY_FILES.arbitrages);
+      if (Array.isArray(legacyArbitrages) && legacyArbitrages.length > 0) {
+        await db
+          .insert(savedArbitrages)
+          .values(
+            legacyArbitrages.map((a) => ({
+              id: a.id,
+              userUid,
+              sectorA: a.sectorA,
+              sectorB: a.sectorB,
+              riskTolerance: a.riskTolerance,
+              analysis: a.analysis as unknown as Record<string, unknown>,
+              createdAt: a.createdAt,
+            }))
+          )
+          .onConflictDoNothing();
+      }
+
+      const legacyLaunchpads = readJsonFileSafe<SavedLaunchpadRecord[]>(LEGACY_FILES.launchpads);
+      if (Array.isArray(legacyLaunchpads) && legacyLaunchpads.length > 0) {
+        await db
+          .insert(savedLaunchpads)
+          .values(
+            legacyLaunchpads.map((l) => ({
+              id: l.id,
+              userUid,
+              sectorId: l.sectorId,
+              sectorName: l.sectorName,
+              opportunityTitle: l.opportunityTitle,
+              circuit: l.circuit as unknown as Record<string, unknown>,
+              createdAt: l.createdAt,
+            }))
+          )
+          .onConflictDoNothing();
+      }
+
+      const legacyKits = readJsonFileSafe<
+        Record<string, { digital?: DigitalLaunchKit; physical?: PhysicalExploitationPlan }>
+      >(LEGACY_FILES.kits);
+      if (legacyKits && typeof legacyKits === 'object') {
+        const entries = Object.entries(legacyKits);
+        if (entries.length > 0) {
+          await db
+            .insert(launchKits)
+            .values(
+              entries.map(([oppId, k]) => ({
+                id: `${userUid}:${oppId}`,
+                oppId,
+                userUid,
+                digital: (k.digital as unknown as Record<string, unknown>) || null,
+                physical: (k.physical as unknown as Record<string, unknown>) || null,
+                updatedAt: new Date(),
+              }))
+            )
+            .onConflictDoNothing();
+        }
+      }
+    }
+
+    await setAppState(markerKey, true);
   } catch (e) {
-    console.error('Error writing opportunities.json:', e);
-    return false;
+    console.error('Legacy JSON migration check skipped due to error:', e);
   }
 }
 
-// ----------------- LAUNCH KITS PERSISTENCE -----------------
+// ----------------- PIPELINE PERSISTENCE (PostgreSQL) -----------------
 
-export function getPersistentKits(): Record<string, { digital?: DigitalLaunchKit; physical?: PhysicalExploitationPlan }> {
-  if (fs.existsSync(KITS_FILE)) {
-    try {
-      const data = fs.readFileSync(KITS_FILE, 'utf-8');
-      return JSON.parse(data);
-    } catch (e) {
-      console.error('Error reading kits.json:', e);
+export async function getPersistentPipeline(userUid: string): Promise<PersistentPipelineItem[]> {
+  try {
+    const rows = await db
+      .select()
+      .from(pipelineItems)
+      .where(eq(pipelineItems.userUid, userUid))
+      .orderBy(pipelineItems.sortOrder);
+
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      sectorId: r.sectorId,
+      sectorName: r.sectorName,
+      stage: r.stage as PersistentPipelineItem['stage'],
+      targetMrr: Number(r.targetMrr),
+      currentMrr: Number(r.currentMrr),
+      notes: r.notes,
+      addedAt: r.addedAt,
+      checklists: r.checklists || [],
+      countryCode: r.countryCode || undefined,
+      currency: r.currency || undefined,
+      paymentMethod: r.paymentMethod || undefined,
+    }));
+  } catch (error) {
+    console.error('Database query failed in getPersistentPipeline:', error);
+    throw new Error('Impossible de charger le pipeline depuis PostgreSQL.', { cause: error });
+  }
+}
+
+export async function savePersistentPipeline(
+  userUid: string,
+  items: PersistentPipelineItem[]
+): Promise<boolean> {
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(pipelineItems).where(eq(pipelineItems.userUid, userUid));
+      if (items.length > 0) {
+        await tx.insert(pipelineItems).values(
+          items.map((item, idx) => ({
+            id: item.id,
+            userUid,
+            title: item.title,
+            sectorId: item.sectorId,
+            sectorName: item.sectorName,
+            stage: item.stage,
+            targetMrr: Number(item.targetMrr || 0),
+            currentMrr: Number(item.currentMrr || 0),
+            notes: item.notes || '',
+            addedAt: item.addedAt || new Date().toLocaleDateString('fr-FR'),
+            checklists: Array.isArray(item.checklists) ? item.checklists : [],
+            countryCode: item.countryCode || null,
+            currency: item.currency || null,
+            paymentMethod: item.paymentMethod || null,
+            sortOrder: idx,
+            updatedAt: new Date(),
+          }))
+        );
+      }
+    });
+    emitWorkspaceEvent('pipeline_updated', { items }, userUid);
+    return true;
+  } catch (error) {
+    console.error('Database query failed in savePersistentPipeline:', error);
+    throw new Error('Impossible de sauvegarder le pipeline dans PostgreSQL.', { cause: error });
+  }
+}
+
+// ----------------- STRICT OPPORTUNITIES PERSISTENCE (PostgreSQL) -----------------
+
+export async function getPersistentOpportunities(
+  userUid: string,
+  countryCode?: string
+): Promise<StrictOpportunity[]> {
+  try {
+    const rows =
+      countryCode && countryCode !== 'all'
+        ? await db
+            .select()
+            .from(opportunities)
+            .where(
+              and(eq(opportunities.userUid, userUid), eq(opportunities.countryCode, countryCode))
+            )
+            .orderBy(desc(opportunities.createdAt))
+        : await db
+            .select()
+            .from(opportunities)
+            .where(eq(opportunities.userUid, userUid))
+            .orderBy(desc(opportunities.createdAt));
+
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      type: r.type as StrictOpportunity['type'],
+      description: r.description,
+      sourceSignals: (r.sourceSignals || []) as StrictOpportunity['sourceSignals'],
+      whyItExists: r.whyItExists,
+      confidenceLevel: r.confidenceLevel as StrictOpportunity['confidenceLevel'],
+      risks: r.risks || [],
+      invalidationTriggers: r.invalidationTriggers || [],
+      targetRevenueLocal: r.targetRevenueLocal,
+      estimatedMargin: r.estimatedMargin,
+      countryCode: r.countryCode as CountryCode,
+      createdAt: r.createdAt,
+      hasEnoughData: r.hasEnoughData,
+      insufficientDataReason: r.insufficientDataReason || undefined,
+    }));
+  } catch (error) {
+    console.error('Database query failed in getPersistentOpportunities:', error);
+    throw new Error('Impossible de charger les opportunités depuis PostgreSQL.', { cause: error });
+  }
+}
+
+export async function savePersistentOpportunities(
+  userUid: string,
+  items: StrictOpportunity[]
+): Promise<boolean> {
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(opportunities).where(eq(opportunities.userUid, userUid));
+      if (items.length > 0) {
+        await tx.insert(opportunities).values(
+          items.map((o) => ({
+            id: o.id,
+            userUid,
+            countryCode: o.countryCode,
+            type: o.type,
+            title: o.title,
+            description: o.description,
+            sourceSignals: o.sourceSignals || [],
+            whyItExists: o.whyItExists,
+            confidenceLevel: o.confidenceLevel,
+            risks: o.risks || [],
+            invalidationTriggers: o.invalidationTriggers || [],
+            targetRevenueLocal: o.targetRevenueLocal,
+            estimatedMargin: o.estimatedMargin,
+            hasEnoughData: Boolean(o.hasEnoughData),
+            insufficientDataReason: o.insufficientDataReason || null,
+            createdAt: o.createdAt || new Date().toISOString(),
+          }))
+        );
+      }
+    });
+    emitWorkspaceEvent('opportunities_updated', { opportunities: items }, userUid);
+    return true;
+  } catch (error) {
+    console.error('Database query failed in savePersistentOpportunities:', error);
+    throw new Error('Impossible de sauvegarder les opportunités dans PostgreSQL.', { cause: error });
+  }
+}
+
+// ----------------- LAUNCH KITS PERSISTENCE (PostgreSQL) -----------------
+
+export async function getPersistentKits(
+  userUid: string
+): Promise<Record<string, { digital?: DigitalLaunchKit; physical?: PhysicalExploitationPlan }>> {
+  try {
+    const rows = await db
+      .select()
+      .from(launchKits)
+      .where(eq(launchKits.userUid, userUid));
+
+    const result: Record<string, { digital?: DigitalLaunchKit; physical?: PhysicalExploitationPlan }> = {};
+    for (const r of rows) {
+      result[r.oppId] = {
+        digital: (r.digital as unknown as DigitalLaunchKit) || undefined,
+        physical: (r.physical as unknown as PhysicalExploitationPlan) || undefined,
+      };
     }
+    return result;
+  } catch (error) {
+    console.error('Database query failed in getPersistentKits:', error);
+    throw new Error('Impossible de charger les dossiers depuis PostgreSQL.', { cause: error });
   }
-  return {};
 }
 
-export function savePersistentKit(
+export async function savePersistentKit(
+  userUid: string,
   oppId: string,
   kit: { digital?: DigitalLaunchKit; physical?: PhysicalExploitationPlan }
-): boolean {
+): Promise<boolean> {
   try {
-    const existing = getPersistentKits();
-    existing[oppId] = { ...existing[oppId], ...kit };
-    fs.writeFileSync(KITS_FILE, JSON.stringify(existing, null, 2), 'utf-8');
-    emitWorkspaceEvent('workspace_updated', { kind: 'kit', oppId });
+    const key = `${userUid}:${oppId}`;
+    const existingRows = await db
+      .select()
+      .from(launchKits)
+      .where(eq(launchKits.id, key))
+      .limit(1);
+
+    const existingDigital = (existingRows[0]?.digital as Record<string, unknown> | null) || null;
+    const existingPhysical = (existingRows[0]?.physical as Record<string, unknown> | null) || null;
+
+    await db
+      .insert(launchKits)
+      .values({
+        id: key,
+        oppId,
+        userUid,
+        digital: (kit.digital as unknown as Record<string, unknown>) ?? existingDigital,
+        physical: (kit.physical as unknown as Record<string, unknown>) ?? existingPhysical,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: launchKits.id,
+        set: {
+          digital: (kit.digital as unknown as Record<string, unknown>) ?? existingDigital,
+          physical: (kit.physical as unknown as Record<string, unknown>) ?? existingPhysical,
+          updatedAt: new Date(),
+        },
+      });
+
+    emitWorkspaceEvent('workspace_updated', { kind: 'kit', oppId }, userUid);
     return true;
-  } catch (e) {
-    console.error('Error writing kits.json:', e);
-    return false;
+  } catch (error) {
+    console.error('Database query failed in savePersistentKit:', error);
+    throw new Error('Impossible de sauvegarder le dossier dans PostgreSQL.', { cause: error });
   }
 }
 
-// ----------------- BLUEPRINT / ARBITRAGE / LAUNCHPAD PERSISTENCE -----------------
+// ----------------- BLUEPRINT / ARBITRAGE / LAUNCHPAD PERSISTENCE (PostgreSQL) -----------------
 
-export function getSavedBlueprints(): SavedBlueprintRecord[] {
-  if (fs.existsSync(BLUEPRINTS_FILE)) {
-    try {
-      const data = fs.readFileSync(BLUEPRINTS_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.error('Error reading blueprints.json:', e);
-    }
+export async function getSavedBlueprints(userUid: string): Promise<SavedBlueprintRecord[]> {
+  try {
+    const rows = await db
+      .select()
+      .from(savedBlueprints)
+      .where(eq(savedBlueprints.userUid, userUid))
+      .orderBy(desc(savedBlueprints.createdAt))
+      .limit(30);
+
+    return rows.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      sectorId: r.sectorId as SavedBlueprintRecord['sectorId'],
+      sectorName: r.sectorName,
+      niche: r.niche,
+      targetRevenue: r.targetRevenue,
+      capitalBudget: r.capitalBudget,
+      userSkills: r.userSkills,
+      businessModel: r.businessModel,
+      blueprint: r.blueprint as unknown as SavedBlueprintRecord['blueprint'],
+    }));
+  } catch (error) {
+    console.error('Database query failed in getSavedBlueprints:', error);
+    throw new Error('Impossible de charger les plans stratégiques.', { cause: error });
   }
-  return [];
 }
 
-export function saveBlueprintRecord(
+export async function saveBlueprintRecord(
+  userUid: string,
   input: Omit<SavedBlueprintRecord, 'id' | 'createdAt'>
-): SavedBlueprintRecord {
-  const current = getSavedBlueprints();
-  const record: SavedBlueprintRecord = {
-    ...input,
-    id: `bp-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    createdAt: new Date().toISOString(),
-  };
-  const updated = [record, ...current].slice(0, 30);
+): Promise<SavedBlueprintRecord> {
   try {
-    fs.writeFileSync(BLUEPRINTS_FILE, JSON.stringify(updated, null, 2), 'utf-8');
-    emitWorkspaceEvent('workspace_updated', { kind: 'blueprint', record, blueprints: updated });
-  } catch (e) {
-    console.error('Error writing blueprints.json:', e);
+    const record: SavedBlueprintRecord = {
+      ...input,
+      id: `bp-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      createdAt: new Date().toISOString(),
+    };
+    await db.insert(savedBlueprints).values({
+      id: record.id,
+      userUid,
+      sectorId: record.sectorId,
+      sectorName: record.sectorName,
+      niche: record.niche,
+      targetRevenue: record.targetRevenue,
+      capitalBudget: record.capitalBudget,
+      userSkills: record.userSkills,
+      businessModel: record.businessModel,
+      blueprint: record.blueprint as unknown as Record<string, unknown>,
+      createdAt: record.createdAt,
+    });
+    const updated = await getSavedBlueprints(userUid);
+    emitWorkspaceEvent('workspace_updated', { kind: 'blueprint', record, blueprints: updated }, userUid);
+    return record;
+  } catch (error) {
+    console.error('Database query failed in saveBlueprintRecord:', error);
+    throw new Error('Impossible de sauvegarder le plan stratégique.', { cause: error });
   }
-  return record;
 }
 
-export function deleteSavedBlueprint(id: string): SavedBlueprintRecord[] {
-  const updated = getSavedBlueprints().filter((b) => b.id !== id);
+export async function deleteSavedBlueprint(
+  userUid: string,
+  id: string
+): Promise<SavedBlueprintRecord[]> {
   try {
-    fs.writeFileSync(BLUEPRINTS_FILE, JSON.stringify(updated, null, 2), 'utf-8');
-    emitWorkspaceEvent('workspace_updated', { kind: 'blueprint', blueprints: updated });
-  } catch (e) {
-    console.error('Error deleting blueprint:', e);
+    await db
+      .delete(savedBlueprints)
+      .where(and(eq(savedBlueprints.id, id), eq(savedBlueprints.userUid, userUid)));
+    const updated = await getSavedBlueprints(userUid);
+    emitWorkspaceEvent('workspace_updated', { kind: 'blueprint', blueprints: updated }, userUid);
+    return updated;
+  } catch (error) {
+    console.error('Database query failed in deleteSavedBlueprint:', error);
+    throw new Error('Impossible de supprimer le plan stratégique.', { cause: error });
   }
-  return updated;
 }
 
-export function getSavedArbitrages(): SavedArbitrageRecord[] {
-  if (fs.existsSync(ARBITRAGES_FILE)) {
-    try {
-      const data = fs.readFileSync(ARBITRAGES_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.error('Error reading arbitrages.json:', e);
-    }
+export async function getSavedArbitrages(userUid: string): Promise<SavedArbitrageRecord[]> {
+  try {
+    const rows = await db
+      .select()
+      .from(savedArbitrages)
+      .where(eq(savedArbitrages.userUid, userUid))
+      .orderBy(desc(savedArbitrages.createdAt))
+      .limit(30);
+
+    return rows.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      sectorA: r.sectorA,
+      sectorB: r.sectorB,
+      riskTolerance: r.riskTolerance,
+      analysis: r.analysis as unknown as SavedArbitrageRecord['analysis'],
+    }));
+  } catch (error) {
+    console.error('Database query failed in getSavedArbitrages:', error);
+    throw new Error('Impossible de charger les arbitrages.', { cause: error });
   }
-  return [];
 }
 
-export function saveArbitrageRecord(
+export async function saveArbitrageRecord(
+  userUid: string,
   input: Omit<SavedArbitrageRecord, 'id' | 'createdAt'>
-): SavedArbitrageRecord {
-  const current = getSavedArbitrages();
-  const record: SavedArbitrageRecord = {
-    ...input,
-    id: `arb-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    createdAt: new Date().toISOString(),
-  };
-  const updated = [record, ...current].slice(0, 30);
+): Promise<SavedArbitrageRecord> {
   try {
-    fs.writeFileSync(ARBITRAGES_FILE, JSON.stringify(updated, null, 2), 'utf-8');
-    emitWorkspaceEvent('workspace_updated', { kind: 'arbitrage', record, arbitrages: updated });
-  } catch (e) {
-    console.error('Error writing arbitrages.json:', e);
+    const record: SavedArbitrageRecord = {
+      ...input,
+      id: `arb-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      createdAt: new Date().toISOString(),
+    };
+    await db.insert(savedArbitrages).values({
+      id: record.id,
+      userUid,
+      sectorA: record.sectorA,
+      sectorB: record.sectorB,
+      riskTolerance: record.riskTolerance,
+      analysis: record.analysis as unknown as Record<string, unknown>,
+      createdAt: record.createdAt,
+    });
+    const updated = await getSavedArbitrages(userUid);
+    emitWorkspaceEvent('workspace_updated', { kind: 'arbitrage', record, arbitrages: updated }, userUid);
+    return record;
+  } catch (error) {
+    console.error('Database query failed in saveArbitrageRecord:', error);
+    throw new Error('Impossible de sauvegarder l’arbitrage.', { cause: error });
   }
-  return record;
 }
 
-export function deleteSavedArbitrage(id: string): SavedArbitrageRecord[] {
-  const updated = getSavedArbitrages().filter((a) => a.id !== id);
+export async function deleteSavedArbitrage(
+  userUid: string,
+  id: string
+): Promise<SavedArbitrageRecord[]> {
   try {
-    fs.writeFileSync(ARBITRAGES_FILE, JSON.stringify(updated, null, 2), 'utf-8');
-    emitWorkspaceEvent('workspace_updated', { kind: 'arbitrage', arbitrages: updated });
-  } catch (e) {
-    console.error('Error deleting arbitrage:', e);
+    await db
+      .delete(savedArbitrages)
+      .where(and(eq(savedArbitrages.id, id), eq(savedArbitrages.userUid, userUid)));
+    const updated = await getSavedArbitrages(userUid);
+    emitWorkspaceEvent('workspace_updated', { kind: 'arbitrage', arbitrages: updated }, userUid);
+    return updated;
+  } catch (error) {
+    console.error('Database query failed in deleteSavedArbitrage:', error);
+    throw new Error('Impossible de supprimer l’arbitrage.', { cause: error });
   }
-  return updated;
 }
 
-export function getSavedLaunchpads(): SavedLaunchpadRecord[] {
-  if (fs.existsSync(LAUNCHPADS_FILE)) {
-    try {
-      const data = fs.readFileSync(LAUNCHPADS_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.error('Error reading launchpads.json:', e);
-    }
+export async function getSavedLaunchpads(userUid: string): Promise<SavedLaunchpadRecord[]> {
+  try {
+    const rows = await db
+      .select()
+      .from(savedLaunchpads)
+      .where(eq(savedLaunchpads.userUid, userUid))
+      .orderBy(desc(savedLaunchpads.createdAt))
+      .limit(30);
+
+    return rows.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      sectorId: r.sectorId as SavedLaunchpadRecord['sectorId'],
+      sectorName: r.sectorName,
+      opportunityTitle: r.opportunityTitle,
+      circuit: r.circuit as unknown as SavedLaunchpadRecord['circuit'],
+    }));
+  } catch (error) {
+    console.error('Database query failed in getSavedLaunchpads:', error);
+    throw new Error('Impossible de charger les circuits Launchpad.', { cause: error });
   }
-  return [];
 }
 
-export function saveLaunchpadRecord(
+export async function saveLaunchpadRecord(
+  userUid: string,
   input: Omit<SavedLaunchpadRecord, 'id' | 'createdAt'>
-): SavedLaunchpadRecord {
-  const current = getSavedLaunchpads();
-  const record: SavedLaunchpadRecord = {
-    ...input,
-    id: `lp-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    createdAt: new Date().toISOString(),
+): Promise<SavedLaunchpadRecord> {
+  try {
+    const record: SavedLaunchpadRecord = {
+      ...input,
+      id: `lp-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      createdAt: new Date().toISOString(),
+    };
+    await db.insert(savedLaunchpads).values({
+      id: record.id,
+      userUid,
+      sectorId: record.sectorId,
+      sectorName: record.sectorName,
+      opportunityTitle: record.opportunityTitle,
+      circuit: record.circuit as unknown as Record<string, unknown>,
+      createdAt: record.createdAt,
+    });
+    const updated = await getSavedLaunchpads(userUid);
+    emitWorkspaceEvent('workspace_updated', { kind: 'launchpad', record, launchpads: updated }, userUid);
+    return record;
+  } catch (error) {
+    console.error('Database query failed in saveLaunchpadRecord:', error);
+    throw new Error('Impossible de sauvegarder le circuit Launchpad.', { cause: error });
+  }
+}
+
+export async function deleteSavedLaunchpad(
+  userUid: string,
+  id: string
+): Promise<SavedLaunchpadRecord[]> {
+  try {
+    await db
+      .delete(savedLaunchpads)
+      .where(and(eq(savedLaunchpads.id, id), eq(savedLaunchpads.userUid, userUid)));
+    const updated = await getSavedLaunchpads(userUid);
+    emitWorkspaceEvent('workspace_updated', { kind: 'launchpad', launchpads: updated }, userUid);
+    return updated;
+  } catch (error) {
+    console.error('Database query failed in deleteSavedLaunchpad:', error);
+    throw new Error('Impossible de supprimer le circuit Launchpad.', { cause: error });
+  }
+}
+
+// ----------------- VALIDATION QUEUE (PostgreSQL + Delivery Tracking) -----------------
+
+function mapValidationRow(r: typeof validationQueue.$inferSelect): ValidationItem {
+  return {
+    id: r.id,
+    title: r.title,
+    category: r.category as ValidationItem['category'],
+    targetRecipient: r.targetRecipient || undefined,
+    contentPayload: r.contentPayload,
+    sourceOpportunityTitle: r.sourceOpportunityTitle,
+    countryCode: r.countryCode as CountryCode,
+    createdAt: r.createdAt,
+    status: r.status as ValidationItem['status'],
+    reviewedAt: r.reviewedAt || undefined,
+    reviewNotes: r.reviewNotes || undefined,
+    deliveryChannel: (r.deliveryChannel as ValidationItem['deliveryChannel']) || undefined,
+    deliveryStatus: (r.deliveryStatus as ValidationItem['deliveryStatus']) || undefined,
+    deliveryTarget: r.deliveryTarget || undefined,
+    deliverySubject: r.deliverySubject || undefined,
+    deliveryProvider: r.deliveryProvider || undefined,
+    deliveryMessageId: r.deliveryMessageId || undefined,
+    deliveryError: r.deliveryError || undefined,
+    deliveredAt: r.deliveredAt || undefined,
   };
-  const updated = [record, ...current].slice(0, 30);
+}
+
+export async function getValidationQueue(userUid: string): Promise<ValidationItem[]> {
   try {
-    fs.writeFileSync(LAUNCHPADS_FILE, JSON.stringify(updated, null, 2), 'utf-8');
-    emitWorkspaceEvent('workspace_updated', { kind: 'launchpad', record, launchpads: updated });
-  } catch (e) {
-    console.error('Error writing launchpads.json:', e);
+    const rows = await db
+      .select()
+      .from(validationQueue)
+      .where(eq(validationQueue.userUid, userUid))
+      .orderBy(desc(validationQueue.createdAt));
+
+    return rows.map(mapValidationRow);
+  } catch (error) {
+    console.error('Database query failed in getValidationQueue:', error);
+    throw new Error('Impossible de charger la file de validation.', { cause: error });
   }
-  return record;
 }
 
-export function deleteSavedLaunchpad(id: string): SavedLaunchpadRecord[] {
-  const updated = getSavedLaunchpads().filter((l) => l.id !== id);
+export async function getValidationItemById(
+  userUid: string,
+  id: string
+): Promise<ValidationItem | null> {
   try {
-    fs.writeFileSync(LAUNCHPADS_FILE, JSON.stringify(updated, null, 2), 'utf-8');
-    emitWorkspaceEvent('workspace_updated', { kind: 'launchpad', launchpads: updated });
-  } catch (e) {
-    console.error('Error deleting launchpad:', e);
+    const rows = await db
+      .select()
+      .from(validationQueue)
+      .where(and(eq(validationQueue.id, id), eq(validationQueue.userUid, userUid)))
+      .limit(1);
+    return rows[0] ? mapValidationRow(rows[0]) : null;
+  } catch (error) {
+    console.error('Database query failed in getValidationItemById:', error);
+    throw new Error('Impossible de lire cet élément de validation.', { cause: error });
   }
-  return updated;
 }
 
-// ----------------- VALIDATION QUEUE (Rien sans validation) -----------------
-
-export function getValidationQueue(): ValidationItem[] {
-  if (fs.existsSync(VALIDATION_FILE)) {
-    try {
-      const data = fs.readFileSync(VALIDATION_FILE, 'utf-8');
-      return JSON.parse(data);
-    } catch (e) {
-      console.error('Error reading validation_queue.json:', e);
-    }
-  }
-  return [];
-}
-
-export function saveValidationQueue(items: ValidationItem[]): boolean {
+export async function addValidationItem(
+  userUid: string,
+  item: Omit<ValidationItem, 'id' | 'createdAt' | 'status'>
+): Promise<ValidationItem> {
   try {
-    fs.writeFileSync(VALIDATION_FILE, JSON.stringify(items, null, 2), 'utf-8');
-    emitWorkspaceEvent('validation_updated', { items });
-    return true;
-  } catch (e) {
-    console.error('Error writing validation_queue.json:', e);
-    return false;
+    const newItem: ValidationItem = {
+      ...item,
+      id: `val-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      createdAt: new Date().toISOString(),
+      status: 'en_attente',
+      deliveryStatus: 'not_sent',
+    };
+
+    await db.insert(validationQueue).values({
+      id: newItem.id,
+      userUid,
+      title: newItem.title,
+      category: newItem.category,
+      targetRecipient: newItem.targetRecipient || null,
+      contentPayload: newItem.contentPayload,
+      sourceOpportunityTitle: newItem.sourceOpportunityTitle,
+      countryCode: newItem.countryCode,
+      status: newItem.status,
+      createdAt: newItem.createdAt,
+      deliveryStatus: 'not_sent',
+    });
+
+    const updated = await getValidationQueue(userUid);
+    emitWorkspaceEvent('validation_updated', { items: updated }, userUid);
+
+    await appendAuditLog(userUid, {
+      actionType: 'item_queued',
+      actor: 'agent_serveur',
+      description: `Élément mis en file d attente de validation : ${newItem.title}`,
+      provenanceDetails: newItem.sourceOpportunityTitle,
+      status: 'warning',
+    });
+
+    return newItem;
+  } catch (error) {
+    console.error('Database query failed in addValidationItem:', error);
+    throw new Error('Impossible d’ajouter l’élément à la file de validation.', { cause: error });
   }
 }
 
-export function addValidationItem(item: Omit<ValidationItem, 'id' | 'createdAt' | 'status'>): ValidationItem {
-  const current = getValidationQueue();
-  const newItem: ValidationItem = {
-    ...item,
-    id: `val-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    createdAt: new Date().toISOString(),
-    status: 'en_attente',
-  };
-  const updated = [newItem, ...current];
-  saveValidationQueue(updated);
-  appendAuditLog({
-    actionType: 'item_queued',
-    actor: 'agent_serveur',
-    description: `Élément mis en file d attente de validation : ${newItem.title}`,
-    provenanceDetails: newItem.sourceOpportunityTitle,
-    status: 'warning',
-  });
-  return newItem;
-}
-
-export function updateValidationStatus(
+export async function updateValidationStatus(
+  userUid: string,
   id: string,
   status: 'valide' | 'rejete',
   reviewNotes?: string
-): ValidationItem | null {
-  const current = getValidationQueue();
-  const index = current.findIndex((i) => i.id === id);
-  if (index === -1) return null;
-
-  current[index].status = status;
-  current[index].reviewedAt = new Date().toISOString();
-  if (reviewNotes) current[index].reviewNotes = reviewNotes;
-
-  saveValidationQueue(current);
-  appendAuditLog({
-    actionType: status === 'valide' ? 'item_validated' : 'item_rejected',
-    actor: 'utilisateur',
-    description: `Élément ${status === 'valide' ? 'validé manuellement' : 'rejeté'} : ${current[index].title}`,
-    provenanceDetails: current[index].sourceOpportunityTitle,
-    status: status === 'valide' ? 'success' : 'warning',
-  });
-
-  return current[index];
-}
-
-// ----------------- AUDIT LOG PERSISTENCE (Journal de toutes les actions) -----------------
-
-export function getAuditLog(): AuditLogEntry[] {
-  if (fs.existsSync(AUDIT_FILE)) {
-    try {
-      const data = fs.readFileSync(AUDIT_FILE, 'utf-8');
-      return JSON.parse(data);
-    } catch (e) {
-      console.error('Error reading audit_log.json:', e);
-    }
-  }
-  return [];
-}
-
-export function appendAuditLog(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): AuditLogEntry {
-  const current = getAuditLog();
-  const newEntry: AuditLogEntry = {
-    ...entry,
-    id: `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    timestamp: new Date().toISOString(),
-  };
-  const updated = [newEntry, ...current].slice(0, 500); // keep 500 latest entries
+): Promise<ValidationItem | null> {
   try {
-    fs.writeFileSync(AUDIT_FILE, JSON.stringify(updated, null, 2), 'utf-8');
-    emitWorkspaceEvent('audit_updated', { entries: updated, latest: newEntry });
-  } catch (e) {
-    console.error('Error appending audit log:', e);
+    const existing = await getValidationItemById(userUid, id);
+    if (!existing) return null;
+
+    const reviewedAt = new Date().toISOString();
+    const rows = await db
+      .update(validationQueue)
+      .set({
+        status,
+        reviewedAt,
+        reviewNotes: reviewNotes || existing.reviewNotes || null,
+      })
+      .where(and(eq(validationQueue.id, id), eq(validationQueue.userUid, userUid)))
+      .returning();
+
+    if (rows.length === 0) return null;
+
+    const updatedItem = mapValidationRow(rows[0]);
+    const allItems = await getValidationQueue(userUid);
+    emitWorkspaceEvent('validation_updated', { items: allItems }, userUid);
+
+    await appendAuditLog(userUid, {
+      actionType: status === 'valide' ? 'item_validated' : 'item_rejected',
+      actor: 'utilisateur',
+      description: `Élément ${status === 'valide' ? 'validé manuellement' : 'rejeté'} : ${updatedItem.title}`,
+      provenanceDetails: updatedItem.sourceOpportunityTitle,
+      status: status === 'valide' ? 'success' : 'warning',
+    });
+
+    return updatedItem;
+  } catch (error) {
+    console.error('Database query failed in updateValidationStatus:', error);
+    throw new Error('Impossible de mettre à jour le statut de validation.', { cause: error });
   }
-  return newEntry;
 }
 
-// ----------------- REAL SALES TRACKING (Encaissements Réels vs Prévisions) -----------------
-
-export function getRealSales(): RealSaleRecord[] {
-  if (fs.existsSync(SALES_FILE)) {
-    try {
-      const data = fs.readFileSync(SALES_FILE, 'utf-8');
-      return JSON.parse(data);
-    } catch (e) {
-      console.error('Error reading sales.json:', e);
-    }
+export async function updateValidationDelivery(
+  userUid: string,
+  id: string,
+  delivery: {
+    deliveryChannel: 'email' | 'whatsapp' | 'webhook' | 'none';
+    deliveryStatus: 'not_sent' | 'sent' | 'failed';
+    deliveryTarget?: string;
+    deliverySubject?: string;
+    deliveryProvider?: string;
+    deliveryMessageId?: string;
+    deliveryError?: string;
+    deliveredAt?: string;
   }
-  return [];
-}
-
-export function addRealSale(sale: Omit<RealSaleRecord, 'id'>): RealSaleRecord {
-  const current = getRealSales();
-  const newSale: RealSaleRecord = {
-    ...sale,
-    id: `sale-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-  };
-  const updated = [newSale, ...current];
+): Promise<ValidationItem | null> {
   try {
-    fs.writeFileSync(SALES_FILE, JSON.stringify(updated, null, 2), 'utf-8');
-    emitWorkspaceEvent('sales_updated', { sales: updated, latest: newSale });
-  } catch (e) {
-    console.error('Error saving sale:', e);
+    const rows = await db
+      .update(validationQueue)
+      .set({
+        deliveryChannel: delivery.deliveryChannel,
+        deliveryStatus: delivery.deliveryStatus,
+        deliveryTarget: delivery.deliveryTarget || null,
+        deliverySubject: delivery.deliverySubject || null,
+        deliveryProvider: delivery.deliveryProvider || null,
+        deliveryMessageId: delivery.deliveryMessageId || null,
+        deliveryError: delivery.deliveryError || null,
+        deliveredAt: delivery.deliveredAt || null,
+      })
+      .where(and(eq(validationQueue.id, id), eq(validationQueue.userUid, userUid)))
+      .returning();
+
+    if (rows.length === 0) return null;
+    const updatedItem = mapValidationRow(rows[0]);
+    const allItems = await getValidationQueue(userUid);
+    emitWorkspaceEvent('validation_updated', { items: allItems }, userUid);
+    return updatedItem;
+  } catch (error) {
+    console.error('Database query failed in updateValidationDelivery:', error);
+    throw new Error('Impossible d’enregistrer le résultat d’envoi.', { cause: error });
   }
-  appendAuditLog({
-    actionType: 'sale_recorded',
-    actor: 'utilisateur',
-    description: `Encaissement réel enregistré : ${newSale.amount.toLocaleString()} ${newSale.currency} de ${newSale.clientName} (${newSale.paymentMethod})`,
-    provenanceDetails: newSale.opportunityTitle,
-    status: 'success',
-  });
-  return newSale;
 }
 
-export function deleteRealSale(id: string): boolean {
-  const current = getRealSales();
-  const updated = current.filter((s) => s.id !== id);
+// ----------------- AUDIT LOG PERSISTENCE (PostgreSQL) -----------------
+
+export async function getAuditLog(userUid: string): Promise<AuditLogEntry[]> {
   try {
-    fs.writeFileSync(SALES_FILE, JSON.stringify(updated, null, 2), 'utf-8');
-    emitWorkspaceEvent('sales_updated', { sales: updated });
+    const rows = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.userUid, userUid))
+      .orderBy(desc(auditLog.timestamp))
+      .limit(500);
+
+    return rows.map((r) => ({
+      id: r.id,
+      timestamp: r.timestamp,
+      actionType: r.actionType as AuditLogEntry['actionType'],
+      actor: r.actor as AuditLogEntry['actor'],
+      description: r.description,
+      provenanceDetails: r.provenanceDetails || undefined,
+      status: r.status as AuditLogEntry['status'],
+    }));
+  } catch (error) {
+    console.error('Database query failed in getAuditLog:', error);
+    throw new Error('Impossible de charger le journal d’audit.', { cause: error });
+  }
+}
+
+export async function appendAuditLog(
+  userUid: string,
+  entry: Omit<AuditLogEntry, 'id' | 'timestamp'>
+): Promise<AuditLogEntry> {
+  try {
+    const newEntry: AuditLogEntry = {
+      ...entry,
+      id: `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: new Date().toISOString(),
+    };
+
+    await db.insert(auditLog).values({
+      id: newEntry.id,
+      userUid,
+      timestamp: newEntry.timestamp,
+      actionType: newEntry.actionType,
+      actor: newEntry.actor,
+      description: newEntry.description,
+      provenanceDetails: newEntry.provenanceDetails || null,
+      status: newEntry.status,
+    });
+
+    const entries = await getAuditLog(userUid);
+    emitWorkspaceEvent('audit_updated', { entries, latest: newEntry }, userUid);
+    return newEntry;
+  } catch (error) {
+    console.error('Database query failed in appendAuditLog:', error);
+    throw new Error('Impossible d’écrire dans le journal d’audit.', { cause: error });
+  }
+}
+
+// ----------------- REAL SALES TRACKING (PostgreSQL) -----------------
+
+export async function getRealSales(userUid: string): Promise<RealSaleRecord[]> {
+  try {
+    const rows = await db
+      .select()
+      .from(realSales)
+      .where(eq(realSales.userUid, userUid))
+      .orderBy(desc(realSales.createdAt));
+
+    return rows.map((r) => ({
+      id: r.id,
+      clientName: r.clientName,
+      opportunityId: r.opportunityId || undefined,
+      opportunityTitle: r.opportunityTitle,
+      amount: Number(r.amount),
+      currency: r.currency as RealSaleRecord['currency'],
+      date: r.date,
+      status: r.status as RealSaleRecord['status'],
+      paymentMethod: r.paymentMethod,
+      notes: r.notes || undefined,
+      reference: r.reference || undefined,
+    }));
+  } catch (error) {
+    console.error('Database query failed in getRealSales:', error);
+    throw new Error('Impossible de charger les ventes depuis PostgreSQL.', { cause: error });
+  }
+}
+
+export async function addRealSale(
+  userUid: string,
+  sale: Omit<RealSaleRecord, 'id'>
+): Promise<RealSaleRecord> {
+  try {
+    const newSale: RealSaleRecord = {
+      ...sale,
+      id: `sale-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    };
+
+    await db.insert(realSales).values({
+      id: newSale.id,
+      userUid,
+      clientName: newSale.clientName,
+      opportunityId: newSale.opportunityId || null,
+      opportunityTitle: newSale.opportunityTitle,
+      amount: Number(newSale.amount),
+      currency: newSale.currency,
+      date: newSale.date,
+      status: newSale.status,
+      paymentMethod: newSale.paymentMethod,
+      notes: newSale.notes || null,
+      reference: newSale.reference || null,
+    });
+
+    const updated = await getRealSales(userUid);
+    emitWorkspaceEvent('sales_updated', { sales: updated, latest: newSale }, userUid);
+
+    await appendAuditLog(userUid, {
+      actionType: 'sale_recorded',
+      actor: 'utilisateur',
+      description: `Encaissement réel enregistré : ${newSale.amount.toLocaleString()} ${newSale.currency} de ${newSale.clientName} (${newSale.paymentMethod})`,
+      provenanceDetails: newSale.opportunityTitle,
+      status: 'success',
+    });
+
+    return newSale;
+  } catch (error) {
+    console.error('Database query failed in addRealSale:', error);
+    throw new Error('Impossible d’enregistrer la vente dans PostgreSQL.', { cause: error });
+  }
+}
+
+export async function deleteRealSale(userUid: string, id: string): Promise<boolean> {
+  try {
+    await db
+      .delete(realSales)
+      .where(and(eq(realSales.id, id), eq(realSales.userUid, userUid)));
+    const updated = await getRealSales(userUid);
+    emitWorkspaceEvent('sales_updated', { sales: updated }, userUid);
     return true;
-  } catch (e) {
-    console.error('Error deleting sale:', e);
-    return false;
+  } catch (error) {
+    console.error('Database query failed in deleteRealSale:', error);
+    throw new Error('Impossible de supprimer la vente.', { cause: error });
   }
 }
 
-// ----------------- USAGE COUNTER & API METRICS (Pas de quota arbitraire) -----------------
+// ----------------- USAGE COUNTER & API METRICS (PostgreSQL app_state) -----------------
 
 const DEFAULT_USAGE: UsageCounterStats = {
   totalGeminiCalls: 0,
@@ -1435,25 +2089,23 @@ const DEFAULT_USAGE: UsageCounterStats = {
   lastResponseTimeMs: 0,
 };
 
-export function getUsageStats(): UsageCounterStats {
-  if (fs.existsSync(USAGE_FILE)) {
-    try {
-      const data = fs.readFileSync(USAGE_FILE, 'utf-8');
-      return JSON.parse(data);
-    } catch (e) {
-      console.error('Error reading usage_counter.json:', e);
-    }
+export async function getUsageStats(): Promise<UsageCounterStats> {
+  try {
+    const stored = await getAppState<UsageCounterStats>('usage_counter');
+    return stored ? { ...DEFAULT_USAGE, ...stored } : { ...DEFAULT_USAGE };
+  } catch {
+    return { ...DEFAULT_USAGE };
   }
-  return DEFAULT_USAGE;
 }
 
-export function recordGeminiCall(
+export async function recordGeminiCall(
   durationMs: number,
   success: boolean,
   errorMessage?: string,
-  extra?: { signalsCollected?: number; opportunitiesSynthesized?: number; kitsGenerated?: number }
-): UsageCounterStats {
-  const current = getUsageStats();
+  extra?: { signalsCollected?: number; opportunitiesSynthesized?: number; kitsGenerated?: number },
+  userUid?: string
+): Promise<UsageCounterStats> {
+  const current = await getUsageStats();
   current.totalGeminiCalls += 1;
   if (success) {
     current.successfulCalls += 1;
@@ -1470,19 +2122,25 @@ export function recordGeminiCall(
       message: errorMessage,
       timestamp: new Date().toISOString(),
     };
-    appendAuditLog({
-      actionType: 'api_error',
-      actor: 'gemini_api',
-      description: `Erreur API Gemini : ${errorMessage}`,
-      status: 'error',
-    });
+    if (userUid) {
+      try {
+        await appendAuditLog(userUid, {
+          actionType: 'api_error',
+          actor: 'gemini_api',
+          description: `Erreur API Gemini : ${errorMessage}`,
+          status: 'error',
+        });
+      } catch {
+        // non-fatal
+      }
+    }
   }
 
   try {
-    fs.writeFileSync(USAGE_FILE, JSON.stringify(current, null, 2), 'utf-8');
+    await setAppState('usage_counter', current);
     emitWorkspaceEvent('usage_updated', { stats: current });
   } catch (e) {
-    console.error('Error saving usage stats:', e);
+    console.error('Error saving usage stats to PostgreSQL:', e);
   }
 
   return current;
