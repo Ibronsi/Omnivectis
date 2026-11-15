@@ -3,28 +3,59 @@
 
 @layer base {
   :root {
-    --bg-canvas: #090B10;
-    --bg-surface: #11141C;
-    --bg-elevated: #161B26;
-    --border-hairline: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.14);
+    --bg-canvas: #F8F7F4;
+    --bg-sidebar: #F2EFE9;
+    --bg-surface: #FFFFFF;
+    --bg-inset: #F6F4EF;
+    --border-hairline: rgba(28, 25, 23, 0.09);
+    --border-strong: rgba(28, 25, 23, 0.16);
+    --ink-primary: #1C1917;
+    --ink-secondary: #57534E;
+    --ink-muted: #78716C;
   }
 
   html {
+    color-scheme: light;
+    background-color: #F8F7F4;
+  }
+
+  html.dark {
     color-scheme: dark;
-    background-color: #090B10;
+    background-color: #0B0D13;
+    --bg-canvas: #0B0D13;
+    --bg-sidebar: #11141C;
+    --bg-surface: #141720;
+    --bg-inset: #0D1017;
+    --border-hairline: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --ink-primary: #F5F5F4;
+    --ink-secondary: #D6D3D1;
+    --ink-muted: #A8A29E;
   }
 
   body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background-color: #090B10;
-    color: #F1F5F9;
-    letter-spacing: 0.005em;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: #F8F7F4;
+    color: #1C1917;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 180ms ease, color 180ms ease;
+  }
+
+  html.dark body {
+    background-color: #0B0D13;
+    color: #F5F5F4;
   }
 
   h1, h2, h3, .font-display {
-    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Fraunces', Georgia, serif;
     text-wrap: balance;
+    letter-spacing: -0.015em;
+  }
+
+  .font-sans {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
   .font-mono, [data-mono="true"] {
@@ -35,24 +66,44 @@
 
 @layer utilities {
   .surface-panel {
-    background-color: #11141C;
+    background-color: #FFFFFF;
+    border: 1px solid rgba(28, 25, 23, 0.09);
+    box-shadow: 0 1px 3px rgba(28, 25, 23, 0.04);
+  }
+
+  .dark .surface-panel {
+    background-color: #141720;
     border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
   }
 
   .surface-inset {
+    background-color: #F6F4EF;
+    border: 1px solid rgba(28, 25, 23, 0.08);
+  }
+
+  .dark .surface-inset {
     background-color: #0D1017;
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .divider-hairline {
-    border-color: rgba(255, 255, 255, 0.07);
+    border-color: rgba(28, 25, 23, 0.08);
+  }
+
+  .dark .divider-hairline {
+    border-color: rgba(255, 255, 255, 0.08);
   }
 }
 
 /* Smooth focus rings for keyboard navigation */
 *:focus-visible {
-  outline: 2px solid rgba(59, 130, 246, 0.75);
+  outline: 2px solid rgba(180, 83, 9, 0.65);
   outline-offset: 2px;
+}
+
+.dark *:focus-visible {
+  outline: 2px solid rgba(245, 158, 11, 0.7);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -63,10 +114,10 @@
   }
 }
 
-/* Custom scrollbars for clean workspace experience */
+/* Custom warm scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -74,10 +125,18 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.22);
+  background: rgba(120, 113, 108, 0.25);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.38);
+  background: rgba(120, 113, 108, 0.45);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }

@@ -296,14 +296,14 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
     switch (actor) {
       case 'utilisateur':
         return (
-          <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+          <span className="text-[11px] font-mono font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
             <User className="w-3 h-3" />
             <span>Utilisateur</span>
           </span>
         );
       case 'gemini_api':
         return (
-          <span className="text-[11px] font-mono text-indigo-400 flex items-center gap-1">
+          <span className="text-[11px] font-mono font-medium text-indigo-700 dark:text-indigo-400 flex items-center gap-1">
             <Bot className="w-3 h-3" />
             <span>Gemini API</span>
           </span>
@@ -311,7 +311,7 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       case 'agent_serveur':
       default:
         return (
-          <span className="text-[11px] font-mono text-cyan-400 flex items-center gap-1">
+          <span className="text-[11px] font-mono font-medium text-teal-700 dark:text-teal-400 flex items-center gap-1">
             <Terminal className="w-3 h-3" />
             <span>Serveur</span>
           </span>
@@ -340,25 +340,25 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/[0.08] pb-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-stone-200/80 dark:border-white/[0.08] pb-6">
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
+          <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
             <Lock className="w-3.5 h-3.5" />
             <span>Contrôle Strict · Envoi Réel Après Approbation</span>
           </p>
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
-            File « À valider » & Journal d Actions
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
+            File « À valider » & Journal d'Actions
           </h1>
-          <p className="text-sm text-slate-400 max-w-3xl leading-relaxed">
-            <strong className="text-slate-200 font-medium">Règle absolue :</strong> Rien n est envoyé ni exécuté sans votre validation formelle.
-            Choisissez le canal réel (E-mail, WhatsApp Cloud API ou Webhook) au moment d approuver, et suivez le statut exact d acheminement.
+          <p className="text-sm text-stone-600 dark:text-stone-400 max-w-3xl leading-relaxed">
+            <strong className="text-stone-900 dark:text-stone-100 font-semibold">Règle absolue :</strong> Rien n'est envoyé ni exécuté sans votre validation formelle.
+            Choisissez le canal réel (E-mail, WhatsApp Cloud API ou Webhook) au moment d'approuver, et suivez le statut exact d'acheminement.
           </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setShowComposer((prev) => !prev)}
-            className="cursor-pointer px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-1.5 transition-colors"
+            className="cursor-pointer px-3.5 py-2 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Rédiger un message</span>
@@ -366,9 +366,9 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
 
           <button
             onClick={fetchData}
-            className="cursor-pointer px-3.5 py-2 text-xs font-medium text-slate-300 hover:text-white bg-[#11141C] hover:bg-white/[0.04] border border-white/[0.08] rounded-lg flex items-center gap-2 transition-colors"
+            className="cursor-pointer px-3.5 py-2 text-xs font-medium text-stone-700 dark:text-stone-200 hover:text-stone-900 dark:hover:text-stone-100 bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.06] border border-stone-200 dark:border-white/[0.1] rounded-xl flex items-center gap-2 transition-colors shadow-[0_1px_2px_rgba(28,25,23,0.03)]"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-stone-500 dark:text-stone-400 ${loading ? 'animate-spin' : ''}`} />
             <span>Actualiser</span>
           </button>
         </div>
@@ -377,12 +377,12 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       {/* Delivery Channels Readiness Strip */}
       {deliveryChannels && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="p-3.5 rounded-xl bg-[#11141C] border border-white/[0.08] flex items-center justify-between gap-3">
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <Mail className="w-4 h-4 text-blue-400 shrink-0" />
+              <Mail className="w-4 h-4 text-blue-700 dark:text-blue-400 shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-200">E-mail (SMTP / Resend)</p>
-                <p className="text-[11px] text-slate-400 truncate">
+                <p className="text-xs font-semibold text-stone-900 dark:text-stone-100">E-mail (SMTP / Resend)</p>
+                <p className="text-[11px] text-stone-500 dark:text-stone-400 truncate">
                   {deliveryChannels.email.configured
                     ? deliveryChannels.email.fromAddress || deliveryChannels.email.providers.join(', ')
                     : 'Définissez RESEND_API_KEY ou SMTP_*'}
@@ -390,20 +390,20 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
               </div>
             </div>
             <span
-              className={`text-[11px] font-mono font-medium shrink-0 ${
-                deliveryChannels.email.configured ? 'text-emerald-400' : 'text-amber-400'
+              className={`text-[11px] font-mono font-semibold shrink-0 ${
+                deliveryChannels.email.configured ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'
               }`}
             >
               {deliveryChannels.email.configured ? 'Prêt' : 'Non configuré'}
             </span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-[#11141C] border border-white/[0.08] flex items-center justify-between gap-3">
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <MessageSquare className="w-4 h-4 text-emerald-400 shrink-0" />
+              <MessageSquare className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-200">WhatsApp Cloud API</p>
-                <p className="text-[11px] text-slate-400 truncate">
+                <p className="text-xs font-semibold text-stone-900 dark:text-stone-100">WhatsApp Cloud API</p>
+                <p className="text-[11px] text-stone-500 dark:text-stone-400 truncate">
                   {deliveryChannels.whatsapp.configured
                     ? 'Meta Graph API actif'
                     : 'Définissez WHATSAPP_ACCESS_TOKEN'}
@@ -411,20 +411,20 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
               </div>
             </div>
             <span
-              className={`text-[11px] font-mono font-medium shrink-0 ${
-                deliveryChannels.whatsapp.configured ? 'text-emerald-400' : 'text-amber-400'
+              className={`text-[11px] font-mono font-semibold shrink-0 ${
+                deliveryChannels.whatsapp.configured ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'
               }`}
             >
               {deliveryChannels.whatsapp.configured ? 'Prêt' : 'Non configuré'}
             </span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-[#11141C] border border-white/[0.08] flex items-center justify-between gap-3">
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <Webhook className="w-4 h-4 text-cyan-400 shrink-0" />
+              <Webhook className="w-4 h-4 text-teal-700 dark:text-teal-400 shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-200">Webhook sortant</p>
-                <p className="text-[11px] text-slate-400 truncate">
+                <p className="text-xs font-semibold text-stone-900 dark:text-stone-100">Webhook sortant</p>
+                <p className="text-[11px] text-stone-500 dark:text-stone-400 truncate">
                   {deliveryChannels.webhook.configured
                     ? 'Relais HTTP actif (n8n / Make / API)'
                     : 'Définissez OUTBOUND_WEBHOOK_URL'}
@@ -432,8 +432,8 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
               </div>
             </div>
             <span
-              className={`text-[11px] font-mono font-medium shrink-0 ${
-                deliveryChannels.webhook.configured ? 'text-emerald-400' : 'text-amber-400'
+              className={`text-[11px] font-mono font-semibold shrink-0 ${
+                deliveryChannels.webhook.configured ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'
               }`}
             >
               {deliveryChannels.webhook.configured ? 'Prêt' : 'Non configuré'}
@@ -446,34 +446,34 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       {showComposer && (
         <form
           onSubmit={handleCreateManualItem}
-          className="p-5 rounded-xl bg-[#11141C] border border-blue-500/30 space-y-4"
+          className="p-6 rounded-2xl bg-white dark:bg-[#141720] border border-blue-200 dark:border-blue-500/30 shadow-sm space-y-4"
         >
           <div className="flex items-center justify-between">
-            <h3 className="font-display text-sm font-semibold text-white">
+            <h3 className="font-display text-base font-semibold text-stone-900 dark:text-stone-100">
               Nouveau message à soumettre à la file de validation
             </h3>
             <button
               type="button"
               onClick={() => setShowComposer(false)}
-              className="text-xs text-slate-400 hover:text-white cursor-pointer"
+              className="text-xs font-medium text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 cursor-pointer"
             >
               Fermer
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1">Objet / Titre *</label>
+              <label className="block text-[11px] font-medium text-stone-600 dark:text-stone-400 mb-1">Objet / Titre *</label>
               <input
                 type="text"
                 required
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Ex. Proposition de partenariat B2B"
-                className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.09] rounded-lg text-xs text-white focus:border-blue-500/60 focus:outline-none"
+                className="w-full px-3 py-2 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.1] rounded-xl text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 focus:bg-white dark:focus:bg-[#161A24] focus:border-blue-600 dark:focus:border-blue-500 focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1">
+              <label className="block text-[11px] font-medium text-stone-600 dark:text-stone-400 mb-1">
                 Destinataire (e-mail ou numéro WhatsApp)
               </label>
               <input
@@ -481,26 +481,26 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                 value={newRecipient}
                 onChange={(e) => setNewRecipient(e.target.value)}
                 placeholder="Ex. contact@entreprise.com ou +22790123456"
-                className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.09] rounded-lg text-xs text-white focus:border-blue-500/60 focus:outline-none"
+                className="w-full px-3 py-2 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.1] rounded-xl text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 focus:bg-white dark:focus:bg-[#161A24] focus:border-blue-600 dark:focus:border-blue-500 focus:outline-none"
               />
             </div>
           </div>
           <div>
-            <label className="block text-[11px] text-slate-400 mb-1">Contenu du message *</label>
+            <label className="block text-[11px] font-medium text-stone-600 dark:text-stone-400 mb-1">Contenu du message *</label>
             <textarea
               required
               rows={4}
               value={newPayload}
               onChange={(e) => setNewPayload(e.target.value)}
               placeholder="Rédigez le message exact qui sera envoyé après validation..."
-              className="w-full px-3 py-2 bg-[#0D1017] border border-white/[0.09] rounded-lg text-xs text-white focus:border-blue-500/60 focus:outline-none"
+              className="w-full px-3 py-2 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.1] rounded-xl text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 focus:bg-white dark:focus:bg-[#161A24] focus:border-blue-600 dark:focus:border-blue-500 focus:outline-none"
             />
           </div>
           <div className="flex justify-end">
             <button
               type="submit"
               disabled={creatingManual}
-              className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg disabled:opacity-50"
+              className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-xl shadow-xs disabled:opacity-50"
             >
               {creatingManual ? 'Ajout en cours...' : 'Ajouter en file « À valider »'}
             </button>
@@ -509,14 +509,14 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       )}
 
       {/* Primary SubTabs: Queue vs Audit */}
-      <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-        <div className="flex items-center gap-1 p-1 bg-[#11141C] border border-white/[0.08] rounded-lg">
+      <div className="flex items-center justify-between border-b border-stone-200/80 dark:border-white/[0.08] pb-3">
+        <div className="flex items-center gap-1 p-1 bg-[#F2EFE9] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.08] rounded-xl">
           <button
             onClick={() => setActiveSubTab('queue')}
-            className={`cursor-pointer px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-2 ${
+            className={`cursor-pointer px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${
               activeSubTab === 'queue'
-                ? 'bg-emerald-600 text-white'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-emerald-700 dark:bg-emerald-600 text-white shadow-xs'
+                : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
@@ -530,10 +530,10 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
 
           <button
             onClick={() => setActiveSubTab('audit')}
-            className={`cursor-pointer px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-2 ${
+            className={`cursor-pointer px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 ${
               activeSubTab === 'audit'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-blue-700 dark:bg-blue-600 text-white shadow-xs'
+                : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
             }`}
           >
             <History className="w-3.5 h-3.5" />
@@ -543,15 +543,15 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       </div>
 
       {errorMsg && (
-        <div className="p-3.5 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-2.5">
-          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+        <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-500/30 text-rose-900 dark:text-rose-200 text-xs flex items-center gap-2.5">
+          <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {feedbackMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-200 text-xs flex items-center gap-2.5">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/30 text-emerald-900 dark:text-emerald-200 text-xs flex items-center gap-2.5">
+          <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
           <span>{feedbackMsg}</span>
         </div>
       )}
@@ -560,38 +560,38 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       {activeSubTab === 'queue' && (
         <div className="space-y-6">
           {/* Status filter bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-[#11141C] border border-white/[0.08] rounded-xl">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-3.5 bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)]">
             <div className="flex flex-wrap items-center gap-2.5 text-xs">
-              <span className="text-slate-400 font-medium pl-1">Filtrer :</span>
-              <div className="flex items-center gap-1 p-1 bg-[#0D1017] rounded-lg border border-white/[0.07]">
+              <span className="text-stone-600 dark:text-stone-400 font-medium pl-1">Filtrer :</span>
+              <div className="flex items-center gap-1 p-1 bg-[#F6F4EF] dark:bg-[#0D1017] rounded-xl border border-stone-200/80 dark:border-white/[0.08]">
                 <button
                   onClick={() => setStatusFilter('en_attente')}
-                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
-                    statusFilter === 'en_attente' ? 'bg-amber-600 text-white font-medium' : 'text-slate-400 hover:text-white'
+                  className={`cursor-pointer px-3 py-1 rounded-lg transition-colors whitespace-nowrap ${
+                    statusFilter === 'en_attente' ? 'bg-amber-700 dark:bg-amber-600 text-white font-medium shadow-xs' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
                   }`}
                 >
                   En attente ({queueItems.filter((i) => i.status === 'en_attente').length})
                 </button>
                 <button
                   onClick={() => setStatusFilter('valide')}
-                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
-                    statusFilter === 'valide' ? 'bg-emerald-600 text-white font-medium' : 'text-slate-400 hover:text-white'
+                  className={`cursor-pointer px-3 py-1 rounded-lg transition-colors whitespace-nowrap ${
+                    statusFilter === 'valide' ? 'bg-emerald-700 dark:bg-emerald-600 text-white font-medium shadow-xs' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
                   }`}
                 >
                   Validés ({queueItems.filter((i) => i.status === 'valide').length})
                 </button>
                 <button
                   onClick={() => setStatusFilter('rejete')}
-                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
-                    statusFilter === 'rejete' ? 'bg-rose-600 text-white font-medium' : 'text-slate-400 hover:text-white'
+                  className={`cursor-pointer px-3 py-1 rounded-lg transition-colors whitespace-nowrap ${
+                    statusFilter === 'rejete' ? 'bg-rose-700 dark:bg-rose-600 text-white font-medium shadow-xs' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
                   }`}
                 >
                   Rejetés ({queueItems.filter((i) => i.status === 'rejete').length})
                 </button>
                 <button
                   onClick={() => setStatusFilter('all')}
-                  className={`cursor-pointer px-3 py-1 rounded-md transition-colors whitespace-nowrap ${
-                    statusFilter === 'all' ? 'bg-white/[0.08] text-white font-medium' : 'text-slate-400 hover:text-white'
+                  className={`cursor-pointer px-3 py-1 rounded-lg transition-colors whitespace-nowrap ${
+                    statusFilter === 'all' ? 'bg-white dark:bg-white/[0.1] text-stone-900 dark:text-stone-100 font-semibold shadow-xs' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
                   }`}
                 >
                   Tous ({queueItems.length})
@@ -599,24 +599,24 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
               </div>
             </div>
 
-            <span className="text-[11px] text-slate-500 hidden sm:block pr-1">
+            <span className="text-[11px] text-stone-500 dark:text-stone-400 hidden sm:block pr-1">
               Aucun envoi sans validation explicite
             </span>
           </div>
 
           {/* Items List */}
           {loading ? (
-            <div className="py-20 text-center text-slate-400 space-y-3">
-              <RefreshCw className="w-7 h-7 animate-spin mx-auto text-emerald-400" />
+            <div className="py-20 text-center text-stone-600 dark:text-stone-400 space-y-3 bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl">
+              <RefreshCw className="w-7 h-7 animate-spin mx-auto text-emerald-700 dark:text-emerald-400" />
               <p className="text-sm">Chargement des éléments en file...</p>
             </div>
           ) : filteredQueue.length === 0 ? (
-            <div className="py-16 text-center bg-[#11141C] border border-white/[0.08] rounded-xl space-y-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto text-emerald-400">
+            <div className="py-16 text-center bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-700 dark:text-emerald-400">
                 <CheckCircle2 className="w-5 h-5" />
               </div>
-              <h3 className="font-display text-base font-semibold text-white">Aucun élément dans cette catégorie</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+              <h3 className="font-display text-lg font-semibold text-stone-900 dark:text-stone-100">Aucun élément dans cette catégorie</h3>
+              <p className="text-sm text-stone-600 dark:text-stone-400 max-w-sm mx-auto leading-relaxed">
                 Lorsque vous générez un dossier de lancement, un plan physique ou rédigez un message manuel, il apparaît ici pour validation et envoi réel.
               </p>
             </div>
@@ -635,12 +635,12 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                 return (
                   <div
                     key={item.id}
-                    className={`p-6 rounded-xl bg-[#11141C] border transition-colors space-y-4 ${
+                    className={`p-6 rounded-2xl bg-white dark:bg-[#141720] border shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] transition-colors space-y-4 ${
                       isPending
-                        ? 'border-amber-500/30 hover:border-amber-500/50'
+                        ? 'border-amber-300/90 dark:border-amber-500/35 hover:border-amber-400 dark:hover:border-amber-500/50'
                         : isValidated
-                        ? 'border-emerald-500/25'
-                        : 'border-rose-500/25'
+                        ? 'border-emerald-200 dark:border-emerald-500/30'
+                        : 'border-rose-200 dark:border-rose-500/30'
                     }`}
                   >
                     {/* Header Zone */}
@@ -648,45 +648,45 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2 flex-wrap text-xs">
                           <span
-                            className={`font-mono font-medium ${
+                            className={`font-mono font-semibold ${
                               item.category === 'prospection_message'
-                                ? 'text-cyan-400'
+                                ? 'text-teal-700 dark:text-teal-400'
                                 : item.category === 'administrative_step'
-                                ? 'text-amber-400'
-                                : 'text-blue-400'
+                                ? 'text-amber-700 dark:text-amber-400'
+                                : 'text-blue-700 dark:text-blue-400'
                             }`}
                           >
                             {item.category.replace('_', ' ')}
                           </span>
-                          <span aria-hidden="true" className="text-slate-600">·</span>
-                          <span className="text-slate-400">
-                            Cible : <strong className="text-slate-200 font-medium">{item.deliveryTarget || item.targetRecipient || 'Non spécifié'}</strong>
+                          <span aria-hidden="true" className="text-stone-300 dark:text-stone-600">·</span>
+                          <span className="text-stone-600 dark:text-stone-400">
+                            Cible : <strong className="text-stone-900 dark:text-stone-100 font-semibold">{item.deliveryTarget || item.targetRecipient || 'Non spécifié'}</strong>
                           </span>
-                          <span aria-hidden="true" className="text-slate-600">·</span>
-                          <span className="text-[11px] text-slate-500">
+                          <span aria-hidden="true" className="text-stone-300 dark:text-stone-600">·</span>
+                          <span className="text-[11px] text-stone-500 dark:text-stone-400">
                             Source : {item.sourceOpportunityTitle}
                           </span>
                         </div>
 
-                        <h3 className="font-display text-base font-semibold text-white">{item.title}</h3>
+                        <h3 className="font-display text-lg font-semibold text-stone-900 dark:text-stone-100">{item.title}</h3>
                       </div>
 
                       {/* Semantic Status */}
                       <div className="shrink-0 flex flex-col items-end gap-1">
                         {isPending && (
-                          <span className="text-xs font-mono font-medium text-amber-400 flex items-center gap-1.5">
+                          <span className="text-xs font-mono font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
                             <Clock className="w-3.5 h-3.5" />
                             <span>En attente</span>
                           </span>
                         )}
                         {isValidated && (
-                          <span className="text-xs font-mono font-medium text-emerald-400 flex items-center gap-1.5">
+                          <span className="text-xs font-mono font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>Validé</span>
                           </span>
                         )}
                         {isRejected && (
-                          <span className="text-xs font-mono font-medium text-rose-400 flex items-center gap-1.5">
+                          <span className="text-xs font-mono font-semibold text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
                             <XCircle className="w-3.5 h-3.5" />
                             <span>Rejeté</span>
                           </span>
@@ -695,22 +695,22 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                     </div>
 
                     {/* Content Payload */}
-                    <div className="p-4 rounded-lg bg-[#0D1017] border border-white/[0.06] text-xs text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">
+                    <div className="p-4 rounded-xl bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08] text-xs text-stone-800 dark:text-stone-200 whitespace-pre-wrap font-sans leading-relaxed">
                       {item.contentPayload}
                     </div>
 
                     {/* Delivery Outcome Banner if already attempted */}
                     {item.deliveryStatus === 'sent' && (
-                      <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/30 text-emerald-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                      <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/30 text-emerald-900 dark:text-emerald-200 text-xs flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <Send className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <Send className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
                           <span>
                             Envoyé réellement via <strong className="uppercase">{item.deliveryChannel}</strong>
                             {item.deliveryProvider ? ` (${item.deliveryProvider})` : ''} à{' '}
                             <strong className="font-mono">{item.deliveryTarget || 'Webhook'}</strong>
                           </span>
                         </div>
-                        <span className="text-[11px] font-mono text-emerald-400/90 tabular-nums">
+                        <span className="text-[11px] font-mono text-emerald-800 dark:text-emerald-300 tabular-nums">
                           {item.deliveredAt ? new Date(item.deliveredAt).toLocaleString('fr-FR') : ''}
                           {item.deliveryMessageId ? ` · ID ${item.deliveryMessageId}` : ''}
                         </span>
@@ -718,29 +718,29 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                     )}
 
                     {item.deliveryStatus === 'failed' && item.deliveryError && (
-                      <div className="p-3 rounded-lg bg-rose-950/30 border border-rose-500/30 text-rose-200 text-xs flex items-start gap-2">
-                        <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                      <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-500/30 text-rose-900 dark:text-rose-200 text-xs flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0 mt-0.5" />
                         <div>
-                          <p className="font-semibold text-rose-300">Échec de l envoi réel ({item.deliveryChannel})</p>
-                          <p className="text-rose-200/90 mt-0.5">{item.deliveryError}</p>
+                          <p className="font-semibold text-rose-900 dark:text-rose-200">Échec de l'envoi réel ({item.deliveryChannel})</p>
+                          <p className="text-rose-800 dark:text-rose-300 mt-0.5">{item.deliveryError}</p>
                         </div>
                       </div>
                     )}
 
                     {/* Real Dispatch Controls (Available for Pending OR Validated not-yet-sent/failed) */}
                     {!isRejected && item.deliveryStatus !== 'sent' && (
-                      <div className="p-4 rounded-lg bg-[#0D1017] border border-white/[0.06] space-y-3">
+                      <div className="p-4 rounded-xl bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08] space-y-3">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <div>
-                            <label className="block text-[11px] text-slate-400 mb-1">
-                              Canal d envoi réel
+                            <label className="block text-[11px] font-medium text-stone-600 dark:text-stone-400 mb-1">
+                              Canal d'envoi réel
                             </label>
                             <select
                               value={draft.channel}
                               onChange={(e) =>
                                 updateDraft(item, { channel: e.target.value as DraftChannel })
                               }
-                              className="w-full px-3 py-2 bg-[#11141C] border border-white/[0.1] rounded-lg text-xs text-white focus:border-blue-500/60 focus:outline-none"
+                              className="w-full px-3 py-2 bg-white dark:bg-[#141720] border border-stone-200 dark:border-white/[0.1] rounded-xl text-xs text-stone-900 dark:text-stone-100 focus:border-blue-600 dark:focus:border-blue-500 focus:outline-none cursor-pointer"
                             >
                               <option value="none">Aucun (Validation interne seule)</option>
                               <option value="email">E-mail (SMTP / Resend)</option>
@@ -751,7 +751,7 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
 
                           {draft.channel !== 'none' && (
                             <div>
-                              <label className="block text-[11px] text-slate-400 mb-1">
+                              <label className="block text-[11px] font-medium text-stone-600 dark:text-stone-400 mb-1">
                                 {draft.channel === 'email'
                                   ? 'Adresse e-mail du destinataire *'
                                   : draft.channel === 'whatsapp'
@@ -769,32 +769,32 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                                     ? '+22790123456'
                                     : 'crm-prospect-01'
                                 }
-                                className="w-full px-3 py-2 bg-[#11141C] border border-white/[0.1] rounded-lg text-xs text-white focus:border-blue-500/60 focus:outline-none"
+                                className="w-full px-3 py-2 bg-white dark:bg-[#141720] border border-stone-200 dark:border-white/[0.1] rounded-xl text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 focus:border-blue-600 dark:focus:border-blue-500 focus:outline-none"
                               />
                             </div>
                           )}
 
                           {draft.channel === 'email' && (
                             <div>
-                              <label className="block text-[11px] text-slate-400 mb-1">
-                                Objet de l e-mail
+                              <label className="block text-[11px] font-medium text-stone-600 dark:text-stone-400 mb-1">
+                                Objet de l'e-mail
                               </label>
                               <input
                                 type="text"
                                 value={draft.subject}
                                 onChange={(e) => updateDraft(item, { subject: e.target.value })}
                                 placeholder="Objet du message..."
-                                className="w-full px-3 py-2 bg-[#11141C] border border-white/[0.1] rounded-lg text-xs text-white focus:border-blue-500/60 focus:outline-none"
+                                className="w-full px-3 py-2 bg-white dark:bg-[#141720] border border-stone-200 dark:border-white/[0.1] rounded-xl text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 focus:border-blue-600 dark:focus:border-blue-500 focus:outline-none"
                               />
                             </div>
                           )}
                         </div>
 
                         {draft.channel !== 'none' && !channelConfigured && (
-                          <p className="text-[11px] text-amber-300 flex items-center gap-1.5">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <p className="text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400 shrink-0" />
                             <span>
-                              Ce canal n a pas encore ses identifiants serveur configurés ; l envoi retournera une erreur explicite tant qu ils ne sont pas renseignés.
+                              Ce canal n'a pas encore ses identifiants serveur configurés ; l'envoi retournera une erreur explicite tant qu'ils ne sont pas renseignés.
                             </span>
                           </p>
                         )}
@@ -802,8 +802,8 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                     )}
 
                     {/* Review Notes & Actions */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-white/[0.07]">
-                      <div className="text-[11px] text-slate-500 font-mono tabular-nums">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-stone-200/80 dark:border-white/[0.08]">
+                      <div className="text-[11px] text-stone-500 dark:text-stone-400 font-mono tabular-nums">
                         Créé le {new Date(item.createdAt).toLocaleString('fr-FR')}
                         {item.reviewedAt && ` · Traité le ${new Date(item.reviewedAt).toLocaleString('fr-FR')}`}
                       </div>
@@ -813,7 +813,7 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                           <button
                             disabled={isSubmitting}
                             onClick={() => handleUpdateStatus(item, 'rejete', false)}
-                            className="cursor-pointer px-3 py-1.5 text-xs font-medium text-rose-300 hover:text-white bg-rose-950/30 hover:bg-rose-900/50 border border-rose-500/30 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                            className="cursor-pointer px-3 py-1.5 text-xs font-medium text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/50 border border-rose-200 dark:border-rose-500/30 rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50"
                           >
                             <X className="w-3.5 h-3.5" />
                             <span>Rejeter</span>
@@ -822,7 +822,7 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                           <button
                             disabled={isSubmitting}
                             onClick={() => handleUpdateStatus(item, 'valide', false)}
-                            className="cursor-pointer px-3 py-1.5 text-xs font-medium text-slate-200 hover:text-white bg-[#171C28] hover:bg-white/[0.08] border border-white/[0.1] rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                            className="cursor-pointer px-3 py-1.5 text-xs font-medium text-stone-800 dark:text-stone-200 bg-[#F6F4EF] dark:bg-white/[0.06] hover:bg-stone-200/70 dark:hover:bg-white/[0.12] border border-stone-200 dark:border-white/[0.1] rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50"
                           >
                             <Check className="w-3.5 h-3.5" />
                             <span>Valider sans envoyer</span>
@@ -832,7 +832,7 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                             <button
                               disabled={isSubmitting}
                               onClick={() => handleUpdateStatus(item, 'valide', true)}
-                              className="cursor-pointer px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                              className="cursor-pointer px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50"
                             >
                               {isSubmitting ? (
                                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -846,12 +846,12 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                       ) : isValidated && item.deliveryStatus !== 'sent' ? (
                         <div className="flex flex-wrap items-center gap-2">
                           {item.reviewNotes && (
-                            <span className="text-xs text-slate-400 mr-2">Note : {item.reviewNotes}</span>
+                            <span className="text-xs text-stone-600 dark:text-stone-400 mr-2">Note : {item.reviewNotes}</span>
                           )}
                           <button
                             disabled={isSubmitting || draft.channel === 'none'}
                             onClick={() => handleSendValidatedItem(item)}
-                            className="cursor-pointer px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                            className="cursor-pointer px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50"
                           >
                             {isSubmitting ? (
                               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -860,13 +860,13 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
                             )}
                             <span>
                               {item.deliveryStatus === 'failed'
-                                ? 'Réessayer l envoi réel'
+                                ? "Réessayer l'envoi réel"
                                 : 'Envoyer réellement'}
                             </span>
                           </button>
                         </div>
                       ) : (
-                        <div className="text-xs text-slate-400">
+                        <div className="text-xs text-stone-500 dark:text-stone-400">
                           {item.reviewNotes ? `Note : ${item.reviewNotes}` : 'Action clôturée'}
                         </div>
                       )}
@@ -882,54 +882,54 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       {/* ===================== VIEW 2: JOURNAL DE TOUTES LES ACTIONS (AUDIT LOG) ===================== */}
       {activeSubTab === 'audit' && (
         <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-[#11141C] border border-white/[0.08] text-xs text-slate-300 flex items-center justify-between gap-4">
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] text-xs text-stone-700 dark:text-stone-300 flex items-center justify-between gap-4">
             <span>
-              Journal certifié enregistrant chaque collecte de signal, synthèse d opportunité, validation manuelle, envoi réel, vente et modification d hypothèse.
+              Journal certifié enregistrant chaque collecte de signal, synthèse d'opportunité, validation manuelle, envoi réel, vente et modification d'hypothèse.
             </span>
-            <span className="font-mono text-blue-400 shrink-0 tabular-nums">{auditEntries.length} entrées</span>
+            <span className="font-mono font-semibold text-blue-700 dark:text-blue-400 shrink-0 tabular-nums">{auditEntries.length} entrées</span>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-[#11141C]">
+          <div className="overflow-x-auto rounded-2xl border border-stone-200/90 dark:border-white/[0.08] bg-white dark:bg-[#141720] shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)]">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-white/[0.08] text-slate-400 bg-[#0D1017]">
-                  <th className="py-2.5 px-4 font-semibold">Horodatage</th>
-                  <th className="py-2.5 px-4 font-semibold">Acteur</th>
-                  <th className="py-2.5 px-4 font-semibold">Type d Action</th>
-                  <th className="py-2.5 px-4 font-semibold">Description</th>
-                  <th className="py-2.5 px-4 font-semibold">Détails Provenance</th>
-                  <th className="py-2.5 px-4 text-center font-semibold">Statut</th>
+                <tr className="border-b border-stone-200 dark:border-white/[0.08] text-stone-600 dark:text-stone-400 bg-[#F6F4EF] dark:bg-[#0D1017]">
+                  <th className="py-3 px-4 font-semibold">Horodatage</th>
+                  <th className="py-3 px-4 font-semibold">Acteur</th>
+                  <th className="py-3 px-4 font-semibold">Type d'Action</th>
+                  <th className="py-3 px-4 font-semibold">Description</th>
+                  <th className="py-3 px-4 font-semibold">Détails Provenance</th>
+                  <th className="py-3 px-4 text-center font-semibold">Statut</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.06] font-sans">
+              <tbody className="divide-y divide-stone-200/70 dark:divide-white/[0.06] font-sans">
                 {auditEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-400">
-                      Aucune entrée dans le journal d actions.
+                    <td colSpan={6} className="py-8 text-center text-stone-500 dark:text-stone-400">
+                      Aucune entrée dans le journal d'actions.
                     </td>
                   </tr>
                 ) : (
                   auditEntries.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="py-2.5 px-4 text-slate-400 font-mono text-[11px] whitespace-nowrap tabular-nums">
+                    <tr key={entry.id} className="hover:bg-stone-50/70 dark:hover:bg-white/[0.03] transition-colors">
+                      <td className="py-2.5 px-4 text-stone-500 dark:text-stone-400 font-mono text-[11px] whitespace-nowrap tabular-nums">
                         {new Date(entry.timestamp).toLocaleString('fr-FR')}
                       </td>
                       <td className="py-2.5 px-4 whitespace-nowrap">{getActorBadge(entry.actor)}</td>
-                      <td className="py-2.5 px-4 text-slate-200 font-medium whitespace-nowrap">
+                      <td className="py-2.5 px-4 text-stone-900 dark:text-stone-100 font-medium whitespace-nowrap">
                         {getActionBadge(entry.actionType)}
                       </td>
-                      <td className="py-2.5 px-4 text-slate-300">{entry.description}</td>
-                      <td className="py-2.5 px-4 text-slate-400 text-[11px] max-w-xs truncate">
+                      <td className="py-2.5 px-4 text-stone-700 dark:text-stone-300">{entry.description}</td>
+                      <td className="py-2.5 px-4 text-stone-500 dark:text-stone-400 text-[11px] max-w-xs truncate">
                         {entry.provenanceDetails || '-'}
                       </td>
                       <td className="py-2.5 px-4 text-center whitespace-nowrap">
                         <span
-                          className={`text-[11px] font-mono font-medium ${
+                          className={`text-[11px] font-mono font-semibold ${
                             entry.status === 'success'
-                              ? 'text-emerald-400'
+                              ? 'text-emerald-700 dark:text-emerald-400'
                               : entry.status === 'warning'
-                              ? 'text-amber-400'
-                              : 'text-rose-400'
+                              ? 'text-amber-700 dark:text-amber-400'
+                              : 'text-rose-700 dark:text-rose-400'
                           }`}
                         >
                           {entry.status}

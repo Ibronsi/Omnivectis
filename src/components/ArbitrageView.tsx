@@ -86,7 +86,7 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
 
   const handleRunArbitrage = async () => {
     if (sectorAId === sectorBId) {
-      setError('Veuillez sélectionner deux secteurs différents pour analyser l arbitrage.');
+      setError("Veuillez sélectionner deux secteurs différents pour analyser l'arbitrage.");
       return;
     }
     setAnalyzing(true);
@@ -105,7 +105,7 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
 
       const data = await response.json();
       if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Erreur lors de l analyse d arbitrage.');
+        throw new Error(data.error || "Erreur lors de l'analyse d'arbitrage.");
       }
 
       setCustomArbitrage(data.analysis);
@@ -123,39 +123,39 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
   return (
     <div className="space-y-8">
       {/* Editorial Header */}
-      <div className="border-b border-white/[0.08] pb-6">
-        <div className="text-xs font-medium text-blue-400 mb-1.5">
+      <div className="border-b border-stone-200/80 dark:border-white/[0.08] pb-6">
+        <div className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-1.5">
           Convergence Économique & Arbitrage de Flux
         </div>
-        <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
+        <h1 className="font-display text-2xl sm:text-3xl font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
           Arbitrage Cross-Sectoriel Multi-Marchés
         </h1>
-        <p className="text-sm text-slate-400 mt-2 max-w-3xl leading-relaxed">
-          Les plus grandes fortunes entrepreneuriales se créent à l intersection de deux mondes qui s ignorent.
-          Combinez l agilité technologique d un secteur avec l appétence en cash d un secteur traditionnel.
+        <p className="text-sm text-stone-600 dark:text-stone-400 mt-2 max-w-3xl leading-relaxed">
+          Les plus grandes fortunes entrepreneuriales se créent à l'intersection de deux mondes qui s'ignorent.
+          Combinez l'agilité technologique d'un secteur avec l'appétence en cash d'un secteur traditionnel.
         </p>
       </div>
 
       {/* Interactive Pair Generator */}
-      <div className="p-6 bg-[#11141C] border border-white/[0.08] rounded-lg space-y-6">
+      <div className="p-6 bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] space-y-6">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-            <ArrowLeftRight className="w-4 h-4 text-blue-400" />
+          <span className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+            <ArrowLeftRight className="w-4 h-4 text-blue-700 dark:text-blue-400" />
             <span>Sélectionnez 2 Secteurs pour Déceler une Asymétrie</span>
           </span>
-          <span className="text-[11px] text-slate-400 font-mono">Modélisation de Convergence IA</span>
+          <span className="text-[11px] text-stone-500 dark:text-stone-400 font-mono">Modélisation de Convergence IA</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
           {/* Sector A */}
-          <div className="space-y-1.5 p-4 bg-[#0D1017] border border-white/[0.08] rounded-lg">
-            <span className="text-[11px] font-medium text-blue-400 uppercase tracking-wider block">
-              Secteur Pivot 1 (Levier d efficacité)
+          <div className="space-y-1.5 p-4 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08] rounded-xl">
+            <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 block">
+              Secteur Pivot 1 (Levier d'efficacité)
             </span>
             <select
               value={sectorAId}
               onChange={(e) => setSectorAId(e.target.value as SectorCategory)}
-              className="w-full bg-[#11141C] border border-white/[0.1] text-white text-xs rounded-lg p-2.5 cursor-pointer focus:outline-none focus:border-blue-500"
+              className="w-full bg-white dark:bg-[#141720] border border-stone-200 dark:border-white/[0.08] text-stone-900 dark:text-stone-100 text-xs rounded-xl p-2.5 cursor-pointer focus:outline-none focus:border-blue-600 dark:focus:border-blue-500"
             >
               {ECONOMIC_SECTORS.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -163,28 +163,28 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
                 </option>
               ))}
             </select>
-            <div className="text-[11px] text-slate-400 pt-1 font-mono tabular-nums">
+            <div className="text-[11px] text-stone-500 dark:text-stone-400 pt-1 font-mono tabular-nums">
               Marge moyenne : {sectorA.averageMargin}% · TAM : {sectorA.globalTam}
             </div>
           </div>
 
           {/* Exchange Icon */}
-          <div className="flex flex-col items-center justify-center text-slate-400 py-2">
-            <div className="w-9 h-9 rounded-lg bg-[#0D1017] border border-white/[0.08] flex items-center justify-center text-blue-400">
+          <div className="flex flex-col items-center justify-center text-stone-500 dark:text-stone-400 py-2">
+            <div className="w-9 h-9 rounded-xl bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.08] flex items-center justify-center text-blue-700 dark:text-blue-400">
               <ArrowLeftRight className="w-4 h-4" />
             </div>
-            <span className="text-[11px] text-slate-500 mt-1.5">Interconnexion</span>
+            <span className="text-[11px] text-stone-500 dark:text-stone-400 mt-1.5">Interconnexion</span>
           </div>
 
           {/* Sector B */}
-          <div className="space-y-1.5 p-4 bg-[#0D1017] border border-white/[0.08] rounded-lg">
-            <span className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider block">
+          <div className="space-y-1.5 p-4 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08] rounded-xl">
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 block">
               Secteur Pivot 2 (Monétisation & Cash)
             </span>
             <select
               value={sectorBId}
               onChange={(e) => setSectorBId(e.target.value as SectorCategory)}
-              className="w-full bg-[#11141C] border border-white/[0.1] text-white text-xs rounded-lg p-2.5 cursor-pointer focus:outline-none focus:border-blue-500"
+              className="w-full bg-white dark:bg-[#141720] border border-stone-200 dark:border-white/[0.08] text-stone-900 dark:text-stone-100 text-xs rounded-xl p-2.5 cursor-pointer focus:outline-none focus:border-blue-600 dark:focus:border-blue-500"
             >
               {ECONOMIC_SECTORS.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -192,31 +192,31 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
                 </option>
               ))}
             </select>
-            <div className="text-[11px] text-slate-400 pt-1 font-mono tabular-nums">
+            <div className="text-[11px] text-stone-500 dark:text-stone-400 pt-1 font-mono tabular-nums">
               Marge moyenne : {sectorB.averageMargin}% · TAM : {sectorB.globalTam}
             </div>
           </div>
         </div>
 
         {/* Action Button */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-white/[0.07]">
-          <div className="text-xs text-slate-400">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-stone-200/80 dark:border-white/[0.08]">
+          <div className="text-xs text-stone-600 dark:text-stone-400">
             Objectif : Détecter comment vendre la valeur de {sectorA.name} aux acteurs de {sectorB.name}.
           </div>
           <button
             onClick={handleRunArbitrage}
             disabled={analyzing}
-            className="cursor-pointer px-4 py-2.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:bg-blue-950/60 disabled:text-slate-400 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
+            className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 disabled:bg-stone-200 dark:disabled:bg-white/[0.08] disabled:text-stone-500 dark:disabled:text-stone-500 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap"
           >
             {analyzing ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Analyse d arbitrage en cours...</span>
+                <span>Analyse d'arbitrage en cours...</span>
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                <span>Révéler l Opportunité d Arbitrage</span>
+                <span>Révéler l'Opportunité d'Arbitrage</span>
               </>
             )}
           </button>
@@ -224,19 +224,19 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
       </div>
 
       {error && (
-        <div className="p-4 bg-[#11141C] border border-rose-500/30 rounded-lg text-xs text-rose-400">
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-500/30 rounded-2xl text-xs text-rose-800 dark:text-rose-300">
           {error}
         </div>
       )}
 
       {savedArbitrages.length > 0 && (
-        <div className="p-4 bg-[#11141C] border border-white/[0.08] rounded-lg space-y-2.5">
-          <div className="flex items-center justify-between text-xs text-slate-300">
+        <div className="p-4 bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] space-y-2.5">
+          <div className="flex items-center justify-between text-xs text-stone-700 dark:text-stone-300">
             <span className="flex items-center gap-2 font-medium">
-              <History className="w-3.5 h-3.5 text-blue-400" />
-              <span>Analyses d arbitrage persistées ({savedArbitrages.length})</span>
+              <History className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
+              <span>Analyses d'arbitrage persistées ({savedArbitrages.length})</span>
             </span>
-            <span className="text-[11px] font-mono text-slate-500">Sauvegarde serveur</span>
+            <span className="text-[11px] font-mono text-stone-500 dark:text-stone-400">Sauvegarde serveur</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {savedArbitrages.map((rec) => (
@@ -246,18 +246,18 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
                   setActiveRecordId(rec.id);
                   setCustomArbitrage(rec.analysis);
                 }}
-                className={`cursor-pointer px-3 py-1.5 rounded-lg border text-xs flex items-center gap-2 transition-colors ${
+                className={`cursor-pointer px-3 py-1.5 rounded-xl border text-xs flex items-center gap-2 transition-colors ${
                   activeRecordId === rec.id
-                    ? 'bg-blue-600/20 border-blue-500/50 text-white'
-                    : 'bg-[#0D1017] border-white/[0.08] text-slate-300 hover:border-white/[0.16]'
+                    ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/40 text-stone-900 dark:text-stone-100 font-medium'
+                    : 'bg-[#F6F4EF] dark:bg-[#0D1017] border-stone-200/80 dark:border-white/[0.08] text-stone-700 dark:text-stone-300 hover:border-stone-300 dark:hover:border-white/[0.16]'
                 }`}
               >
                 <span className="truncate max-w-[240px]">{rec.analysis.conceptName}</span>
                 <button
                   type="button"
                   onClick={(e) => handleDeleteSaved(rec.id, e)}
-                  className="text-slate-500 hover:text-rose-400 cursor-pointer"
-                  title="Supprimer l analyse"
+                  className="text-stone-400 dark:text-stone-500 hover:text-rose-700 dark:hover:text-rose-400 cursor-pointer"
+                  title="Supprimer l'analyse"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
@@ -269,67 +269,67 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
 
       {/* Custom Generated Arbitrage Output */}
       {customArbitrage && (
-        <div className="bg-[#11141C] border border-blue-500/30 rounded-lg divide-y divide-white/[0.07]">
+        <div className="bg-white dark:bg-[#141720] border border-blue-200 dark:border-blue-500/30 rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] divide-y divide-stone-200/80 dark:divide-white/[0.07]">
           <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <span className="text-[11px] font-medium text-blue-400 uppercase tracking-wider">
-                Modèle d Arbitrage Découvert
+              <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
+                Modèle d'Arbitrage Découvert
               </span>
-              <h3 className="font-display text-xl font-semibold text-white tracking-tight mt-0.5">
+              <h3 className="font-display text-xl font-semibold text-stone-900 dark:text-stone-100 tracking-tight mt-0.5">
                 {customArbitrage.conceptName}
               </h3>
             </div>
             <div className="sm:text-right">
-              <span className="text-[11px] text-slate-400 block">Potentiel de Cash-Flow Net</span>
-              <span className="text-base font-semibold font-mono text-emerald-400 tabular-nums">
+              <span className="text-[11px] text-stone-500 dark:text-stone-400 block">Potentiel de Cash-Flow Net</span>
+              <span className="text-base font-semibold font-mono text-emerald-700 dark:text-emerald-400 tabular-nums">
                 {customArbitrage.estimatedMonthlyCashflow}
               </span>
             </div>
           </div>
 
-          <div className="p-6 bg-[#0D1017]/50 space-y-1.5">
-            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block">
-              Mécanisme de l Asymétrie Exploitée
+          <div className="p-6 bg-[#F6F4EF]/70 dark:bg-[#0D1017]/60 space-y-1.5">
+            <span className="text-xs font-semibold text-stone-700 dark:text-stone-300 block">
+              Mécanisme de l'Asymétrie Exploitée
             </span>
-            <p className="text-xs text-slate-200 leading-relaxed">
+            <p className="text-xs text-stone-700 dark:text-stone-300 leading-relaxed">
               {customArbitrage.arbitrageMechanism}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.07]">
+          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-200/80 dark:divide-white/[0.07]">
             <div className="p-6 space-y-1.5">
-              <span className="text-[11px] font-medium text-blue-400 uppercase tracking-wider block">
+              <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 block">
                 Flux 1 via {sectorA.name}
               </span>
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-stone-700 dark:text-stone-300 leading-relaxed">
                 {customArbitrage.revenueStreamA}
               </p>
             </div>
 
             <div className="p-6 space-y-1.5">
-              <span className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider block">
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 block">
                 Flux 2 via {sectorB.name}
               </span>
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-stone-700 dark:text-stone-300 leading-relaxed">
                 {customArbitrage.revenueStreamB}
               </p>
             </div>
           </div>
 
-          <div className="p-6 bg-[#0D1017]/40 flex items-start gap-3">
-            <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+          <div className="p-6 bg-[#F6F4EF]/50 dark:bg-[#0D1017]/50 flex items-start gap-3">
+            <ShieldCheck className="w-4 h-4 text-blue-700 dark:text-blue-400 shrink-0 mt-0.5" />
             <div className="text-xs space-y-1">
-              <span className="font-semibold text-white">Avantage Injuste (Pourquoi personne d autre ne le fait)</span>
-              <p className="text-slate-300 leading-relaxed">{customArbitrage.unfairAdvantage}</p>
+              <span className="font-semibold text-stone-900 dark:text-stone-100">Avantage Injuste (Pourquoi personne d'autre ne le fait)</span>
+              <p className="text-stone-700 dark:text-stone-300 leading-relaxed">{customArbitrage.unfairAdvantage}</p>
             </div>
           </div>
 
           <div className="p-4 flex justify-end">
             <button
               onClick={() => onOpenBlueprintForArbitrage(sectorAId, customArbitrage.conceptName)}
-              className="cursor-pointer px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors flex items-center gap-2"
+              className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-xl transition-colors flex items-center gap-2"
             >
-              <span>Générer le Dossier d Exécution pour cette Convergence</span>
+              <span>Générer le Dossier d'Exécution pour cette Convergence</span>
               <ArrowLeftRight className="w-4 h-4" />
             </button>
           </div>
@@ -339,11 +339,11 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
       {/* Pre-calibrated Benchmark Synergies */}
       <div className="space-y-4">
         <div>
-          <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block">
+          <span className="text-xs font-medium text-stone-500 dark:text-stone-400 block">
             Exemples de Convergences Éprouvées à Fort Rendement
           </span>
-          <h2 className="font-display text-xl font-semibold text-white tracking-tight mt-1">
-            Les 4 Modèles d Arbitrage les Plus Rentables
+          <h2 className="font-display text-xl font-semibold text-stone-900 dark:text-stone-100 tracking-tight mt-1">
+            Les 4 Modèles d'Arbitrage les Plus Rentables
           </h2>
         </div>
 
@@ -351,38 +351,38 @@ export const ArbitrageView: React.FC<ArbitrageViewProps> = ({
           {CROSS_SECTOR_COMBINATIONS.map((combo) => (
             <div
               key={combo.id}
-              className="bg-[#11141C] border border-white/[0.08] hover:border-white/[0.16] rounded-lg divide-y divide-white/[0.07] transition-colors flex flex-col justify-between"
+              className="bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] hover:border-stone-300 dark:hover:border-white/[0.16] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] divide-y divide-stone-200/80 dark:divide-white/[0.07] transition-colors flex flex-col justify-between overflow-hidden"
             >
               <div className="p-5 space-y-3">
                 <div className="flex items-center justify-between gap-3 text-xs">
-                  <span className="font-mono text-blue-400">{combo.synergyType}</span>
-                  <span className="font-mono text-emerald-400 font-semibold tabular-nums">
+                  <span className="font-mono text-blue-700 dark:text-blue-400 font-medium">{combo.synergyType}</span>
+                  <span className="font-mono text-emerald-700 dark:text-emerald-400 font-semibold tabular-nums">
                     {combo.estimatedPotential}
                   </span>
                 </div>
 
                 <div>
-                  <h3 className="font-display text-base font-semibold text-white">{combo.title}</h3>
-                  <p className="text-xs text-slate-300 mt-1 leading-relaxed">{combo.tagline}</p>
+                  <h3 className="font-display text-base font-semibold text-stone-900 dark:text-stone-100">{combo.title}</h3>
+                  <p className="text-xs text-stone-600 dark:text-stone-400 mt-1 leading-relaxed">{combo.tagline}</p>
                 </div>
 
-                <div className="p-3 bg-[#0D1017] rounded-lg border border-white/[0.07] text-xs text-slate-300 leading-relaxed">
+                <div className="p-3 bg-[#F6F4EF] dark:bg-[#0D1017] rounded-xl border border-stone-200/80 dark:border-white/[0.08] text-xs text-stone-700 dark:text-stone-300 leading-relaxed">
                   {combo.description}
                 </div>
 
-                <div className="text-[11px] text-slate-400 leading-relaxed">
-                  <span className="font-semibold text-slate-200">Avantage injuste : </span>
+                <div className="text-[11px] text-stone-600 dark:text-stone-400 leading-relaxed">
+                  <span className="font-semibold text-stone-800 dark:text-stone-200">Avantage injuste : </span>
                   {combo.unfairAdvantage}
                 </div>
               </div>
 
-              <div className="px-5 py-3.5 flex items-center justify-between gap-3 text-xs bg-[#0D1017]/40">
-                <span className="text-slate-400">
-                  Déploiement estimé : <strong className="text-white font-mono tabular-nums">{combo.timeToDeploy}</strong>
+              <div className="px-5 py-3.5 flex items-center justify-between gap-3 text-xs bg-[#F6F4EF]/60 dark:bg-[#0D1017]/60">
+                <span className="text-stone-600 dark:text-stone-400">
+                  Déploiement estimé : <strong className="text-stone-900 dark:text-stone-100 font-mono tabular-nums">{combo.timeToDeploy}</strong>
                 </span>
                 <button
                   onClick={() => onOpenBlueprintForArbitrage(combo.sectorAId as SectorCategory, combo.title)}
-                  className="cursor-pointer text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                  className="cursor-pointer text-xs font-semibold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
                 >
                   Générer le Blueprint
                 </button>

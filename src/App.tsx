@@ -329,7 +329,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090B10] text-slate-100 flex font-sans">
+    <div className="min-h-screen bg-[#F8F7F4] dark:bg-[#0B0D13] text-stone-900 dark:text-stone-100 flex font-sans transition-colors duration-150">
       <Sidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -370,13 +370,13 @@ export default function App() {
         />
 
         {/* Main Content Viewport */}
-        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
         {!isAuthenticated || sessionSyncedUid !== firebaseUser?.uid ? (
-          <div className="py-24 flex flex-col items-center justify-center text-center space-y-3 text-slate-400">
-            <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
-            <p className="text-xs font-medium text-slate-400">
+          <div className="py-24 flex flex-col items-center justify-center text-center space-y-3.5 text-stone-600 dark:text-stone-400">
+            <div className="w-8 h-8 rounded-full border-2 border-amber-700/25 dark:border-amber-500/25 border-t-amber-700 dark:border-t-amber-400 animate-spin" />
+            <p className="text-sm font-medium text-stone-600 dark:text-stone-300">
               {!authChecked
-                ? 'Initialisation de la session sécurisée...'
+                ? 'Initialisation de votre espace sécurisé...'
                 : showAuthModal
                 ? 'Authentification requise pour accéder à votre espace.'
                 : 'Synchronisation de votre espace personnel...'}
@@ -534,48 +534,48 @@ export default function App() {
         </main>
 
         {/* Quiet Editorial Footer */}
-        <footer className="border-t border-white/[0.07] bg-[#090B10] py-5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500">
+        <footer className="border-t border-stone-200/80 dark:border-white/[0.08] bg-[#F8F7F4] dark:bg-[#0B0D13] py-5 px-4 sm:px-6 lg:px-10 text-xs text-stone-500 dark:text-stone-400 transition-colors duration-150">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="font-display font-semibold text-slate-300">OmniVectis</span>
+              <span className="font-display font-semibold text-stone-800 dark:text-stone-100 text-sm">OmniVectis</span>
               <span aria-hidden="true">·</span>
-              <span>Usage Personnel · Provenance Stricte</span>
+              <span>Espace Personnel · Provenance Stricte</span>
             </div>
 
             <div className="flex flex-wrap items-center gap-5">
               <button
                 onClick={() => setActiveTab('radar')}
-                className="hover:text-slate-200 transition-colors cursor-pointer"
+                className="hover:text-stone-900 dark:hover:text-stone-100 transition-colors cursor-pointer"
               >
                 Radar
               </button>
               <button
                 onClick={() => setActiveTab('opportunities')}
-                className="hover:text-slate-200 transition-colors cursor-pointer"
+                className="hover:text-stone-900 dark:hover:text-stone-100 transition-colors cursor-pointer"
               >
                 Opportunités
               </button>
               <button
                 onClick={() => setActiveTab('kits')}
-                className="hover:text-slate-200 transition-colors cursor-pointer"
+                className="hover:text-stone-900 dark:hover:text-stone-100 transition-colors cursor-pointer"
               >
                 Dossiers & Plans
               </button>
               <button
                 onClick={() => setActiveTab('validation')}
-                className="hover:text-slate-200 transition-colors cursor-pointer"
+                className="hover:text-stone-900 dark:hover:text-stone-100 transition-colors cursor-pointer"
               >
                 À Valider
               </button>
               <button
                 onClick={() => setActiveTab('sales')}
-                className="hover:text-slate-200 transition-colors cursor-pointer"
+                className="hover:text-stone-900 dark:hover:text-stone-100 transition-colors cursor-pointer"
               >
                 Encaissements
               </button>
               <button
                 onClick={() => setActiveTab('simulator')}
-                className="hover:text-slate-200 transition-colors cursor-pointer"
+                className="hover:text-stone-900 dark:hover:text-stone-100 transition-colors cursor-pointer"
               >
                 Simulateur
               </button>

@@ -1,19 +1,30 @@
 <!doctype html>
-<html lang="fr" class="dark">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OmniVectis - Multi-Sector Revenue & Market Arbitrage Engine</title>
+    <title>OmniVectis — Intelligence Économique & Exécution Commerciale</title>
     <meta name="description" content="Plateforme d'analyse macro-économique sectorielle et moteur d'exécution d'opportunités de revenus multi-marchés avec intelligence stratégique et simulateur financier." />
-    <meta property="og:title" content="OmniVectis - Multi-Sector Revenue & Market Arbitrage Engine" />
+    <meta property="og:title" content="OmniVectis — Intelligence Économique & Exécution Commerciale" />
     <meta property="og:description" content="Plateforme d'analyse macro-économique sectorielle et moteur d'exécution d'opportunités de revenus multi-marchés avec intelligence stratégique et simulateur financier." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..600&family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('omnivectis_theme');
+          if (saved === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-[#090B10] text-slate-100 antialiased selection:bg-blue-500/30 selection:text-blue-100">
+  <body class="bg-[#F8F7F4] dark:bg-[#0B0D13] text-stone-900 dark:text-stone-100 antialiased selection:bg-amber-200/60 selection:text-stone-900 dark:selection:bg-amber-500/30 dark:selection:text-amber-100">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

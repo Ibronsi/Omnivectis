@@ -113,48 +113,48 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
   return (
     <div className="space-y-8">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/[0.08] pb-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-stone-200/80 dark:border-white/[0.08] pb-6">
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-blue-400">
+          <p className="text-xs font-medium text-blue-700 dark:text-blue-400">
             Moteur de Modélisation Financière Multi-Flux
           </p>
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
             Simulateur de Gains Multi-Sectoriels
           </h1>
-          <p className="text-sm text-slate-400 max-w-3xl leading-relaxed">
-            Combinez stratégiquement jusqu à 5 secteurs économiques pour construire un portefeuille de revenus
-            diversifié, résilient et maximisant le cash-flow net grâce aux leviers d automatisation.
+          <p className="text-sm text-stone-600 dark:text-stone-400 max-w-3xl leading-relaxed">
+            Combinez stratégiquement jusqu'à 5 secteurs économiques pour construire un portefeuille de revenus
+            diversifié, résilient et maximisant le cash-flow net grâce aux leviers d'automatisation.
           </p>
         </div>
 
         {/* Scenario Toggle */}
-        <div className="flex items-center gap-1 p-1 bg-[#11141C] border border-white/[0.08] rounded-lg shrink-0">
+        <div className="flex items-center gap-1 p-1 bg-[#F2EFE9] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.08] rounded-xl shrink-0">
           <button
             onClick={() => setScenarioMode('conservative')}
-            className={`cursor-pointer px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+            className={`cursor-pointer px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
               scenarioMode === 'conservative'
-                ? 'bg-white/[0.1] text-white font-semibold'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-white dark:bg-white/[0.1] text-stone-900 dark:text-stone-100 font-semibold shadow-xs'
+                : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
             }`}
           >
             Prudent (-30%)
           </button>
           <button
             onClick={() => setScenarioMode('target')}
-            className={`cursor-pointer px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+            className={`cursor-pointer px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
               scenarioMode === 'target'
-                ? 'bg-blue-600 text-white font-semibold'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-blue-700 dark:bg-blue-600 text-white font-semibold'
+                : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
             }`}
           >
             Cible Réaliste
           </button>
           <button
             onClick={() => setScenarioMode('aggressive')}
-            className={`cursor-pointer px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+            className={`cursor-pointer px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
               scenarioMode === 'aggressive'
-                ? 'bg-emerald-600 text-white font-semibold'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-emerald-700 dark:bg-emerald-600 text-white font-semibold'
+                : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
             }`}
           >
             Agressif (+45%)
@@ -163,15 +163,15 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
       </div>
 
       {/* Disclaimer Banner: Simulation indicative de modèle, pas une prévision */}
-      <div className="p-4 bg-[#11141C] border border-amber-500/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-        <div className="flex items-start sm:items-center gap-2.5 text-slate-300">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+      <div className="p-4 bg-amber-50/90 dark:bg-amber-950/25 border border-amber-200 dark:border-amber-500/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-start sm:items-center gap-2.5 text-amber-950 dark:text-amber-200">
+          <AlertTriangle className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
           <p className="leading-relaxed">
-            <strong className="text-amber-300 font-mono font-semibold mr-1.5">
+            <strong className="text-amber-900 dark:text-amber-300 font-mono font-semibold mr-1.5">
               Simulation indicative de modèle, pas une prévision :
             </strong>
             <span>
-              Outil de modélisation basé sur des hypothèses unitaires modifiables. Aucune rentabilité n est garantie sans prospection active.
+              Outil de modélisation basé sur des hypothèses unitaires modifiables. Aucune rentabilité n'est garantie sans prospection active.
             </span>
           </p>
         </div>
@@ -179,19 +179,19 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
         <div className="flex items-center gap-2 shrink-0">
           {/* Currency Toggle */}
           {isLocalDifferentFromEur && (
-            <div className="flex items-center gap-1 p-0.5 bg-[#0D1017] rounded-lg border border-white/[0.08] text-[11px] font-mono">
+            <div className="flex items-center gap-1 p-0.5 bg-white/80 dark:bg-[#0D1017] rounded-lg border border-amber-200/80 dark:border-white/[0.1] text-[11px] font-mono">
               <button
                 onClick={() => setCurrencyMode('local')}
-                className={`px-2 py-1 rounded cursor-pointer transition-colors ${
-                  currencyMode === 'local' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
+                className={`px-2 py-1 rounded-md cursor-pointer transition-colors ${
+                  currencyMode === 'local' ? 'bg-emerald-700 dark:bg-emerald-600 text-white font-semibold' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
                 }`}
               >
                 {currentGeoProfile.currencySymbol} ({currentGeoProfile.currency})
               </button>
               <button
                 onClick={() => setCurrencyMode('eur')}
-                className={`px-2 py-1 rounded cursor-pointer transition-colors ${
-                  currencyMode === 'eur' ? 'bg-blue-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
+                className={`px-2 py-1 rounded-md cursor-pointer transition-colors ${
+                  currencyMode === 'eur' ? 'bg-blue-700 dark:bg-blue-600 text-white font-semibold' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
                 }`}
               >
                 EUR (€)
@@ -201,9 +201,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
 
           <button
             onClick={() => setShowHypotheses(!showHypotheses)}
-            className="cursor-pointer px-3 py-1.5 text-xs font-medium text-slate-200 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg transition-colors flex items-center gap-1.5"
+            className="cursor-pointer px-3 py-1.5 text-xs font-medium text-stone-700 dark:text-stone-200 bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.08] border border-stone-200 dark:border-white/[0.1] rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
           >
-            <Sliders className="w-3.5 h-3.5 text-blue-400" />
+            <Sliders className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
             <span>{showHypotheses ? 'Masquer' : 'Hypothèses'}</span>
             {showHypotheses ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
@@ -212,26 +212,26 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
 
       {/* Collapsible Hypotheses Editor Panel */}
       {showHypotheses && (
-        <div className="p-5 bg-[#11141C] border border-white/[0.08] rounded-xl space-y-4">
-          <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
+        <div className="p-5 bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] space-y-4">
+          <div className="flex items-center justify-between border-b border-stone-200/80 dark:border-white/[0.08] pb-3">
             <div>
-              <span className="text-xs font-semibold text-blue-400 block">
+              <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 block">
                 Paramètres & Hypothèses Économiques Modifiables
               </span>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-stone-600 dark:text-stone-400 mt-0.5">
                 Ajustez les frictions réelles (attrition client, frais de paiement, fiscalité) pour calibrer votre cash-flow net.
               </p>
             </div>
-            <span className="text-xs font-mono text-slate-400">
-              Zone : <span className="text-slate-200">{currentGeoProfile.countryName}</span>
+            <span className="text-xs font-mono text-stone-500 dark:text-stone-400">
+              Zone : <span className="text-stone-900 dark:text-stone-100 font-medium">{currentGeoProfile.countryName}</span>
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div>
               <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-slate-400">Taux d attrition mensuel (Churn) :</span>
-                <span className="font-mono text-white font-semibold tabular-nums">{churnRate}% / mois</span>
+                <span className="text-stone-600 dark:text-stone-400">Taux d'attrition mensuel (Churn) :</span>
+                <span className="font-mono text-stone-900 dark:text-stone-100 font-semibold tabular-nums">{churnRate}% / mois</span>
               </div>
               <input
                 type="range"
@@ -239,15 +239,15 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 max="20"
                 value={churnRate}
                 onChange={(e) => setChurnRate(Number(e.target.value))}
-                className="w-full accent-blue-500 cursor-pointer"
+                className="w-full accent-blue-700 dark:accent-blue-500 cursor-pointer"
               />
-              <span className="text-[11px] text-slate-500 block mt-1">Perte naturelle de clients par mois</span>
+              <span className="text-[11px] text-stone-500 dark:text-stone-400 block mt-1">Perte naturelle de clients par mois</span>
             </div>
 
             <div>
               <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-slate-400">Frais d infrastructure & passerelles :</span>
-                <span className="font-mono text-white font-semibold tabular-nums">{variableCostPercent}%</span>
+                <span className="text-stone-600 dark:text-stone-400">Frais d'infrastructure & passerelles :</span>
+                <span className="font-mono text-stone-900 dark:text-stone-100 font-semibold tabular-nums">{variableCostPercent}%</span>
               </div>
               <input
                 type="range"
@@ -255,15 +255,15 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 max="30"
                 value={variableCostPercent}
                 onChange={(e) => setVariableCostPercent(Number(e.target.value))}
-                className="w-full accent-cyan-500 cursor-pointer"
+                className="w-full accent-teal-700 dark:accent-teal-500 cursor-pointer"
               />
-              <span className="text-[11px] text-slate-500 block mt-1">Commissions Mobile Money, Stripe, serveurs</span>
+              <span className="text-[11px] text-stone-500 dark:text-stone-400 block mt-1">Commissions Mobile Money, Stripe, serveurs</span>
             </div>
 
             <div>
               <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-slate-400">Fiscalité locale indicative :</span>
-                <span className="font-mono text-white font-semibold tabular-nums">{localTaxRate}%</span>
+                <span className="text-stone-600 dark:text-stone-400">Fiscalité locale indicative :</span>
+                <span className="font-mono text-stone-900 dark:text-stone-100 font-semibold tabular-nums">{localTaxRate}%</span>
               </div>
               <input
                 type="range"
@@ -271,9 +271,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 max="35"
                 value={localTaxRate}
                 onChange={(e) => setLocalTaxRate(Number(e.target.value))}
-                className="w-full accent-emerald-500 cursor-pointer"
+                className="w-full accent-emerald-700 dark:accent-emerald-500 cursor-pointer"
               />
-              <span className="text-[11px] text-slate-500 block mt-1">
+              <span className="text-[11px] text-stone-500 dark:text-stone-400 block mt-1">
                 {isAfricanUemoa ? 'Régime ISF forfaitaire UEMOA' : 'Régime Micro-fiscal BNC'}
               </span>
             </div>
@@ -282,19 +282,19 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
       )}
 
       {/* Calculation Summary Strip (Live FX synced) */}
-      <div className="p-3.5 bg-[#11141C] border border-blue-500/25 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-300">
+      <div className="p-4 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-stone-700 dark:text-stone-300">
         <div className="flex items-center gap-2 font-mono tabular-nums">
-          <span className="font-sans font-medium text-blue-400">Synthèse Modèle :</span>
-          <span className="text-white">
+          <span className="font-sans font-semibold text-blue-700 dark:text-blue-400">Synthèse Modèle :</span>
+          <span className="text-stone-900 dark:text-stone-100 font-semibold">
             {currencyMode === 'local' && isLocalDifferentFromEur
               ? `MRR ${Math.round(result.projectedMrr * fxInfo.rate).toLocaleString('fr-FR')} ${currentGeoProfile.currencySymbol} · ARR ${Math.round(result.projectedArr * fxInfo.rate).toLocaleString('fr-FR')} ${currentGeoProfile.currencySymbol}`
               : `MRR ${result.projectedMrr.toLocaleString('fr-FR')} € · ARR ${result.projectedArr.toLocaleString('fr-FR')} €`}
           </span>
         </div>
-        <span className="text-[11px] font-mono text-slate-400 tabular-nums">
+        <span className="text-[11px] font-mono text-stone-600 dark:text-stone-400 tabular-nums">
           {isLocalDifferentFromEur
             ? `1 € = ${fxInfo.rate.toFixed(currentGeoProfile.currency === 'XOF' ? 2 : 4)} ${currentGeoProfile.currencySymbol} (${fxInfo.status === 'live' ? 'FX live' : fxInfo.status === 'cache' ? 'FX cache' : 'FX secours'})`
-            : 'Modèle d asymétrie de marges'}
+            : "Modèle d'asymétrie de marges"}
         </span>
       </div>
 
@@ -303,13 +303,13 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
         {/* Left Column: Interactive Parameters */}
         <div className="lg:col-span-5 space-y-6">
           {/* Sector Multi-Selector */}
-          <div className="p-5 bg-[#11141C] border border-white/[0.08] rounded-xl space-y-4">
+          <div className="p-5 bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-200 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-blue-400" />
+              <span className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                <Layers className="w-4 h-4 text-blue-700 dark:text-blue-400" />
                 <span>Secteurs Sélectionnés ({selectedSectorIds.length}/5)</span>
               </span>
-              <span className="text-[11px] text-slate-500">Cliquez pour ajouter/retirer</span>
+              <span className="text-[11px] text-stone-500 dark:text-stone-400">Cliquez pour ajouter/retirer</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -319,16 +319,16 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   <button
                     key={sector.id}
                     onClick={() => toggleSector(sector.id)}
-                    className={`cursor-pointer p-2.5 rounded-lg text-left transition-colors border ${
+                    className={`cursor-pointer p-3 rounded-xl text-left transition-colors border ${
                       isSelected
-                        ? 'bg-blue-600/15 border-blue-500/50 text-white'
-                        : 'bg-[#0D1017] border-white/[0.07] text-slate-400 hover:text-slate-200 hover:border-white/[0.15]'
+                        ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/60 text-stone-900 dark:text-stone-100 shadow-xs'
+                        : 'bg-[#F6F4EF] dark:bg-[#0D1017] border-stone-200/80 dark:border-white/[0.08] text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:border-stone-300 dark:hover:border-white/[0.16]'
                     }`}
                   >
                     <div className="text-xs font-semibold truncate">{sector.name}</div>
-                    <div className="text-[11px] text-slate-400 flex items-center justify-between mt-0.5 font-mono tabular-nums">
+                    <div className="text-[11px] text-stone-500 dark:text-stone-400 flex items-center justify-between mt-0.5 font-mono tabular-nums">
                       <span>Marge {sector.averageMargin}%</span>
-                      <span className="text-emerald-400">{sector.growthRate}</span>
+                      <span className="text-emerald-700 dark:text-emerald-400 font-medium">{sector.growthRate}</span>
                     </div>
                   </button>
                 );
@@ -337,16 +337,16 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
           </div>
 
           {/* Capital and Effort Sliders */}
-          <div className="p-5 bg-[#11141C] border border-white/[0.08] rounded-xl space-y-5">
-            <span className="text-xs font-semibold text-slate-200 block border-b border-white/[0.07] pb-3">
-              Paramètres d Investissement & Capacité
+          <div className="p-5 bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] space-y-5">
+            <span className="text-xs font-semibold text-stone-900 dark:text-stone-100 block border-b border-stone-200/80 dark:border-white/[0.08] pb-3">
+              Paramètres d'Investissement & Capacité
             </span>
 
             {/* Capital de départ */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300">Capital de démarrage disponible</span>
-                <span className="font-mono font-semibold text-white tabular-nums">
+                <span className="text-stone-700 dark:text-stone-300">Capital de démarrage disponible</span>
+                <span className="font-mono font-semibold text-stone-900 dark:text-stone-100 tabular-nums">
                   {startingCapital.toLocaleString()} €
                 </span>
               </div>
@@ -357,9 +357,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 step="500"
                 value={startingCapital}
                 onChange={(e) => setStartingCapital(Number(e.target.value))}
-                className="w-full accent-blue-500 cursor-pointer"
+                className="w-full accent-blue-700 dark:accent-blue-500 cursor-pointer"
               />
-              <div className="flex justify-between text-[11px] text-slate-500 font-mono">
+              <div className="flex justify-between text-[11px] text-stone-500 dark:text-stone-400 font-mono">
                 <span>0 € (Bootstrap)</span>
                 <span>15 000 €</span>
                 <span>30 000 €</span>
@@ -369,8 +369,8 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
             {/* Heures par semaine */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300">Temps d implication hebdomadaire</span>
-                <span className="font-mono font-semibold text-white tabular-nums">
+                <span className="text-stone-700 dark:text-stone-300">Temps d'implication hebdomadaire</span>
+                <span className="font-mono font-semibold text-stone-900 dark:text-stone-100 tabular-nums">
                   {weeklyHours} h / semaine
                 </span>
               </div>
@@ -381,9 +381,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 step="5"
                 value={weeklyHours}
                 onChange={(e) => setWeeklyHours(Number(e.target.value))}
-                className="w-full accent-blue-500 cursor-pointer"
+                className="w-full accent-blue-700 dark:accent-blue-500 cursor-pointer"
               />
-              <div className="flex justify-between text-[11px] text-slate-500 font-mono">
+              <div className="flex justify-between text-[11px] text-stone-500 dark:text-stone-400 font-mono">
                 <span>5h</span>
                 <span>35h (Plein temps)</span>
                 <span>60h</span>
@@ -393,11 +393,11 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
             {/* Automatisation par IA */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300 flex items-center gap-1.5">
-                  <Bot className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Levier d Automatisation & Agents IA</span>
+                <span className="text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+                  <Bot className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
+                  <span>Levier d'Automatisation & Agents IA</span>
                 </span>
-                <span className="font-mono font-semibold text-cyan-400 tabular-nums">
+                <span className="font-mono font-semibold text-teal-700 dark:text-teal-400 tabular-nums">
                   {automationLevel}%
                 </span>
               </div>
@@ -408,9 +408,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 step="5"
                 value={automationLevel}
                 onChange={(e) => setAutomationLevel(Number(e.target.value))}
-                className="w-full accent-cyan-400 cursor-pointer"
+                className="w-full accent-teal-700 dark:accent-teal-500 cursor-pointer"
               />
-              <div className="flex justify-between text-[11px] text-slate-500 font-mono">
+              <div className="flex justify-between text-[11px] text-stone-500 dark:text-stone-400 font-mono">
                 <span>10% (Manuel)</span>
                 <span>50% (Hybride)</span>
                 <span>95% (Autonome)</span>
@@ -420,8 +420,8 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
             {/* Horizon temporel */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300">Horizon d exécution</span>
-                <span className="font-mono font-semibold text-white tabular-nums">
+                <span className="text-stone-700 dark:text-stone-300">Horizon d'exécution</span>
+                <span className="font-mono font-semibold text-stone-900 dark:text-stone-100 tabular-nums">
                   {timeHorizonMonths} mois
                 </span>
               </div>
@@ -430,10 +430,10 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   <button
                     key={months}
                     onClick={() => setTimeHorizonMonths(months)}
-                    className={`cursor-pointer py-1.5 text-xs font-mono font-medium rounded-lg border transition-colors ${
+                    className={`cursor-pointer py-1.5 text-xs font-mono font-medium rounded-xl border transition-colors ${
                       timeHorizonMonths === months
-                        ? 'bg-blue-600 text-white border-blue-500'
-                        : 'bg-[#0D1017] text-slate-400 border-white/[0.08] hover:text-white'
+                        ? 'bg-blue-700 dark:bg-blue-600 text-white border-blue-700 dark:border-blue-600'
+                        : 'bg-[#F6F4EF] dark:bg-[#0D1017] text-stone-600 dark:text-stone-400 border-stone-200 dark:border-white/[0.08] hover:text-stone-900 dark:hover:text-stone-100'
                     }`}
                   >
                     {months}m
@@ -445,8 +445,8 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
             {/* Dépenses mensuelles */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300">Budget outils & marketing mensuel</span>
-                <span className="font-mono font-semibold text-white tabular-nums">
+                <span className="text-stone-700 dark:text-stone-300">Budget outils & marketing mensuel</span>
+                <span className="font-mono font-semibold text-stone-900 dark:text-stone-100 tabular-nums">
                   {targetMonthlyExpense} € / mois
                 </span>
               </div>
@@ -457,7 +457,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 step="100"
                 value={targetMonthlyExpense}
                 onChange={(e) => setTargetMonthlyExpense(Number(e.target.value))}
-                className="w-full accent-blue-500 cursor-pointer"
+                className="w-full accent-blue-700 dark:accent-blue-500 cursor-pointer"
               />
             </div>
           </div>
@@ -466,81 +466,81 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
         {/* Right Column: Output Dashboards & Timeline */}
         <div className="lg:col-span-7 space-y-6">
           {/* Unified KPI Ledger Strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 bg-[#11141C] border border-white/[0.08] rounded-xl divide-y sm:divide-y-0 sm:divide-x divide-white/[0.08]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] divide-y sm:divide-y-0 sm:divide-x divide-stone-200/80 dark:divide-white/[0.07]">
             <div className="p-4">
-              <div className="text-xs text-slate-400 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="text-xs text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                 <span>MRR Modélisé</span>
               </div>
-              <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums mt-1.5">
+              <div className="text-xl font-bold font-mono text-emerald-700 dark:text-emerald-400 tabular-nums mt-1.5">
                 {result.projectedMrr.toLocaleString()} €
               </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">
+              <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
                 À maturité mois {timeHorizonMonths}
               </div>
             </div>
 
             <div className="p-4">
-              <div className="text-xs text-slate-400 flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
+              <div className="text-xs text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
                 <span>ARR Modélisé</span>
               </div>
-              <div className="text-xl font-bold font-mono text-blue-300 tabular-nums mt-1.5">
+              <div className="text-xl font-bold font-mono text-blue-700 dark:text-blue-400 tabular-nums mt-1.5">
                 {result.projectedArr.toLocaleString()} €
               </div>
-              <div className="text-[11px] text-slate-500 mt-0.5 font-mono tabular-nums">
+              <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 font-mono tabular-nums">
                 EBITDA : {result.projectedEbitda.toLocaleString()} €
               </div>
             </div>
 
             <div className="p-4">
-              <div className="text-xs text-slate-400 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+              <div className="text-xs text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
                 <span>Point Mort</span>
               </div>
-              <div className="text-xl font-bold font-mono text-cyan-400 tabular-nums mt-1.5">
+              <div className="text-xl font-bold font-mono text-teal-700 dark:text-teal-400 tabular-nums mt-1.5">
                 Mois {result.breakEvenMonth}
               </div>
-              <div className="text-[11px] text-slate-500 mt-0.5 font-mono tabular-nums">
+              <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 font-mono tabular-nums">
                 ROI net : +{result.roiPercentage}%
               </div>
             </div>
 
             <div className="p-4">
-              <div className="text-xs text-slate-400 flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <div className="text-xs text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
                 <span>Diversification</span>
               </div>
-              <div className="text-xl font-bold font-mono text-amber-300 tabular-nums mt-1.5">
+              <div className="text-xl font-bold font-mono text-amber-700 dark:text-amber-400 tabular-nums mt-1.5">
                 {result.diversificationScore}/100
               </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">
+              <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
                 Résilience anti-fragile
               </div>
             </div>
           </div>
 
           {/* Revenue Breakdown by Sector */}
-          <div className="p-5 bg-[#11141C] border border-white/[0.08] rounded-xl space-y-4">
+          <div className="p-5 bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-200 flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-blue-400" />
+              <span className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                <PieChart className="w-4 h-4 text-blue-700 dark:text-blue-400" />
                 <span>Contribution Indicative par Secteur Actif</span>
               </span>
-              <span className="text-xs text-slate-400 font-mono tabular-nums">
+              <span className="text-xs text-stone-600 dark:text-stone-400 font-mono tabular-nums">
                 Total : {result.projectedMrr.toLocaleString()} € / mois
               </span>
             </div>
 
             {/* Visual segmented bar */}
-            <div className="h-2.5 w-full bg-[#0D1017] rounded-full overflow-hidden flex">
+            <div className="h-2.5 w-full bg-[#F2EFE9] dark:bg-[#0D1017] rounded-full overflow-hidden flex">
               {result.sectorBreakdown.map((sec, idx) => {
                 const colors = [
-                  'bg-blue-500',
-                  'bg-emerald-500',
-                  'bg-cyan-500',
-                  'bg-amber-500',
-                  'bg-pink-500',
+                  'bg-blue-600 dark:bg-blue-500',
+                  'bg-emerald-600 dark:bg-emerald-500',
+                  'bg-teal-600 dark:bg-teal-500',
+                  'bg-amber-600 dark:bg-amber-500',
+                  'bg-rose-600 dark:bg-rose-500',
                 ];
                 return (
                   <div
@@ -554,14 +554,14 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
             </div>
 
             {/* List with CTA per sector */}
-            <div className="divide-y divide-white/[0.06]">
+            <div className="divide-y divide-stone-200/80 dark:divide-white/[0.07]">
               {result.sectorBreakdown.map((sec, idx) => {
                 const colors = [
-                  'bg-blue-400',
-                  'bg-emerald-400',
-                  'bg-cyan-400',
-                  'bg-amber-400',
-                  'bg-pink-400',
+                  'bg-blue-600 dark:bg-blue-500',
+                  'bg-emerald-600 dark:bg-emerald-500',
+                  'bg-teal-600 dark:bg-teal-500',
+                  'bg-amber-600 dark:bg-amber-500',
+                  'bg-rose-600 dark:bg-rose-500',
                 ];
                 return (
                   <div
@@ -570,15 +570,15 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   >
                     <div className="flex items-center gap-2.5">
                       <span className={`w-2 h-2 rounded-full ${colors[idx % colors.length]}`} />
-                      <span className="font-medium text-slate-200">{sec.name}</span>
+                      <span className="font-medium text-stone-800 dark:text-stone-200">{sec.name}</span>
                     </div>
 
                     <div className="flex items-center gap-4">
                       <div className="text-right font-mono tabular-nums">
-                        <span className="text-white font-semibold">
+                        <span className="text-stone-900 dark:text-stone-100 font-semibold">
                           {sec.monthlyRevenue.toLocaleString()} €
                         </span>
-                        <span className="text-slate-500 ml-1.5">({sec.sharePercent}%)</span>
+                        <span className="text-stone-500 dark:text-stone-400 ml-1.5">({sec.sharePercent}%)</span>
                       </div>
                       <button
                         onClick={() =>
@@ -587,7 +587,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                             `${sec.monthlyRevenue.toLocaleString()} € / mois`
                           )
                         }
-                        className="cursor-pointer text-[11px] font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors whitespace-nowrap"
+                        className="cursor-pointer text-[11px] font-semibold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 transition-colors whitespace-nowrap"
                       >
                         <span>Générer Blueprint</span>
                         <ArrowUpRight className="w-3 h-3" />
@@ -600,24 +600,24 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
           </div>
 
           {/* Monthly Trajectory Chart */}
-          <div className="p-5 bg-[#11141C] border border-white/[0.08] rounded-xl space-y-4">
+          <div className="p-5 bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-200">
+              <span className="text-xs font-semibold text-stone-900 dark:text-stone-100">
                 Trajectoire de Cash-Flow Mensuel (Mois 1 à {timeHorizonMonths})
               </span>
-              <div className="flex items-center gap-3 text-[11px] text-slate-400">
+              <div className="flex items-center gap-3 text-[11px] text-stone-600 dark:text-stone-400">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 bg-emerald-500 rounded-xs inline-block" />
+                  <span className="w-2 h-2 bg-emerald-600 dark:bg-emerald-500 rounded-xs inline-block" />
                   Revenu Brut
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 bg-rose-500/70 rounded-xs inline-block" />
+                  <span className="w-2 h-2 bg-rose-500 rounded-xs inline-block" />
                   Coûts Opérationnels
                 </span>
               </div>
             </div>
 
-            <div className="h-44 flex items-end gap-1.5 pt-6 pb-2 border-b border-white/[0.08] overflow-x-auto">
+            <div className="h-44 flex items-end gap-1.5 pt-6 pb-2 border-b border-stone-200 dark:border-white/[0.08] overflow-x-auto">
               {result.monthlyTimeline.map((item) => {
                 const revHeight = Math.max(8, Math.round((item.revenue / maxTimelineRevenue) * 100));
                 const costHeight = Math.max(4, Math.round((item.costs / maxTimelineRevenue) * 100));
@@ -626,24 +626,24 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                     key={item.month}
                     className="flex-1 min-w-[20px] flex flex-col items-center justify-end h-full group relative"
                   >
-                    <div className="opacity-0 group-hover:opacity-100 pointer-events-none absolute bottom-full mb-2 bg-[#0D1017] border border-white/[0.12] text-slate-200 text-[10px] font-mono p-2 rounded-lg shadow-xl whitespace-nowrap z-20 transition-opacity tabular-nums">
-                      <div className="font-semibold text-white mb-0.5">Mois {item.month}</div>
-                      <div className="text-emerald-400">Revenu : {item.revenue.toLocaleString()} €</div>
-                      <div className="text-rose-400">Coûts : {item.costs.toLocaleString()} €</div>
-                      <div className="text-cyan-300">Profit net : {item.netProfit.toLocaleString()} €</div>
+                    <div className="opacity-0 group-hover:opacity-100 pointer-events-none absolute bottom-full mb-2 bg-white dark:bg-[#1C2130] border border-stone-200 dark:border-white/[0.12] text-stone-800 dark:text-stone-200 text-[10px] font-mono p-2.5 rounded-xl shadow-lg whitespace-nowrap z-20 transition-opacity tabular-nums">
+                      <div className="font-semibold text-stone-900 dark:text-stone-100 mb-0.5">Mois {item.month}</div>
+                      <div className="text-emerald-700 dark:text-emerald-400">Revenu : {item.revenue.toLocaleString()} €</div>
+                      <div className="text-rose-700 dark:text-rose-400">Coûts : {item.costs.toLocaleString()} €</div>
+                      <div className="text-teal-700 dark:text-teal-400 font-semibold">Profit net : {item.netProfit.toLocaleString()} €</div>
                     </div>
 
                     <div className="w-full flex items-end justify-center gap-0.5 h-full">
                       <div
                         style={{ height: `${revHeight}%` }}
-                        className="w-1/2 bg-emerald-500/80 hover:bg-emerald-400 rounded-t-xs transition-all"
+                        className="w-1/2 bg-emerald-600/85 hover:bg-emerald-700 dark:bg-emerald-500/85 dark:hover:bg-emerald-400 rounded-t-xs transition-all"
                       />
                       <div
                         style={{ height: `${costHeight}%` }}
-                        className="w-1/2 bg-rose-500/60 hover:bg-rose-400 rounded-t-xs transition-all"
+                        className="w-1/2 bg-rose-500/75 hover:bg-rose-600 dark:bg-rose-500/70 dark:hover:bg-rose-400 rounded-t-xs transition-all"
                       />
                     </div>
-                    <span className="text-[10px] text-slate-500 font-mono mt-1 tabular-nums">
+                    <span className="text-[10px] text-stone-500 dark:text-stone-400 font-mono mt-1 tabular-nums">
                       M{item.month}
                     </span>
                   </div>
@@ -651,23 +651,23 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
               })}
             </div>
 
-            <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+            <div className="flex items-center justify-between text-xs text-stone-600 dark:text-stone-400 pt-1">
               <span>Trésorerie cumulée finale estimée :</span>
-              <span className="font-mono font-semibold text-emerald-400 text-sm tabular-nums">
+              <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400 text-sm tabular-nums">
                 {result.monthlyTimeline[result.monthlyTimeline.length - 1]?.cumulativeCash.toLocaleString()} €
               </span>
             </div>
           </div>
 
           {/* Callout action to generate Master Plan */}
-          <div className="p-5 bg-[#11141C] border border-blue-500/30 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="p-5 bg-white dark:bg-[#141720] border border-blue-200 dark:border-blue-500/30 rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-              <h4 className="font-display text-sm font-semibold text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-400" />
+              <h4 className="font-display text-sm font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-blue-700 dark:text-blue-400" />
                 <span>Prêt à exécuter ce portefeuille multi-sectoriel ?</span>
               </h4>
-              <p className="text-xs text-slate-400 mt-1">
-                L IA analyse vos {selectedSectorIds.length} secteurs choisis et compile un plan d action 30-60-90 jours sur-mesure.
+              <p className="text-xs text-stone-600 dark:text-stone-400 mt-1">
+                L'IA analyse vos {selectedSectorIds.length} secteurs choisis et compile un plan d'action 30-60-90 jours sur-mesure.
               </p>
             </div>
             <button
@@ -677,9 +677,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   `${result.projectedMrr.toLocaleString()} € / mois`
                 )
               }
-              className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-xl transition-colors whitespace-nowrap shrink-0"
             >
-              Générer le Master Plan d Exécution
+              Générer le Master Plan d'Exécution
             </button>
           </div>
         </div>

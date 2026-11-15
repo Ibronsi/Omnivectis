@@ -32,10 +32,10 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
   const [newNotes, setNewNotes] = useState<string>('');
 
   const stages: { key: PipelineItem['stage']; label: string; color: string }[] = [
-    { key: 'discovery', label: '01. Découverte & Étude de Marché', color: 'border-white/[0.08]' },
-    { key: 'validation', label: '02. Validation Commerciale', color: 'border-blue-500/30' },
-    { key: 'building', label: '03. Lancement MVP & Automatisation', color: 'border-cyan-500/30' },
-    { key: 'monetizing', label: '04. Encaissements & Cash Récurrent', color: 'border-emerald-500/30' },
+    { key: 'discovery', label: '01. Découverte & Étude de Marché', color: 'border-stone-200/90 dark:border-white/[0.08]' },
+    { key: 'validation', label: '02. Validation Commerciale', color: 'border-blue-200 dark:border-blue-500/30' },
+    { key: 'building', label: '03. Lancement MVP & Automatisation', color: 'border-teal-200 dark:border-teal-500/30' },
+    { key: 'monetizing', label: '04. Encaissements & Cash Récurrent', color: 'border-emerald-200 dark:border-emerald-500/30' },
   ];
 
   const handleCreate = (e: React.FormEvent) => {
@@ -56,7 +56,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
       addedAt: new Date().toLocaleDateString('fr-FR'),
       checklists: [
         { text: 'Valider 10 entretiens avec des clients cibles', done: false },
-        { text: 'Concevoir l offre irrésistible avec pricing clair', done: false },
+        { text: "Concevoir l'offre irrésistible avec pricing clair", done: false },
         { text: 'Signer les 2 premiers contrats pilotes', done: false },
       ],
     };
@@ -113,16 +113,16 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
   return (
     <div className="space-y-8">
       {/* Editorial Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/[0.08] pb-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-stone-200/80 dark:border-white/[0.08] pb-6">
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-blue-400">
+          <p className="text-xs font-medium text-blue-700 dark:text-blue-400">
             Exécution & Pilotage Opérationnel
           </p>
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
-            Mon Pipeline d Opportunités Multi-Secteurs
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
+            Mon Pipeline d'Opportunités Multi-Secteurs
           </h1>
-          <p className="text-sm text-slate-400 max-w-3xl leading-relaxed">
-            Suivez l avancée de vos projets de revenus, de l étude de marché jusqu aux premiers encaissements
+          <p className="text-sm text-stone-600 dark:text-stone-400 max-w-3xl leading-relaxed">
+            Suivez l'avancée de vos projets de revenus, de l'étude de marché jusqu'aux premiers encaissements
             récurrents. Vos opportunités sont sauvegardées automatiquement.
           </p>
         </div>
@@ -130,7 +130,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={handleExportJSON}
-            className="cursor-pointer px-3.5 py-2 text-xs font-medium text-slate-300 bg-[#11141C] hover:bg-white/[0.05] border border-white/[0.08] rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
+            className="cursor-pointer px-3.5 py-2 text-xs font-medium text-stone-700 dark:text-stone-200 bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.06] border border-stone-200 dark:border-white/[0.1] rounded-xl shadow-xs transition-colors flex items-center gap-1.5 whitespace-nowrap"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Exporter JSON</span>
@@ -138,7 +138,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
+            className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             <span>Ajouter une Opportunité</span>
@@ -147,31 +147,31 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
       </div>
 
       {/* Unified Pipeline KPI Ledger Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 bg-[#11141C] border border-white/[0.08] rounded-xl divide-y sm:divide-y-0 sm:divide-x divide-white/[0.08]">
+      <div className="grid grid-cols-2 sm:grid-cols-4 bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] divide-y sm:divide-y-0 sm:divide-x divide-stone-200/80 dark:divide-white/[0.07]">
         <div className="p-4">
-          <span className="text-xs text-slate-400 block">Opportunités Actives</span>
-          <span className="text-2xl font-bold font-mono text-white mt-1 block tabular-nums">
+          <span className="text-xs text-stone-500 dark:text-stone-400 block">Opportunités Actives</span>
+          <span className="text-2xl font-bold font-mono text-stone-900 dark:text-stone-100 mt-1 block tabular-nums">
             {items.length}
           </span>
         </div>
 
         <div className="p-4">
-          <span className="text-xs text-slate-400 block">Objectif de Revenu Global</span>
-          <span className="text-2xl font-bold font-mono text-emerald-400 mt-1 block tabular-nums">
+          <span className="text-xs text-stone-500 dark:text-stone-400 block">Objectif de Revenu Global</span>
+          <span className="text-2xl font-bold font-mono text-emerald-700 dark:text-emerald-400 mt-1 block tabular-nums">
             {totalTargetMrr.toLocaleString()} € / mois
           </span>
         </div>
 
         <div className="p-4">
-          <span className="text-xs text-slate-400 block">Potentiel Annuel Cumulé</span>
-          <span className="text-2xl font-bold font-mono text-blue-400 mt-1 block tabular-nums">
+          <span className="text-xs text-stone-500 dark:text-stone-400 block">Potentiel Annuel Cumulé</span>
+          <span className="text-2xl font-bold font-mono text-blue-700 dark:text-blue-400 mt-1 block tabular-nums">
             {(totalTargetMrr * 12).toLocaleString()} € / an
           </span>
         </div>
 
         <div className="p-4">
-          <span className="text-xs text-slate-400 block">Phase de Monétisation</span>
-          <span className="text-2xl font-bold font-mono text-cyan-400 mt-1 block tabular-nums">
+          <span className="text-xs text-stone-500 dark:text-stone-400 block">Phase de Monétisation</span>
+          <span className="text-2xl font-bold font-mono text-teal-700 dark:text-teal-400 mt-1 block tabular-nums">
             {items.filter((i) => i.stage === 'monetizing').length} en cours
           </span>
         </div>
@@ -184,19 +184,19 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
           return (
             <div
               key={st.key}
-              className={`bg-[#11141C] border ${st.color} rounded-xl p-4 flex flex-col min-h-[460px] space-y-4`}
+              className={`bg-white dark:bg-[#141720] border ${st.color} rounded-2xl shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] p-4 flex flex-col min-h-[460px] space-y-4`}
             >
-              <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
-                <span className="text-xs font-semibold text-white">
+              <div className="flex items-center justify-between border-b border-stone-200/80 dark:border-white/[0.08] pb-3">
+                <span className="text-xs font-semibold text-stone-900 dark:text-stone-100">
                   {st.label}
                 </span>
-                <span className="text-xs font-mono font-semibold text-slate-400 tabular-nums">
+                <span className="text-xs font-mono font-semibold text-stone-500 dark:text-stone-400 tabular-nums">
                   {stageItems.length}
                 </span>
               </div>
 
               {stageItems.length === 0 && (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-slate-500 text-xs border border-dashed border-white/[0.08] rounded-lg">
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-stone-500 dark:text-stone-400 text-xs border border-dashed border-stone-200 dark:border-white/[0.1] bg-[#F6F4EF]/60 dark:bg-[#0D1017]/60 rounded-xl">
                   <span>Aucun projet à cette étape</span>
                 </div>
               )}
@@ -205,25 +205,25 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                 {stageItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-4 bg-[#0D1017] border border-white/[0.08] rounded-lg space-y-3 hover:border-white/[0.16] transition-colors"
+                    className="p-4 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08] rounded-xl space-y-3 hover:border-stone-300 dark:hover:border-white/[0.16] transition-colors"
                   >
                     <div>
-                      <div className="text-[11px] text-blue-400 font-medium">
+                      <div className="text-[11px] text-blue-700 dark:text-blue-400 font-medium">
                         {item.sectorName}
                       </div>
-                      <h4 className="font-display text-sm font-semibold text-white mt-0.5">
+                      <h4 className="font-display text-sm font-semibold text-stone-900 dark:text-stone-100 mt-0.5">
                         {item.title}
                       </h4>
                       {item.notes && (
-                        <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                        <p className="text-xs text-stone-600 dark:text-stone-400 mt-1 line-clamp-2">
                           {item.notes}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between text-xs font-mono border-t border-white/[0.06] pt-2 text-slate-300 tabular-nums">
-                      <span className="text-slate-500">Cible :</span>
-                      <span className="text-emerald-400 font-semibold">
+                    <div className="flex items-center justify-between text-xs font-mono border-t border-stone-200/80 dark:border-white/[0.08] pt-2 text-stone-700 dark:text-stone-300 tabular-nums">
+                      <span className="text-stone-500 dark:text-stone-400">Cible :</span>
+                      <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
                         {item.targetMrr.toLocaleString()} € / mois
                       </span>
                     </div>
@@ -234,14 +234,14 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                         <button
                           key={cIdx}
                           onClick={() => handleToggleChecklist(item.id, cIdx)}
-                          className="cursor-pointer flex items-start gap-2 text-[11px] text-slate-300 hover:text-white text-left w-full"
+                          className="cursor-pointer flex items-start gap-2 text-[11px] text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100 text-left w-full"
                         >
                           {check.done ? (
-                            <CheckSquare className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                            <CheckSquare className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
                           ) : (
-                            <Square className="w-3.5 h-3.5 text-slate-600 shrink-0 mt-0.5" />
+                            <Square className="w-3.5 h-3.5 text-stone-400 dark:text-stone-500 shrink-0 mt-0.5" />
                           )}
-                          <span className={check.done ? 'line-through text-slate-500' : ''}>
+                          <span className={check.done ? 'line-through text-stone-400 dark:text-stone-500' : ''}>
                             {check.text}
                           </span>
                         </button>
@@ -249,11 +249,11 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                     </div>
 
                     {/* Actions on Item */}
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.06] text-xs">
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-stone-200/80 dark:border-white/[0.08] text-xs">
                       <button
                         onClick={() => handleDelete(item.id)}
-                        className="cursor-pointer text-slate-500 hover:text-rose-400 p-1 transition-colors"
-                        title="Supprimer l opportunité"
+                        className="cursor-pointer text-stone-400 dark:text-stone-500 hover:text-rose-700 dark:hover:text-rose-400 p-1 transition-colors"
+                        title="Supprimer l'opportunité"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -261,14 +261,14 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => onNavigateToBlueprint(item.sectorId, item.title)}
-                          className="cursor-pointer text-[11px] text-blue-400 hover:text-blue-300"
+                          className="cursor-pointer text-[11px] font-medium text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                         >
                           Plan IA
                         </button>
                         {st.key !== 'monetizing' && (
                           <button
                             onClick={() => handleMoveStage(item.id, 'next')}
-                            className="cursor-pointer px-2.5 py-1 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-[11px] text-slate-200 rounded flex items-center gap-1 transition-colors"
+                            className="cursor-pointer px-2.5 py-1 bg-white dark:bg-white/[0.06] hover:bg-stone-50 dark:hover:bg-white/[0.12] border border-stone-200 dark:border-white/[0.1] text-[11px] font-medium text-stone-700 dark:text-stone-200 rounded-lg flex items-center gap-1 transition-colors"
                           >
                             <span>Avancer</span>
                             <ArrowRight className="w-3 h-3" />
@@ -286,28 +286,28 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
       {/* Add Item Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#090B10]/85 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#11141C] border border-white/[0.1] rounded-xl p-6 space-y-4 shadow-2xl">
-            <h3 className="font-display text-lg font-semibold text-white">Ajouter une Opportunité au Pipeline</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 dark:bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white dark:bg-[#141720] border border-stone-200 dark:border-white/[0.1] rounded-2xl p-6 space-y-4 shadow-2xl">
+            <h3 className="font-display text-lg font-semibold text-stone-900 dark:text-stone-100">Ajouter une Opportunité au Pipeline</h3>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs text-slate-300">Titre ou Nom du Projet</label>
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300">Titre ou Nom du Projet</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Micro-SaaS d audit CSRD pour PME"
+                  placeholder="Ex: Micro-SaaS d'audit CSRD pour PME"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full p-2.5 bg-[#0D1017] border border-white/[0.1] text-xs text-white rounded-lg focus:outline-none focus:border-blue-500/60"
+                  className="w-full p-2.5 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.1] text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-[#161A24] focus:border-blue-600 dark:focus:border-blue-500"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs text-slate-300">Secteur Économique</label>
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300">Secteur Économique</label>
                 <select
                   value={newSectorId}
                   onChange={(e) => setNewSectorId(e.target.value as SectorCategory)}
-                  className="w-full p-2.5 bg-[#0D1017] border border-white/[0.1] text-xs text-white rounded-lg focus:outline-none focus:border-blue-500/60 cursor-pointer"
+                  className="w-full p-2.5 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.1] text-xs text-stone-900 dark:text-stone-100 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-[#161A24] focus:border-blue-600 dark:focus:border-blue-500 cursor-pointer"
                 >
                   {ECONOMIC_SECTORS.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -318,7 +318,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs text-slate-300">Objectif de Revenu Mensuel (€)</label>
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300">Objectif de Revenu Mensuel (€)</label>
                 <input
                   type="number"
                   min="500"
@@ -326,18 +326,18 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                   step="500"
                   value={newTargetMrr}
                   onChange={(e) => setNewTargetMrr(Number(e.target.value))}
-                  className="w-full p-2.5 bg-[#0D1017] border border-white/[0.1] text-xs text-white rounded-lg focus:outline-none focus:border-blue-500/60 font-mono tabular-nums"
+                  className="w-full p-2.5 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.1] text-xs text-stone-900 dark:text-stone-100 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-[#161A24] focus:border-blue-600 dark:focus:border-blue-500 font-mono tabular-nums"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs text-slate-300">Notes & Stratégie Initiale</label>
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300">Notes & Stratégie Initiale</label>
                 <textarea
                   rows={2}
-                  placeholder="Ex: Cibler les experts-comptables de ma région d abord..."
+                  placeholder="Ex: Cibler les experts-comptables de ma région d'abord..."
                   value={newNotes}
                   onChange={(e) => setNewNotes(e.target.value)}
-                  className="w-full p-2.5 bg-[#0D1017] border border-white/[0.1] text-xs text-white rounded-lg focus:outline-none focus:border-blue-500/60"
+                  className="w-full p-2.5 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.1] text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-[#161A24] focus:border-blue-600 dark:focus:border-blue-500"
                 />
               </div>
 
@@ -345,13 +345,13 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="cursor-pointer px-4 py-2 text-xs font-medium text-slate-400 hover:text-white"
+                  className="cursor-pointer px-4 py-2 text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
+                  className="cursor-pointer px-4 py-2 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-xl transition-colors"
                 >
                   Enregistrer
                 </button>

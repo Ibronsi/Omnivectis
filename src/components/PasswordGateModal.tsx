@@ -79,23 +79,23 @@ export const PasswordGateModal: React.FC<PasswordGateModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#090B10]/92 backdrop-blur-md">
-      <div className="bg-[#11141C] border border-white/[0.1] rounded-xl max-w-md w-full p-8 space-y-6 shadow-2xl relative text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/45 dark:bg-black/75 backdrop-blur-md">
+      <div className="bg-white dark:bg-[#141720] border border-stone-200 dark:border-white/[0.1] rounded-2xl max-w-md w-full p-8 space-y-6 shadow-xl relative text-stone-900 dark:text-stone-100">
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center space-y-3">
-          <div className="w-11 h-11 rounded-lg bg-[#0D1017] border border-white/[0.1] flex items-center justify-center">
-            <svg viewBox="0 0 24 24" className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" strokeWidth="1.75">
+          <div className="w-12 h-12 rounded-2xl bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.1] flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-6 h-6 text-amber-700 dark:text-amber-400" fill="none" stroke="currentColor" strokeWidth="1.75">
               <path d="M12 2L20 7V17L12 22L4 17V7L12 2Z" strokeLinejoin="round" />
               <circle cx="12" cy="12" r="3" />
             </svg>
           </div>
 
           <div>
-            <h2 className="font-display text-xl font-semibold text-white tracking-tight">
-              OmniVectis · Espace Personnel
+            <h2 className="font-display text-2xl font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
+              Bienvenue sur OmniVectis
             </h2>
-            <p className="text-xs text-slate-400 mt-1.5 max-w-xs mx-auto leading-relaxed">
-              Connectez-vous pour retrouver vos opportunités, dossiers de lancement, encaissements et validations persistants sur tous vos appareils.
+            <p className="text-sm text-stone-600 dark:text-stone-400 mt-1.5 max-w-xs mx-auto leading-relaxed">
+              Connectez-vous pour retrouver vos opportunités, dossiers de lancement, encaissements et validations sur tous vos appareils.
             </p>
           </div>
         </div>
@@ -104,9 +104,9 @@ export const PasswordGateModal: React.FC<PasswordGateModalProps> = ({
         {needsPassword && (
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-                <KeyRound className="w-3.5 h-3.5 text-blue-400" />
-                <span>Mot de passe d accès *</span>
+              <label className="text-xs font-semibold text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+                <span>Mot de passe d'accès *</span>
               </label>
 
               <div className="relative">
@@ -117,12 +117,12 @@ export const PasswordGateModal: React.FC<PasswordGateModalProps> = ({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Entrez votre mot de passe..."
-                  className="w-full px-3.5 py-2.5 pr-10 bg-[#0D1017] border border-white/[0.1] rounded-lg text-white text-xs font-mono focus:border-blue-500/60 focus:outline-none transition-colors"
+                  className="w-full px-3.5 py-2.5 pr-10 bg-[#F8F7F4] dark:bg-[#0D1017] border border-stone-300 dark:border-white/[0.12] rounded-xl text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 text-sm font-mono focus:border-amber-700 dark:focus:border-amber-500 focus:bg-white dark:focus:bg-[#161A24] focus:outline-none transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  className="absolute right-3 top-3 text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors cursor-pointer"
                   title={showPassword ? 'Masquer' : 'Afficher'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -133,10 +133,10 @@ export const PasswordGateModal: React.FC<PasswordGateModalProps> = ({
             <button
               type="submit"
               disabled={loadingPassword || !password.trim()}
-              className="cursor-pointer w-full py-2.5 px-4 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              className="cursor-pointer w-full py-2.5 px-4 text-sm font-semibold text-white bg-amber-700 hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <span>{loadingPassword ? 'Vérification...' : 'Déverrouiller le Terminal'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>{loadingPassword ? 'Vérification...' : 'Déverrouiller l\'espace'}</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </form>
         )}
@@ -148,10 +148,10 @@ export const PasswordGateModal: React.FC<PasswordGateModalProps> = ({
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loadingGoogle}
-              className="cursor-pointer w-full py-2.5 px-4 text-xs font-semibold text-slate-900 bg-white hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-3 shadow-sm disabled:opacity-60"
+              className="cursor-pointer w-full py-3 px-4 text-sm font-semibold text-stone-900 dark:text-stone-100 bg-white dark:bg-[#0D1017] hover:bg-stone-50 dark:hover:bg-white/[0.08] border border-stone-300 dark:border-white/[0.14] rounded-xl transition-colors flex items-center justify-center gap-3 shadow-xs disabled:opacity-60"
             >
               {loadingGoogle ? (
-                <RefreshCw className="w-4 h-4 animate-spin text-slate-700" />
+                <RefreshCw className="w-4 h-4 animate-spin text-stone-700 dark:text-stone-300" />
               ) : (
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -175,30 +175,30 @@ export const PasswordGateModal: React.FC<PasswordGateModalProps> = ({
               <span>{loadingGoogle ? 'Connexion en cours...' : 'Continuer avec Google'}</span>
             </button>
 
-            <div className="p-3 rounded-lg bg-[#0D1017] border border-white/[0.06] text-[11px] text-slate-400 flex items-start gap-2 leading-relaxed">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="p-3.5 rounded-xl bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08] text-xs text-stone-600 dark:text-stone-400 flex items-start gap-2.5 leading-relaxed">
+              <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
               <span>
-                Vos données métier restent strictement isolées par votre compte Google. Aucun message n est envoyé sans votre validation manuelle.
+                Vos données restent strictement isolées sur votre compte Google. Aucun message n'est envoyé sans votre validation manuelle.
               </span>
             </div>
           </div>
         )}
 
         {!needsPassword && !needsGoogleAuth && userEmail && (
-          <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/30 text-emerald-200 text-xs flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-xs font-medium flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
             <span>Connecté en tant que {userEmail}</span>
           </div>
         )}
 
         {errorMsg && (
-          <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-500/30 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
 
-        <div className="text-center text-[11px] text-slate-500 border-t border-white/[0.07] pt-4">
+        <div className="text-center text-xs text-stone-500 dark:text-stone-400 border-t border-stone-200/80 dark:border-white/[0.08] pt-4">
           <span>Session chiffrée · Accès privé à vos données</span>
         </div>
       </div>
