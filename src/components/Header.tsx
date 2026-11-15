@@ -1,8 +1,9 @@
-import React from 'react';
-import { DollarSign, Lock, LogOut, Menu, Moon, Sun } from 'lucide-react';
+import React, { useState } from 'react';
+import { DollarSign, HelpCircle, Lock, LogOut, Menu, Moon, Sun } from 'lucide-react';
 import { CountryCode } from '../types/market';
 import { GEO_PROFILES } from '../data/geoProfiles';
 import { useTheme } from '../hooks/useTheme';
+import { GuideModal } from './GuideModal';
 
 export type ActiveTab =
   | 'dashboard'
@@ -34,6 +35,7 @@ const TAB_LABELS: Record<ActiveTab, string> = {
 interface HeaderProps {
   activeTab: ActiveTab;
   onQuickAction: () => void;
+  onNavigateTab?: (tab: ActiveTab) => void;
   countryCode: CountryCode;
   isProtected?: boolean;
   onLock?: () => void;
@@ -45,6 +47,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   onQuickAction,
+  onNavigateTab,
   countryCode,
   isProtected,
   onLock,
@@ -54,9 +57,10 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const currentProfile = GEO_PROFILES[countryCode] || GEO_PROFILES.NER;
   const { theme, setTheme } = useTheme();
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 h-14 w-full border-b border-stone-200/80 dark:border-white/[0.08] bg-[#F8F7F4]/90 dark:bg-[#0B0D13]/90 backdrop-blur-md px-4 sm:px-6 lg:px-10 flex items-center justify-between gap-4 transition-colors duration-150">
+    <header className="sticky top-0 z-30 h-14 w-full border-b border-stone-200/80 dark:border-white/[0.08] bg-[#F8F7F4]/90 dark:bg-[#0B0D13]/90 backdrop-blur-md px-4 sm:px-6 lg:px-10 flex items-center justify-between gap-4 transition-colors duration-150 print:hidden">
       {/* Left: Mobile Menu Trigger + Contextual Breadcrumb */}
       <div className="flex items-center gap-3 min-w-0">
         {onOpenMobileNav && (
@@ -154,6 +158,16 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         <button
+          type="button"
+          onClick={() => setIsGuideOpen(true)}
+          className="cursor-pointer px-2.5 py-1.5 rounded-xl bg-white dark:bg-[#141720] hover:bg-stone-100 dark:hover:bg-white/[0.08] border border-stone-200 dark:border-white/[0.1] text-xs font-medium text-stone-700 dark:text-stone-200 hover:text-stone-900 dark:hover:text-white transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-[0_1px_2px_rgba(28,25,23,0.03)]"
+          title="Ouvrir le guide rapide d’utilisation"
+        >
+          <HelpCircle className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+          <span className="hidden sm:inline">Guide</span>
+        </button>
+
+        <button
           onClick={onQuickAction}
           className="cursor-pointer px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 shadow-[0_1px_2px_rgba(4,120,87,0.2)]"
         >
@@ -161,6 +175,12 @@ export const Header: React.FC<HeaderProps> = ({
           <span>Saisir une Vente</span>
         </button>
       </div>
+
+      <GuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        onNavigateTab={onNavigateTab}
+      />
     </header>
   );
 };

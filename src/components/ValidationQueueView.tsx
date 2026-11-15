@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Webhook,
   Plus,
+  Download,
 } from 'lucide-react';
 import {
   ValidationItem,
@@ -882,11 +883,43 @@ export const ValidationQueueView: React.FC<ValidationQueueViewProps> = ({ countr
       {/* ===================== VIEW 2: JOURNAL DE TOUTES LES ACTIONS (AUDIT LOG) ===================== */}
       {activeSubTab === 'audit' && (
         <div className="space-y-4">
-          <div className="p-4 rounded-2xl bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] text-xs text-stone-700 dark:text-stone-300 flex items-center justify-between gap-4">
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)] text-xs text-stone-700 dark:text-stone-300 flex flex-wrap items-center justify-between gap-4">
             <span>
               Journal certifié enregistrant chaque collecte de signal, synthèse d'opportunité, validation manuelle, envoi réel, vente et modification d'hypothèse.
             </span>
-            <span className="font-mono font-semibold text-blue-700 dark:text-blue-400 shrink-0 tabular-nums">{auditEntries.length} entrées</span>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="font-mono font-semibold text-blue-700 dark:text-blue-400 tabular-nums">{auditEntries.length} entrées</span>
+              <button
+                type="button"
+                disabled={auditEntries.length === 0}
+                onClick={() => {
+                  const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+                  const headers = ['Horodatage', 'Acteur', 'Type action', 'Description', 'Provenance', 'Statut'];
+                  const rows = auditEntries.map((e) => [
+                    esc(new Date(e.timestamp).toLocaleString('fr-FR')),
+                    esc(e.actor),
+                    esc(e.actionType),
+                    esc(e.description),
+                    esc(e.provenanceDetails || ''),
+                    esc(e.status),
+                  ]);
+                  const csv = '\uFEFF' + [headers.map(esc).join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `omnivectis_journal_audit_${new Date().toISOString().split('T')[0]}.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }}
+                className="cursor-pointer px-3 py-1.5 text-xs font-medium text-stone-700 dark:text-stone-200 bg-[#F6F4EF] dark:bg-[#0D1017] hover:bg-[#EAE5DC] dark:hover:bg-white/[0.08] border border-stone-200 dark:border-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
+                <span>Export CSV</span>
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-2xl border border-stone-200/90 dark:border-white/[0.08] bg-white dark:bg-[#141720] shadow-[0_1px_3px_rgba(28,25,23,0.04)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.3)]">

@@ -5,6 +5,7 @@ import { db } from '../db/index.ts';
 import {
   appState,
   auditLog,
+  companyProfiles,
   launchKits,
   opportunities,
   pipelineItems,
@@ -16,6 +17,7 @@ import {
 } from '../db/schema.ts';
 import {
   AuditLogEntry,
+  CompanyProfile,
   CountryCode,
   DigitalLaunchKit,
   LiveFxRates,
@@ -2063,6 +2065,91 @@ export async function addRealSale(
   }
 }
 
+export async function updateRealSale(
+  userUid: string,
+  id: string,
+  patch: Partial<Omit<RealSaleRecord, 'id'>>
+): Promise<RealSaleRecord | null> {
+  try {
+    const existingRows = await db
+      .select()
+      .from(realSales)
+      .where(and(eq(realSales.id, id), eq(realSales.userUid, userUid)))
+      .limit(1);
+
+    if (existingRows.length === 0) return null;
+    const prev = existingRows[0];
+
+    const updateSet: Record<string, unknown> = {};
+    if (patch.clientName !== undefined) updateSet.clientName = patch.clientName;
+    if (patch.opportunityTitle !== undefined) updateSet.opportunityTitle = patch.opportunityTitle;
+    if (patch.amount !== undefined) updateSet.amount = Number(patch.amount);
+    if (patch.currency !== undefined) updateSet.currency = patch.currency;
+    if (patch.date !== undefined) updateSet.date = patch.date;
+    if (patch.status !== undefined) updateSet.status = patch.status;
+    if (patch.paymentMethod !== undefined) updateSet.paymentMethod = patch.paymentMethod;
+    if (patch.notes !== undefined) updateSet.notes = patch.notes || null;
+    if (patch.reference !== undefined) updateSet.reference = patch.reference || null;
+
+    if (Object.keys(updateSet).length === 0) {
+      return {
+        id: prev.id,
+        clientName: prev.clientName,
+        opportunityId: prev.opportunityId || undefined,
+        opportunityTitle: prev.opportunityTitle,
+        amount: Number(prev.amount),
+        currency: prev.currency as RealSaleRecord['currency'],
+        date: prev.date,
+        status: prev.status as RealSaleRecord['status'],
+        paymentMethod: prev.paymentMethod,
+        notes: prev.notes || undefined,
+        reference: prev.reference || undefined,
+      };
+    }
+
+    const updatedRows = await db
+      .update(realSales)
+      .set(updateSet)
+      .where(and(eq(realSales.id, id), eq(realSales.userUid, userUid)))
+      .returning();
+
+    if (updatedRows.length === 0) return null;
+    const r = updatedRows[0];
+    const mapped: RealSaleRecord = {
+      id: r.id,
+      clientName: r.clientName,
+      opportunityId: r.opportunityId || undefined,
+      opportunityTitle: r.opportunityTitle,
+      amount: Number(r.amount),
+      currency: r.currency as RealSaleRecord['currency'],
+      date: r.date,
+      status: r.status as RealSaleRecord['status'],
+      paymentMethod: r.paymentMethod,
+      notes: r.notes || undefined,
+      reference: r.reference || undefined,
+    };
+
+    const allSales = await getRealSales(userUid);
+    emitWorkspaceEvent('sales_updated', { sales: allSales, latest: mapped }, userUid);
+
+    const becamePaid = prev.status !== 'encaisse' && mapped.status === 'encaisse';
+    await appendAuditLog(userUid, {
+      actionType: 'sale_recorded',
+      actor: 'utilisateur',
+      description: becamePaid
+        ? `Encaissement confirmé : ${mapped.amount.toLocaleString()} ${mapped.currency} de ${mapped.clientName} (${mapped.paymentMethod})`
+        : `Écriture de vente mise à jour : ${mapped.clientName} — ${mapped.amount.toLocaleString()} ${mapped.currency} (${mapped.status})`,
+      provenanceDetails: mapped.opportunityTitle,
+      status: 'success',
+    });
+
+    return mapped;
+  } catch (error) {
+    console.error('Database query failed in updateRealSale:', error);
+    throw new Error('Impossible de mettre à jour la vente dans PostgreSQL.', { cause: error });
+  }
+}
+
 export async function deleteRealSale(userUid: string, id: string): Promise<boolean> {
   try {
     await db
@@ -2074,6 +2161,120 @@ export async function deleteRealSale(userUid: string, id: string): Promise<boole
   } catch (error) {
     console.error('Database query failed in deleteRealSale:', error);
     throw new Error('Impossible de supprimer la vente.', { cause: error });
+  }
+}
+
+// ----------------- COMPANY BILLING PROFILE (PostgreSQL) -----------------
+
+export async function getCompanyProfile(userUid: string): Promise<CompanyProfile> {
+  try {
+    const rows = await db
+      .select()
+      .from(companyProfiles)
+      .where(eq(companyProfiles.userUid, userUid))
+      .limit(1);
+
+    if (rows.length === 0) {
+      return {
+        companyName: '',
+        nif: '',
+        phone: '',
+        iban: '',
+        selectedBank: '',
+        selectedMobileOperator: '',
+        selectedAgency: '',
+        customPaymentLink: '',
+      };
+    }
+
+    const r = rows[0];
+    return {
+      companyName: r.companyName,
+      nif: r.nif,
+      phone: r.phone,
+      iban: r.iban,
+      selectedBank: r.selectedBank,
+      selectedMobileOperator: r.selectedMobileOperator,
+      selectedAgency: r.selectedAgency,
+      customPaymentLink: r.customPaymentLink,
+      updatedAt: r.updatedAt?.toISOString(),
+    };
+  } catch (error) {
+    console.error('Database query failed in getCompanyProfile:', error);
+    throw new Error('Impossible de charger le profil entreprise.', { cause: error });
+  }
+}
+
+export async function saveCompanyProfile(
+  userUid: string,
+  input: Partial<CompanyProfile>
+): Promise<CompanyProfile> {
+  try {
+    const existing = await getCompanyProfile(userUid);
+    const merged: CompanyProfile = {
+      companyName: typeof input.companyName === 'string' ? input.companyName.trim() : existing.companyName,
+      nif: typeof input.nif === 'string' ? input.nif.trim() : existing.nif,
+      phone: typeof input.phone === 'string' ? input.phone.trim() : existing.phone,
+      iban: typeof input.iban === 'string' ? input.iban.trim() : existing.iban,
+      selectedBank: typeof input.selectedBank === 'string' ? input.selectedBank.trim() : existing.selectedBank,
+      selectedMobileOperator:
+        typeof input.selectedMobileOperator === 'string'
+          ? input.selectedMobileOperator.trim()
+          : existing.selectedMobileOperator,
+      selectedAgency: typeof input.selectedAgency === 'string' ? input.selectedAgency.trim() : existing.selectedAgency,
+      customPaymentLink:
+        typeof input.customPaymentLink === 'string' ? input.customPaymentLink.trim() : existing.customPaymentLink,
+    };
+
+    const now = new Date();
+    const rows = await db
+      .insert(companyProfiles)
+      .values({
+        userUid,
+        companyName: merged.companyName,
+        nif: merged.nif,
+        phone: merged.phone,
+        iban: merged.iban,
+        selectedBank: merged.selectedBank,
+        selectedMobileOperator: merged.selectedMobileOperator,
+        selectedAgency: merged.selectedAgency,
+        customPaymentLink: merged.customPaymentLink,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: companyProfiles.userUid,
+        set: {
+          companyName: merged.companyName,
+          nif: merged.nif,
+          phone: merged.phone,
+          iban: merged.iban,
+          selectedBank: merged.selectedBank,
+          selectedMobileOperator: merged.selectedMobileOperator,
+          selectedAgency: merged.selectedAgency,
+          customPaymentLink: merged.customPaymentLink,
+          updatedAt: now,
+        },
+      })
+      .returning();
+
+    const r = rows[0];
+    const saved: CompanyProfile = {
+      companyName: r.companyName,
+      nif: r.nif,
+      phone: r.phone,
+      iban: r.iban,
+      selectedBank: r.selectedBank,
+      selectedMobileOperator: r.selectedMobileOperator,
+      selectedAgency: r.selectedAgency,
+      customPaymentLink: r.customPaymentLink,
+      updatedAt: r.updatedAt?.toISOString(),
+    };
+
+    emitWorkspaceEvent('workspace_updated', { kind: 'profile', profile: saved }, userUid);
+    return saved;
+  } catch (error) {
+    console.error('Database query failed in saveCompanyProfile:', error);
+    throw new Error('Impossible de sauvegarder le profil entreprise.', { cause: error });
   }
 }
 

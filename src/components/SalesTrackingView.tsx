@@ -17,6 +17,10 @@ import {
   Layers,
   ArrowUpRight,
   RefreshCw,
+  Search,
+  Download,
+  Pencil,
+  Check,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -49,6 +53,10 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState<boolean>(false);
+  const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'encaisse' | 'en_attente'>('all');
   const [indicativeMonthlyTarget, setIndicativeMonthlyTarget] = useState<number>(
     countryCode === 'NER' ? 2500000 : 4000
   );
@@ -65,6 +73,19 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
   );
   const [reference, setReference] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
+
+  const resetForm = () => {
+    setEditingSaleId(null);
+    setClientName('');
+    setAmount(countryCode === 'NER' || countryCode === 'SEN' || countryCode === 'CIV' ? 150000 : 500);
+    setCurrency(currentProfile.currency);
+    setOpportunityTitle('Vente directe B2B');
+    setSaleDate(new Date().toISOString().split('T')[0]);
+    setStatus('encaisse');
+    setPaymentMethod(currentProfile.mobileMoney[0] || currentProfile.banks[0] || 'Mobile Money');
+    setReference('');
+    setNotes('');
+  };
 
   const fetchSales = async () => {
     setLoading(true);
@@ -101,40 +122,106 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
     return () => unsub();
   }, []);
 
-  const handleAddSale = async (e: React.FormEvent) => {
+  const handleSaveSale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName || !amount) return;
     setErrorMsg(null);
 
     try {
-      const res = await fetch('/api/sales', {
-        method: 'POST',
+      if (editingSaleId) {
+        setUpdatingId(editingSaleId);
+        const res = await fetch(`/api/sales/${editingSaleId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientName,
+            amount,
+            currency,
+            opportunityTitle,
+            date: saleDate,
+            status,
+            paymentMethod,
+            reference,
+            notes,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+        }
+        if (data?.sale) {
+          setSales((prev) => prev.map((s) => (s.id === data.sale.id ? data.sale : s)));
+          setIsAdding(false);
+          resetForm();
+        }
+      } else {
+        const res = await fetch('/api/sales', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientName,
+            amount,
+            currency,
+            opportunityTitle,
+            date: saleDate,
+            status,
+            paymentMethod,
+            reference: reference || `REF-${Math.floor(1000 + Math.random() * 9000)}`,
+            notes,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+        }
+        if (data?.sale) {
+          setSales((prev) => [data.sale, ...prev.filter((s) => s.id !== data.sale.id)]);
+          setIsAdding(false);
+          resetForm();
+        }
+      }
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Erreur lors de l’enregistrement de la vente.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleStartEdit = (sale: RealSaleRecord) => {
+    setEditingSaleId(sale.id);
+    setClientName(sale.clientName);
+    setAmount(sale.amount);
+    setCurrency(sale.currency);
+    setOpportunityTitle(sale.opportunityTitle);
+    setSaleDate(sale.date);
+    setStatus(sale.status === 'en_attente' ? 'en_attente' : 'encaisse');
+    setPaymentMethod(sale.paymentMethod);
+    setReference(sale.reference || '');
+    setNotes(sale.notes || '');
+    setIsAdding(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleMarkAsPaid = async (sale: RealSaleRecord) => {
+    setErrorMsg(null);
+    setUpdatingId(sale.id);
+    try {
+      const res = await fetch(`/api/sales/${sale.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientName,
-          amount,
-          currency,
-          opportunityTitle,
-          date: saleDate,
-          status,
-          paymentMethod,
-          reference: reference || `REF-${Math.floor(1000 + Math.random() * 9000)}`,
-          notes,
-        }),
+        body: JSON.stringify({ status: 'encaisse' }),
       });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
       }
       if (data?.sale) {
-        setSales((prev) => [data.sale, ...prev.filter((s) => s.id !== data.sale.id)]);
-        setIsAdding(false);
-        setClientName('');
-        setReference('');
-        setNotes('');
+        setSales((prev) => prev.map((s) => (s.id === data.sale.id ? data.sale : s)));
       }
     } catch (e: any) {
-      setErrorMsg(e?.message || 'Erreur lors de l enregistrement de la vente.');
+      setErrorMsg(e?.message || 'Impossible de confirmer l’encaissement.');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -147,9 +234,67 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
         throw new Error(data?.error || `Erreur suppression HTTP ${res.status}`);
       }
       setSales((prev) => prev.filter((s) => s.id !== id));
+      if (editingSaleId === id) {
+        setIsAdding(false);
+        resetForm();
+      }
     } catch (e: any) {
       setErrorMsg(e?.message || 'Impossible de supprimer cette écriture.');
     }
+  };
+
+  const filteredSales = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return sales.filter((s) => {
+      if (statusFilter !== 'all' && s.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        s.clientName.toLowerCase().includes(q) ||
+        s.opportunityTitle.toLowerCase().includes(q) ||
+        (s.reference || '').toLowerCase().includes(q) ||
+        s.paymentMethod.toLowerCase().includes(q)
+      );
+    });
+  }, [sales, statusFilter, searchQuery]);
+
+  const handleExportCsv = () => {
+    const escapeCell = (val: string | number | undefined) => {
+      const str = String(val ?? '').replace(/"/g, '""');
+      return `"${str}"`;
+    };
+    const headers = [
+      'Date',
+      'Client / Entreprise',
+      'Opportunité / Offre',
+      'Moyen de paiement',
+      'Référence',
+      'Montant',
+      'Devise',
+      'Statut',
+      'Notes',
+    ];
+    const rows = filteredSales.map((s) => [
+      escapeCell(s.date),
+      escapeCell(s.clientName),
+      escapeCell(s.opportunityTitle),
+      escapeCell(s.paymentMethod),
+      escapeCell(s.reference || ''),
+      escapeCell(s.amount),
+      escapeCell(s.currency),
+      escapeCell(s.status === 'encaisse' ? 'Encaissé' : 'En attente'),
+      escapeCell(s.notes || ''),
+    ]);
+    const csvContent = '\uFEFF' + [headers.map(escapeCell).join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.href = url;
+    link.setAttribute('download', `omnivectis_encaissements_${countryCode}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Aggregated Statistics (normalized into active country currency via live FX)
@@ -219,9 +364,28 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <button
-            onClick={() => setIsAdding(!isAdding)}
+            type="button"
+            onClick={handleExportCsv}
+            disabled={filteredSales.length === 0}
+            className="cursor-pointer px-3.5 py-2.5 text-xs font-medium text-stone-700 dark:text-stone-200 bg-white dark:bg-[#141720] hover:bg-stone-100 dark:hover:bg-white/[0.08] border border-stone-200 dark:border-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors flex items-center gap-1.5 shadow-xs"
+            title="Exporter le registre en fichier CSV compatible Excel"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
+            <span>Export CSV</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (isAdding) {
+                setIsAdding(false);
+                resetForm();
+              } else {
+                resetForm();
+                setIsAdding(true);
+              }
+            }}
             className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl transition-colors flex items-center gap-2 shadow-xs"
           >
             <Plus className="w-4 h-4" />
@@ -256,15 +420,22 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
         </span>
       </div>
 
-      {/* Real Sales Input Form Collapsible */}
+      {/* Real Sales Input / Edit Form Collapsible */}
       {isAdding && (
         <form
-          onSubmit={handleAddSale}
+          onSubmit={handleSaveSale}
           className="p-6 rounded-2xl bg-white dark:bg-[#141720] border border-emerald-200 dark:border-emerald-500/30 shadow-sm space-y-4"
         >
-          <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 flex items-center gap-2 border-b border-stone-200/80 dark:border-white/[0.08] pb-3">
-            <Plus className="w-4 h-4" />
-            <span>Saisie d'un Encaissement Réel</span>
+          <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-400 flex items-center justify-between gap-2 border-b border-stone-200/80 dark:border-white/[0.08] pb-3">
+            <span className="flex items-center gap-2">
+              {editingSaleId ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              <span>{editingSaleId ? 'Modifier une Écriture de Vente' : 'Saisie d\'un Encaissement Réel'}</span>
+            </span>
+            {editingSaleId && (
+              <span className="text-[11px] font-mono text-stone-500 dark:text-stone-400">
+                Modification en cours
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -366,19 +537,47 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-stone-600 dark:text-stone-400 font-medium block">Opportunité / Offre Facturée</label>
+              <input
+                type="text"
+                value={opportunityTitle}
+                onChange={(e) => setOpportunityTitle(e.target.value)}
+                placeholder="Ex: Agent IA Conformité, Installation Solaire..."
+                className="w-full px-3 py-2 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.1] rounded-xl text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 text-xs focus:bg-white dark:focus:bg-[#161A24] focus:border-emerald-700 dark:focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-stone-600 dark:text-stone-400 font-medium block">Notes internes (optionnel)</label>
+              <input
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ex: Acompte 50% reçu, solde à la livraison"
+                className="w-full px-3 py-2 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.1] rounded-xl text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 text-xs focus:bg-white dark:focus:bg-[#161A24] focus:border-emerald-700 dark:focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200/80 dark:border-white/[0.08]">
             <button
               type="button"
-              onClick={() => setIsAdding(false)}
+              onClick={() => {
+                setIsAdding(false);
+                resetForm();
+              }}
               className="px-4 py-2 text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors cursor-pointer"
             >
               Annuler
             </button>
             <button
               type="submit"
-              className="cursor-pointer px-5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl transition-colors shadow-xs"
+              disabled={updatingId !== null}
+              className="cursor-pointer px-5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-60 rounded-xl transition-colors shadow-xs"
             >
-              Enregistrer l'encaissement
+              {editingSaleId ? 'Enregistrer les modifications' : 'Enregistrer l\'encaissement'}
             </button>
           </div>
         </form>
@@ -566,11 +765,54 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
 
       {/* Real Sales Ledger Table (Single-Elevation Card) */}
       <div className="rounded-2xl bg-white dark:bg-[#141720] border border-stone-200/90 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(28,25,23,0.04)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-stone-200/80 dark:border-white/[0.08] flex items-center justify-between">
-          <span className="text-xs font-semibold text-stone-900 dark:text-stone-100">
-            Registre des Ventes Réelles Enregistrées ({sales.length})
-          </span>
-          <span className="text-[11px] font-mono text-stone-500 dark:text-stone-400">Base synchronisée</span>
+        <div className="px-5 py-4 border-b border-stone-200/80 dark:border-white/[0.08] flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-stone-900 dark:text-stone-100">
+              Registre des Ventes Réelles Enregistrées ({filteredSales.length}
+              {filteredSales.length !== sales.length ? ` / ${sales.length}` : ''})
+            </span>
+            <span className="text-[11px] font-mono text-stone-500 dark:text-stone-400 hidden sm:inline">
+              · Base synchronisée
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Search input */}
+            <div className="relative flex-1 sm:flex-initial sm:w-56">
+              <Search className="w-3.5 h-3.5 text-stone-400 dark:text-stone-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher client, offre, réf..."
+                className="w-full pl-8 pr-3 py-1.5 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.08] rounded-xl text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
+              />
+            </div>
+
+            {/* Status filter segmented control */}
+            <div className="inline-flex items-center p-0.5 rounded-xl bg-[#EFECE6] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08]">
+              {(
+                [
+                  { id: 'all', label: 'Tous' },
+                  { id: 'encaisse', label: 'Encaissés' },
+                  { id: 'en_attente', label: 'En attente' },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setStatusFilter(opt.id)}
+                  className={`cursor-pointer px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                    statusFilter === opt.id
+                      ? 'bg-white dark:bg-white/[0.12] text-stone-900 dark:text-stone-100 shadow-xs'
+                      : 'text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -588,17 +830,32 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200/70 dark:divide-white/[0.06] font-sans">
-              {sales.length === 0 ? (
+              {loading ? (
                 <tr>
                   <td colSpan={8} className="py-10 text-center text-stone-500 dark:text-stone-400">
-                    Aucune vente enregistrée pour le moment. Cliquez sur « Saisir une Vente Réelle » ci-dessus pour ajouter votre premier encaissement.
+                    Chargement des encaissements...
+                  </td>
+                </tr>
+              ) : filteredSales.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-10 text-center text-stone-500 dark:text-stone-400">
+                    {sales.length === 0
+                      ? 'Aucune vente enregistrée pour le moment. Cliquez sur « Saisir une Vente Réelle » ci-dessus pour ajouter votre premier encaissement.'
+                      : 'Aucune vente ne correspond à votre filtre actuel.'}
                   </td>
                 </tr>
               ) : (
-                sales.map((sale) => (
+                filteredSales.map((sale) => (
                   <tr key={sale.id} className="hover:bg-stone-50/70 dark:hover:bg-white/[0.03] transition-colors">
                     <td className="py-2.5 px-4 text-stone-500 dark:text-stone-400 font-mono text-[11px] tabular-nums whitespace-nowrap">{sale.date}</td>
-                    <td className="py-2.5 px-4 font-semibold text-stone-900 dark:text-stone-100">{sale.clientName}</td>
+                    <td className="py-2.5 px-4 font-semibold text-stone-900 dark:text-stone-100">
+                      <div>{sale.clientName}</div>
+                      {sale.notes && (
+                        <div className="text-[11px] font-normal text-stone-500 dark:text-stone-400 truncate max-w-[200px]">
+                          {sale.notes}
+                        </div>
+                      )}
+                    </td>
                     <td className="py-2.5 px-4 text-stone-700 dark:text-stone-300 text-xs">{sale.opportunityTitle}</td>
                     <td className="py-2.5 px-4 text-stone-700 dark:text-stone-300">
                       <span className="inline-flex items-center gap-1.5">
@@ -624,14 +881,37 @@ export const SalesTrackingView: React.FC<SalesTrackingViewProps> = ({ countryCod
                         {sale.status === 'encaisse' ? 'Encaissé' : 'En attente'}
                       </span>
                     </td>
-                    <td className="py-2.5 px-4 text-center">
-                      <button
-                        onClick={() => handleDeleteSale(sale.id)}
-                        className="p-1 text-stone-400 hover:text-rose-700 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                        title="Supprimer la vente"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    <td className="py-2.5 px-4 text-center whitespace-nowrap">
+                      <div className="inline-flex items-center justify-center gap-1.5">
+                        {sale.status === 'en_attente' && (
+                          <button
+                            type="button"
+                            disabled={updatingId === sale.id}
+                            onClick={() => handleMarkAsPaid(sale)}
+                            className="cursor-pointer px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-500/30 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 transition-colors inline-flex items-center gap-1 disabled:opacity-50"
+                            title="Confirmer la réception des fonds"
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>Encaisser</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(sale)}
+                          className="p-1 text-stone-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                          title="Modifier cette vente"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSale(sale.id)}
+                          className="p-1 text-stone-400 hover:text-rose-700 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                          title="Supprimer la vente"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

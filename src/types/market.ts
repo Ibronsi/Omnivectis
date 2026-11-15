@@ -398,6 +398,18 @@ export interface RealSaleRecord {
   reference?: string;
 }
 
+export interface CompanyProfile {
+  companyName: string;
+  nif: string;
+  phone: string;
+  iban: string;
+  selectedBank: string;
+  selectedMobileOperator: string;
+  selectedAgency: string;
+  customPaymentLink: string;
+  updatedAt?: string;
+}
+
 export interface UsageCounterStats {
   totalGeminiCalls: number;
   successfulCalls: number;

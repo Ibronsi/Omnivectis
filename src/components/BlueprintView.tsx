@@ -14,6 +14,7 @@ import {
   Zap,
   Trash2,
   History,
+  Printer,
 } from 'lucide-react';
 import {
   AIExecutionBlueprint,
@@ -436,7 +437,17 @@ export const BlueprintView: React.FC<BlueprintViewProps> = ({
                   </h2>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 print:hidden">
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="cursor-pointer px-3 py-2 text-xs font-medium text-stone-700 dark:text-stone-200 bg-[#F6F4EF] dark:bg-[#0D1017] hover:bg-[#EAE5DC] dark:hover:bg-white/[0.08] border border-stone-200 dark:border-white/[0.08] rounded-xl transition-colors flex items-center gap-1.5"
+                    title="Imprimer ou exporter ce plan stratégique en PDF"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
+                    <span>PDF</span>
+                  </button>
+
                   <button
                     onClick={handleCopy}
                     className="cursor-pointer px-3 py-2 text-xs font-medium text-stone-700 dark:text-stone-200 bg-[#F6F4EF] dark:bg-[#0D1017] hover:bg-[#EAE5DC] dark:hover:bg-white/[0.08] border border-stone-200 dark:border-white/[0.08] rounded-xl transition-colors flex items-center gap-1.5"

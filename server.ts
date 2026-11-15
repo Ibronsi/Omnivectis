@@ -39,7 +39,10 @@ import {
   appendAuditLog,
   getRealSales,
   addRealSale,
+  updateRealSale,
   deleteRealSale,
+  getCompanyProfile,
+  saveCompanyProfile,
   getUsageStats,
   recordGeminiCall,
 } from './src/server/dataService.ts';
@@ -1420,6 +1423,32 @@ app.post('/api/sales', async (req, res) => {
   }
 });
 
+app.patch('/api/sales/:id', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const { clientName, opportunityTitle, amount, currency, date, status, paymentMethod, notes, reference } = req.body || {};
+
+    const patch: Record<string, unknown> = {};
+    if (typeof clientName === 'string' && clientName.trim()) patch.clientName = clientName.trim();
+    if (typeof opportunityTitle === 'string' && opportunityTitle.trim()) patch.opportunityTitle = opportunityTitle.trim();
+    if (amount !== undefined && !Number.isNaN(Number(amount))) patch.amount = Number(amount);
+    if (typeof currency === 'string' && ['XOF', 'EUR', 'USD'].includes(currency)) patch.currency = currency;
+    if (typeof date === 'string' && date.trim()) patch.date = date.trim();
+    if (typeof status === 'string' && ['encaisse', 'en_attente', 'annule'].includes(status)) patch.status = status;
+    if (typeof paymentMethod === 'string' && paymentMethod.trim()) patch.paymentMethod = paymentMethod.trim();
+    if (typeof notes === 'string') patch.notes = notes;
+    if (typeof reference === 'string') patch.reference = reference;
+
+    const updated = await updateRealSale(userUid, req.params.id, patch);
+    if (!updated) {
+      return res.status(404).json({ error: 'Écriture de vente introuvable.' });
+    }
+    res.json({ status: 'ok', sale: updated });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la mise à jour de la vente.' });
+  }
+});
+
 app.delete('/api/sales/:id', async (req, res) => {
   try {
     const userUid = (req as AuthRequest).userUid!;
@@ -1427,6 +1456,28 @@ app.delete('/api/sales/:id', async (req, res) => {
     res.json({ status: ok ? 'ok' : 'error' });
   } catch (e: any) {
     res.status(500).json({ error: e?.message || 'Erreur lors de la suppression de la vente.' });
+  }
+});
+
+// ----------------- PROFIL ENTREPRISE & COORDONNÉES DE FACTURATION (PostgreSQL) -----------------
+
+app.get('/api/profile', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const profile = await getCompanyProfile(userUid);
+    res.json({ status: 'ok', profile });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors du chargement du profil entreprise.' });
+  }
+});
+
+app.put('/api/profile', async (req, res) => {
+  try {
+    const userUid = (req as AuthRequest).userUid!;
+    const profile = await saveCompanyProfile(userUid, req.body || {});
+    res.json({ status: 'ok', profile });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la sauvegarde du profil entreprise.' });
   }
 });
 

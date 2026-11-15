@@ -11,6 +11,9 @@ import {
   Globe,
   Activity,
   X,
+  Compass,
+  ArrowLeftRight,
+  Rocket,
 } from 'lucide-react';
 import { CountryCode, UsageCounterStats, ValidationItem } from '../types/market';
 import { ActiveTab } from './Header';
@@ -110,6 +113,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'kits',
           label: 'Dossiers & Plans',
           icon: <FileText className="w-4 h-4 shrink-0" />,
+        },
+      ],
+    },
+    {
+      label: 'Stratégie & Lancement',
+      items: [
+        {
+          id: 'blueprint',
+          label: 'Plan Stratégique',
+          icon: <Compass className="w-4 h-4 shrink-0" />,
+        },
+        {
+          id: 'arbitrage',
+          label: 'Matrice d’Arbitrage',
+          icon: <ArrowLeftRight className="w-4 h-4 shrink-0" />,
+        },
+        {
+          id: 'launchpad',
+          label: 'Circuit de Lancement',
+          icon: <Rocket className="w-4 h-4 shrink-0" />,
         },
       ],
     },
@@ -283,7 +306,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Desktop Persistent Sidebar */}
-      <aside className="hidden lg:block shrink-0 sticky top-0 h-screen">
+      <aside className="hidden lg:block shrink-0 sticky top-0 h-screen print:hidden">
         {sidebarBody}
       </aside>
 

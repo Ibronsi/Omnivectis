@@ -10,26 +10,45 @@ import {
   Download,
   Upload,
   Layers,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
-import { PipelineItem, SectorCategory } from '../types/market';
+import { CountryCode, LiveFxRates, PipelineItem, SectorCategory } from '../types/market';
 import { ECONOMIC_SECTORS } from '../data/sectorsData';
+import { GEO_PROFILES } from '../data/geoProfiles';
+import { convertCurrency } from '../utils/currency';
 
 interface PipelineViewProps {
   items: PipelineItem[];
   onUpdateItems: (items: PipelineItem[]) => void;
   onNavigateToBlueprint: (sectorId: SectorCategory, title: string) => void;
+  countryCode?: CountryCode;
+  liveRates?: LiveFxRates | null;
 }
 
 export const PipelineView: React.FC<PipelineViewProps> = ({
   items,
   onUpdateItems,
   onNavigateToBlueprint,
+  countryCode = 'NER',
+  liveRates,
 }) => {
+  const currentProfile = GEO_PROFILES[countryCode] || GEO_PROFILES.NER;
+  const activeCurrency = currentProfile.currency;
+  const currencySymbol = currentProfile.currencySymbol;
+
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>('');
   const [newSectorId, setNewSectorId] = useState<SectorCategory>('ai_deeptech');
-  const [newTargetMrr, setNewTargetMrr] = useState<number>(5000);
+  const [newTargetMrr, setNewTargetMrr] = useState<number>(activeCurrency === 'XOF' ? 1500000 : 5000);
   const [newNotes, setNewNotes] = useState<string>('');
+
+  // Inline card edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTargetMrr, setEditTargetMrr] = useState<number>(0);
+  const [editCurrentMrr, setEditCurrentMrr] = useState<number>(0);
+  const [editNotes, setEditNotes] = useState<string>('');
 
   const stages: { key: PipelineItem['stage']; label: string; color: string }[] = [
     { key: 'discovery', label: '01. Découverte & Étude de Marché', color: 'border-stone-200/90 dark:border-white/[0.08]' },
@@ -37,6 +56,10 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
     { key: 'building', label: '03. Lancement MVP & Automatisation', color: 'border-teal-200 dark:border-teal-500/30' },
     { key: 'monetizing', label: '04. Encaissements & Cash Récurrent', color: 'border-emerald-200 dark:border-emerald-500/30' },
   ];
+
+  const toActiveCurrency = (amount: number, itemCurrency?: string) => {
+    return convertCurrency(Number(amount || 0), (itemCurrency as any) || 'EUR', activeCurrency, liveRates);
+  };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +75,8 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
       stage: 'discovery',
       targetMrr: newTargetMrr,
       currentMrr: 0,
+      countryCode,
+      currency: activeCurrency,
       notes: newNotes.trim(),
       addedAt: new Date().toLocaleDateString('fr-FR'),
       checklists: [
@@ -67,8 +92,34 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
     setShowAddModal(false);
   };
 
+  const handleStartEdit = (item: PipelineItem) => {
+    setEditingId(item.id);
+    setEditTargetMrr(toActiveCurrency(item.targetMrr, item.currency));
+    setEditCurrentMrr(toActiveCurrency(item.currentMrr, item.currency));
+    setEditNotes(item.notes || '');
+  };
+
+  const handleSaveEdit = (id: string) => {
+    onUpdateItems(
+      items.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              targetMrr: Number(editTargetMrr) || 0,
+              currentMrr: Number(editCurrentMrr) || 0,
+              currency: activeCurrency,
+              countryCode,
+              notes: editNotes.trim(),
+            }
+          : item
+      )
+    );
+    setEditingId(null);
+  };
+
   const handleDelete = (id: string) => {
     onUpdateItems(items.filter((item) => item.id !== id));
+    if (editingId === id) setEditingId(null);
   };
 
   const handleMoveStage = (id: string, direction: 'next' | 'prev') => {
@@ -108,7 +159,8 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const totalTargetMrr = items.reduce((acc, curr) => acc + curr.targetMrr, 0);
+  const totalTargetMrr = items.reduce((acc, curr) => acc + toActiveCurrency(curr.targetMrr, curr.currency), 0);
+  const totalCurrentMrr = items.reduce((acc, curr) => acc + toActiveCurrency(curr.currentMrr, curr.currency), 0);
 
   return (
     <div className="space-y-8">
@@ -156,16 +208,16 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
         </div>
 
         <div className="p-4">
-          <span className="text-xs text-stone-500 dark:text-stone-400 block">Objectif de Revenu Global</span>
+          <span className="text-xs text-stone-500 dark:text-stone-400 block">Objectif Mensuel Global</span>
           <span className="text-2xl font-bold font-mono text-emerald-700 dark:text-emerald-400 mt-1 block tabular-nums">
-            {totalTargetMrr.toLocaleString()} € / mois
+            {totalTargetMrr.toLocaleString('fr-FR')} {currencySymbol} / mois
           </span>
         </div>
 
         <div className="p-4">
-          <span className="text-xs text-stone-500 dark:text-stone-400 block">Potentiel Annuel Cumulé</span>
+          <span className="text-xs text-stone-500 dark:text-stone-400 block">Revenu Actuel Déclaré</span>
           <span className="text-2xl font-bold font-mono text-blue-700 dark:text-blue-400 mt-1 block tabular-nums">
-            {(totalTargetMrr * 12).toLocaleString()} € / an
+            {totalCurrentMrr.toLocaleString('fr-FR')} {currencySymbol} / mois
           </span>
         </div>
 
@@ -202,82 +254,168 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
               )}
 
               <div className="space-y-3 flex-1 overflow-y-auto">
-                {stageItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08] rounded-xl space-y-3 hover:border-stone-300 dark:hover:border-white/[0.16] transition-colors"
-                  >
-                    <div>
-                      <div className="text-[11px] text-blue-700 dark:text-blue-400 font-medium">
-                        {item.sectorName}
-                      </div>
-                      <h4 className="font-display text-sm font-semibold text-stone-900 dark:text-stone-100 mt-0.5">
-                        {item.title}
-                      </h4>
-                      {item.notes && (
-                        <p className="text-xs text-stone-600 dark:text-stone-400 mt-1 line-clamp-2">
-                          {item.notes}
-                        </p>
-                      )}
-                    </div>
+                {stageItems.map((item) => {
+                  const isEditing = editingId === item.id;
+                  const displayTarget = toActiveCurrency(item.targetMrr, item.currency);
+                  const displayCurrent = toActiveCurrency(item.currentMrr, item.currency);
 
-                    <div className="flex items-center justify-between text-xs font-mono border-t border-stone-200/80 dark:border-white/[0.08] pt-2 text-stone-700 dark:text-stone-300 tabular-nums">
-                      <span className="text-stone-500 dark:text-stone-400">Cible :</span>
-                      <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
-                        {item.targetMrr.toLocaleString()} € / mois
-                      </span>
-                    </div>
-
-                    {/* Checklists */}
-                    <div className="space-y-1.5 pt-1">
-                      {item.checklists.map((check, cIdx) => (
-                        <button
-                          key={cIdx}
-                          onClick={() => handleToggleChecklist(item.id, cIdx)}
-                          className="cursor-pointer flex items-start gap-2 text-[11px] text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100 text-left w-full"
-                        >
-                          {check.done ? (
-                            <CheckSquare className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
-                          ) : (
-                            <Square className="w-3.5 h-3.5 text-stone-400 dark:text-stone-500 shrink-0 mt-0.5" />
-                          )}
-                          <span className={check.done ? 'line-through text-stone-400 dark:text-stone-500' : ''}>
-                            {check.text}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Actions on Item */}
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-stone-200/80 dark:border-white/[0.08] text-xs">
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="cursor-pointer text-stone-400 dark:text-stone-500 hover:text-rose-700 dark:hover:text-rose-400 p-1 transition-colors"
-                        title="Supprimer l'opportunité"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => onNavigateToBlueprint(item.sectorId, item.title)}
-                          className="cursor-pointer text-[11px] font-medium text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                        >
-                          Plan IA
-                        </button>
-                        {st.key !== 'monetizing' && (
-                          <button
-                            onClick={() => handleMoveStage(item.id, 'next')}
-                            className="cursor-pointer px-2.5 py-1 bg-white dark:bg-white/[0.06] hover:bg-stone-50 dark:hover:bg-white/[0.12] border border-stone-200 dark:border-white/[0.1] text-[11px] font-medium text-stone-700 dark:text-stone-200 rounded-lg flex items-center gap-1 transition-colors"
-                          >
-                            <span>Avancer</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-4 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08] rounded-xl space-y-3 hover:border-stone-300 dark:hover:border-white/[0.16] transition-colors"
+                    >
+                      <div>
+                        <div className="text-[11px] text-blue-700 dark:text-blue-400 font-medium">
+                          {item.sectorName}
+                        </div>
+                        <h4 className="font-display text-sm font-semibold text-stone-900 dark:text-stone-100 mt-0.5">
+                          {item.title}
+                        </h4>
+                        {!isEditing && item.notes && (
+                          <p className="text-xs text-stone-600 dark:text-stone-400 mt-1 line-clamp-2">
+                            {item.notes}
+                          </p>
                         )}
                       </div>
+
+                      {isEditing ? (
+                        <div className="space-y-2.5 pt-2 border-t border-stone-200/80 dark:border-white/[0.08]">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-stone-500 dark:text-stone-400 block mb-0.5">
+                                Cible ({currencySymbol}/m)
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={editTargetMrr}
+                                onChange={(e) => setEditTargetMrr(Number(e.target.value))}
+                                className="w-full px-2 py-1 bg-white dark:bg-[#141720] border border-stone-200 dark:border-white/[0.1] rounded-lg text-xs font-mono text-stone-900 dark:text-stone-100 focus:outline-none focus:border-emerald-600"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-stone-500 dark:text-stone-400 block mb-0.5">
+                                Actuel ({currencySymbol}/m)
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={editCurrentMrr}
+                                onChange={(e) => setEditCurrentMrr(Number(e.target.value))}
+                                className="w-full px-2 py-1 bg-white dark:bg-[#141720] border border-stone-200 dark:border-white/[0.1] rounded-lg text-xs font-mono text-stone-900 dark:text-stone-100 focus:outline-none focus:border-blue-600"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-stone-500 dark:text-stone-400 block mb-0.5">
+                              Notes
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={editNotes}
+                              onChange={(e) => setEditNotes(e.target.value)}
+                              className="w-full px-2 py-1 bg-white dark:bg-[#141720] border border-stone-200 dark:border-white/[0.1] rounded-lg text-xs text-stone-900 dark:text-stone-100 focus:outline-none focus:border-blue-600"
+                            />
+                          </div>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(null)}
+                              className="cursor-pointer px-2 py-1 text-[11px] text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 flex items-center gap-1"
+                            >
+                              <X className="w-3 h-3" />
+                              <span>Annuler</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEdit(item.id)}
+                              className="cursor-pointer px-2.5 py-1 text-[11px] font-semibold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-lg flex items-center gap-1"
+                            >
+                              <Check className="w-3 h-3" />
+                              <span>Valider</span>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 border-t border-stone-200/80 dark:border-white/[0.08] pt-2 text-xs font-mono tabular-nums">
+                          <div className="flex items-center justify-between text-stone-700 dark:text-stone-300">
+                            <span className="text-stone-500 dark:text-stone-400">Cible :</span>
+                            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                              {displayTarget.toLocaleString('fr-FR')} {currencySymbol} / mois
+                            </span>
+                          </div>
+                          {displayCurrent > 0 && (
+                            <div className="flex items-center justify-between text-stone-700 dark:text-stone-300 text-[11px]">
+                              <span className="text-stone-500 dark:text-stone-400">Actuel :</span>
+                              <span className="text-blue-700 dark:text-blue-400 font-semibold">
+                                {displayCurrent.toLocaleString('fr-FR')} {currencySymbol} / mois
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Checklists */}
+                      <div className="space-y-1.5 pt-1">
+                        {item.checklists.map((check, cIdx) => (
+                          <button
+                            key={cIdx}
+                            onClick={() => handleToggleChecklist(item.id, cIdx)}
+                            className="cursor-pointer flex items-start gap-2 text-[11px] text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100 text-left w-full"
+                          >
+                            {check.done ? (
+                              <CheckSquare className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
+                            ) : (
+                              <Square className="w-3.5 h-3.5 text-stone-400 dark:text-stone-500 shrink-0 mt-0.5" />
+                            )}
+                            <span className={check.done ? 'line-through text-stone-400 dark:text-stone-500' : ''}>
+                              {check.text}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Actions on Item */}
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-stone-200/80 dark:border-white/[0.08] text-xs">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="cursor-pointer text-stone-400 dark:text-stone-500 hover:text-rose-700 dark:hover:text-rose-400 p-1 transition-colors"
+                            title="Supprimer l'opportunité"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => (isEditing ? setEditingId(null) : handleStartEdit(item))}
+                            className="cursor-pointer text-stone-400 dark:text-stone-500 hover:text-blue-700 dark:hover:text-blue-400 p-1 transition-colors"
+                            title="Modifier objectif, revenu actuel ou notes"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => onNavigateToBlueprint(item.sectorId, item.title)}
+                            className="cursor-pointer text-[11px] font-medium text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                          >
+                            Plan IA
+                          </button>
+                          {st.key !== 'monetizing' && (
+                            <button
+                              onClick={() => handleMoveStage(item.id, 'next')}
+                              className="cursor-pointer px-2.5 py-1 bg-white dark:bg-white/[0.06] hover:bg-stone-50 dark:hover:bg-white/[0.12] border border-stone-200 dark:border-white/[0.1] text-[11px] font-medium text-stone-700 dark:text-stone-200 rounded-lg flex items-center gap-1 transition-colors"
+                            >
+                              <span>Avancer</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
@@ -318,12 +456,13 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-medium text-stone-700 dark:text-stone-300">Objectif de Revenu Mensuel (€)</label>
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300">
+                  Objectif de Revenu Mensuel ({currencySymbol})
+                </label>
                 <input
                   type="number"
-                  min="500"
-                  max="200000"
-                  step="500"
+                  min="0"
+                  step={activeCurrency === 'XOF' ? '50000' : '500'}
                   value={newTargetMrr}
                   onChange={(e) => setNewTargetMrr(Number(e.target.value))}
                   className="w-full p-2.5 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.1] text-xs text-stone-900 dark:text-stone-100 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-[#161A24] focus:border-blue-600 dark:focus:border-blue-500 font-mono tabular-nums"

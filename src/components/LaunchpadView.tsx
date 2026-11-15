@@ -30,6 +30,8 @@ import {
   AlertTriangle,
   History,
   Trash2,
+  Save,
+  Printer,
 } from 'lucide-react';
 import {
   LaunchpadCircuit,
@@ -37,16 +39,19 @@ import {
   CountryCode,
   LiveFxRates,
   SavedLaunchpadRecord,
+  CompanyProfile,
 } from '../types/market';
 import { ECONOMIC_SECTORS } from '../data/sectorsData';
 import { GEO_PROFILES } from '../data/geoProfiles';
 import { getEffectiveFxRateToEur, convertCurrency } from '../utils/currency';
 import { subscribeLiveEvent } from '../utils/liveStream';
+import { ActiveTab } from './Header';
 
 interface LaunchpadViewProps {
   initialSectorId?: SectorCategory;
   initialOpportunityTitle?: string;
   onAddToPipeline: (title: string, sectorId: SectorCategory, targetMrr: number) => void;
+  onNavigateTab?: (tab: ActiveTab) => void;
   countryCode?: CountryCode;
   liveRates?: LiveFxRates | null;
 }
@@ -55,6 +60,7 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
   initialSectorId = 'ai_deeptech',
   initialOpportunityTitle = 'Agents IA Spécialisés Conformité & Due Diligence B2B',
   onAddToPipeline,
+  onNavigateTab,
   countryCode = 'NER',
   liveRates,
 }) => {
@@ -101,8 +107,14 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
     }
   });
 
-  // Copy feedbacks
+  // Copy & Save feedbacks
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState<boolean>(false);
+  const [profileSaveStatus, setProfileSaveStatus] = useState<'saved' | 'error' | null>(null);
+  const [queueingEmailKey, setQueueingEmailKey] = useState<string | null>(null);
+  const [queuedNotice, setQueuedNotice] = useState<string | null>(null);
+  const [creatingSale, setCreatingSale] = useState<boolean>(false);
+  const [saleCreatedNotice, setSaleCreatedNotice] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -112,7 +124,30 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
     }
   }, [customPaymentLink]);
 
+  const applyProfileFromServer = (p?: CompanyProfile | null) => {
+    if (!p) return;
+    if (p.companyName) setUserCompanyName(p.companyName);
+    if (p.nif) setUserNif(p.nif);
+    if (p.phone) setUserPhone(p.phone);
+    if (p.iban) setUserIban(p.iban);
+    if (p.selectedBank) setSelectedBank(p.selectedBank);
+    if (p.selectedMobileOperator) setSelectedMobileOperator(p.selectedMobileOperator);
+    if (p.selectedAgency) setSelectedAgency(p.selectedAgency);
+    if (typeof p.customPaymentLink === 'string' && p.customPaymentLink.trim() !== '') {
+      setCustomPaymentLink(p.customPaymentLink);
+    }
+  };
+
   useEffect(() => {
+    fetch('/api/profile')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.profile) {
+          applyProfileFromServer(data.profile);
+        }
+      })
+      .catch(() => {});
+
     fetch('/api/launchpads')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -133,16 +168,114 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
       })
       .catch(() => {});
 
-    const unsub = subscribeLiveEvent<{ kind?: string; launchpads?: SavedLaunchpadRecord[] }>(
-      'workspace_updated',
-      (payload) => {
-        if (payload?.kind === 'launchpad' && Array.isArray(payload.launchpads)) {
-          setSavedLaunchpads(payload.launchpads);
-        }
+    const unsub = subscribeLiveEvent<{
+      kind?: string;
+      launchpads?: SavedLaunchpadRecord[];
+      profile?: CompanyProfile;
+    }>('workspace_updated', (payload) => {
+      if (payload?.kind === 'launchpad' && Array.isArray(payload.launchpads)) {
+        setSavedLaunchpads(payload.launchpads);
       }
-    );
+      if (payload?.kind === 'profile' && payload.profile) {
+        applyProfileFromServer(payload.profile);
+      }
+    });
     return () => unsub();
   }, []);
+
+  const handleSaveCompanyProfile = async () => {
+    setSavingProfile(true);
+    setProfileSaveStatus(null);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyName: userCompanyName,
+          nif: userNif,
+          phone: userPhone,
+          iban: userIban,
+          selectedBank,
+          selectedMobileOperator,
+          selectedAgency,
+          customPaymentLink,
+        }),
+      });
+      if (!res.ok) throw new Error('Erreur sauvegarde profil');
+      setProfileSaveStatus('saved');
+      setTimeout(() => setProfileSaveStatus(null), 3000);
+    } catch {
+      setProfileSaveStatus('error');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleQueueOutreach = async (key: string, label: string, subject: string, body: string) => {
+    setQueueingEmailKey(key);
+    setError(null);
+    setQueuedNotice(null);
+    try {
+      const res = await fetch('/api/validation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `${label} — ${opportunityTitle}`,
+          category: 'prospection_message',
+          targetRecipient: clientContactEmail || undefined,
+          contentPayload: `Objet : ${subject}\n\n${body}`,
+          sourceOpportunityTitle: opportunityTitle,
+          countryCode,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      setQueuedNotice(`« ${label} » ajouté à la file À Valider pour révision et envoi réel.`);
+    } catch (e: any) {
+      setError(e?.message || 'Impossible d’envoyer ce message vers la file de validation.');
+    } finally {
+      setQueueingEmailKey(null);
+    }
+  };
+
+  const handleCreatePendingSale = async () => {
+    setCreatingSale(true);
+    setError(null);
+    setSaleCreatedNotice(null);
+    const methodLabel =
+      activePaymentRail === 'mobile_money'
+        ? selectedMobileOperator
+        : activePaymentRail === 'bank_transfer'
+        ? selectedBank
+        : activePaymentRail === 'transfer_agency'
+        ? selectedAgency
+        : 'Lien de paiement / Carte';
+    try {
+      const res = await fetch('/api/sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName: clientCompanyName || 'Client B2B',
+          opportunityTitle,
+          amount: cashInAmount,
+          currency: currentGeoProfile.currency,
+          date: new Date().toISOString().split('T')[0],
+          status: 'en_attente',
+          paymentMethod: methodLabel,
+          notes: cashInType === 'recurring' ? 'Abonnement mensuel (Launchpad)' : 'Forfait unique (Launchpad)',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Erreur serveur HTTP ${res.status}`);
+      setSaleCreatedNotice(
+        `Vente En attente enregistrée (${cashInAmount.toLocaleString('fr-FR')} ${currentGeoProfile.currency} · ${clientCompanyName}).`
+      );
+    } catch (e: any) {
+      setError(e?.message || 'Impossible d’enregistrer la vente dans Encaissements Réels.');
+    } finally {
+      setCreatingSale(false);
+    }
+  };
 
   const handleDeleteSaved = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -579,26 +712,63 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
 
               {/* Emails Cadence */}
               <div className="p-6 space-y-4">
+                {queuedNotice && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/35 border border-emerald-200 dark:border-emerald-500/30 text-emerald-900 dark:text-emerald-200 text-xs flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
+                      <span>{queuedNotice}</span>
+                    </div>
+                    {onNavigateTab && (
+                      <button
+                        type="button"
+                        onClick={() => onNavigateTab('validation')}
+                        className="cursor-pointer text-xs font-semibold text-emerald-800 dark:text-emerald-300 underline hover:text-emerald-950 dark:hover:text-emerald-100 shrink-0"
+                      >
+                        Ouvrir À Valider & Journal →
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Email 1 */}
                 <div className="p-5 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08] rounded-xl space-y-3">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2.5">
                       <span className="font-mono text-[11px] text-blue-700 dark:text-blue-400">01</span>
                       <span>Email 1 · Accroche & Audit Pilote Offert (J+0)</span>
                     </span>
 
-                    <button
-                      onClick={() =>
-                        copyToClipboard(
-                          `Objet : ${circuit.outreachSequence.email1Subject}\n\n${circuit.outreachSequence.email1Body}`,
-                          'email1'
-                        )
-                      }
-                      className="cursor-pointer px-3 py-1.5 text-xs font-medium text-stone-700 dark:text-stone-200 hover:text-stone-900 dark:hover:text-white bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.06] border border-stone-200 dark:border-white/[0.08] rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
-                    >
-                      <Copy className="w-3 h-3" />
-                      <span>{copiedSection === 'email1' ? 'Copié !' : 'Copier Email 1'}</span>
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={queueingEmailKey === 'email1'}
+                        onClick={() =>
+                          handleQueueOutreach(
+                            'email1',
+                            'Email 1 (Prospection J+0)',
+                            circuit.outreachSequence.email1Subject,
+                            circuit.outreachSequence.email1Body
+                          )
+                        }
+                        className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <Send className="w-3 h-3" />
+                        <span>{queueingEmailKey === 'email1' ? 'Envoi...' : 'Envoyer à À Valider'}</span>
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          copyToClipboard(
+                            `Objet : ${circuit.outreachSequence.email1Subject}\n\n${circuit.outreachSequence.email1Body}`,
+                            'email1'
+                          )
+                        }
+                        className="cursor-pointer px-3 py-1.5 text-xs font-medium text-stone-700 dark:text-stone-200 hover:text-stone-900 dark:hover:text-white bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.06] border border-stone-200 dark:border-white/[0.08] rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>{copiedSection === 'email1' ? 'Copié !' : 'Copier Email 1'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="text-xs font-mono text-stone-600 dark:text-stone-400 border-b border-stone-200/80 dark:border-white/[0.07] pb-2">
@@ -612,21 +782,40 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
 
                 {/* Email 2 */}
                 <div className="p-5 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08] rounded-xl space-y-3">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2.5">
                       <span className="font-mono text-[11px] text-amber-700 dark:text-amber-400">02</span>
                       <span>Email 2 · Relance avec Preuve Chiffrée (J+3)</span>
                     </span>
 
-                    <button
-                      onClick={() =>
-                        copyToClipboard(circuit.outreachSequence.email2Followup, 'email2')
-                      }
-                      className="cursor-pointer px-3 py-1.5 text-xs font-medium text-stone-700 dark:text-stone-200 hover:text-stone-900 dark:hover:text-white bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.06] border border-stone-200 dark:border-white/[0.08] rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
-                    >
-                      <Copy className="w-3 h-3" />
-                      <span>{copiedSection === 'email2' ? 'Copié !' : 'Copier Email 2'}</span>
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={queueingEmailKey === 'email2'}
+                        onClick={() =>
+                          handleQueueOutreach(
+                            'email2',
+                            'Email 2 (Relance J+3)',
+                            `Re : ${circuit.outreachSequence.email1Subject}`,
+                            circuit.outreachSequence.email2Followup
+                          )
+                        }
+                        className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <Send className="w-3 h-3" />
+                        <span>{queueingEmailKey === 'email2' ? 'Envoi...' : 'Envoyer à À Valider'}</span>
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          copyToClipboard(circuit.outreachSequence.email2Followup, 'email2')
+                        }
+                        className="cursor-pointer px-3 py-1.5 text-xs font-medium text-stone-700 dark:text-stone-200 hover:text-stone-900 dark:hover:text-white bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.06] border border-stone-200 dark:border-white/[0.08] rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>{copiedSection === 'email2' ? 'Copié !' : 'Copier Email 2'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="text-xs text-stone-800 dark:text-stone-200 whitespace-pre-line font-mono bg-white dark:bg-[#141720] border border-stone-200/80 dark:border-white/[0.08] p-4 rounded-xl leading-relaxed">
@@ -636,21 +825,40 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
 
                 {/* Email 3 */}
                 <div className="p-5 bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200/80 dark:border-white/[0.08] rounded-xl space-y-3">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2.5">
                       <span className="font-mono text-[11px] text-rose-700 dark:text-rose-400">03</span>
                       <span>Email 3 · Rupture Polie & Rareté (J+7)</span>
                     </span>
 
-                    <button
-                      onClick={() =>
-                        copyToClipboard(circuit.outreachSequence.email3Breakup, 'email3')
-                      }
-                      className="cursor-pointer px-3 py-1.5 text-xs font-medium text-stone-700 dark:text-stone-200 hover:text-stone-900 dark:hover:text-white bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.06] border border-stone-200 dark:border-white/[0.08] rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
-                    >
-                      <Copy className="w-3 h-3" />
-                      <span>{copiedSection === 'email3' ? 'Copié !' : 'Copier Email 3'}</span>
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={queueingEmailKey === 'email3'}
+                        onClick={() =>
+                          handleQueueOutreach(
+                            'email3',
+                            'Email 3 (Clôture J+7)',
+                            `Dernier suivi : ${circuit.outreachSequence.email1Subject}`,
+                            circuit.outreachSequence.email3Breakup
+                          )
+                        }
+                        className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <Send className="w-3 h-3" />
+                        <span>{queueingEmailKey === 'email3' ? 'Envoi...' : 'Envoyer à À Valider'}</span>
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          copyToClipboard(circuit.outreachSequence.email3Breakup, 'email3')
+                        }
+                        className="cursor-pointer px-3 py-1.5 text-xs font-medium text-stone-700 dark:text-stone-200 hover:text-stone-900 dark:hover:text-white bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.06] border border-stone-200 dark:border-white/[0.08] rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>{copiedSection === 'email3' ? 'Copié !' : 'Copier Email 3'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="text-xs text-stone-800 dark:text-stone-200 whitespace-pre-line font-mono bg-white dark:bg-[#141720] border border-stone-200/80 dark:border-white/[0.08] p-4 rounded-xl leading-relaxed">
@@ -986,30 +1194,88 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                     </h4>
                   </div>
 
-                  {/* Mode Abonnement vs Forfait */}
-                  <div className="flex items-center gap-1 p-1 bg-[#F2EFE9] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.08] rounded-xl shrink-0">
+                  {/* Mode Abonnement vs Forfait + Sauvegarde Profil + Vente En attente */}
+                  <div className="flex flex-wrap items-center gap-2 shrink-0 print:hidden">
                     <button
-                      onClick={() => setCashInType('recurring')}
-                      className={`cursor-pointer px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
-                        cashInType === 'recurring'
-                          ? 'bg-blue-700 dark:bg-blue-600 text-white'
-                          : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
-                      }`}
+                      type="button"
+                      onClick={handleCreatePendingSale}
+                      disabled={creatingSale}
+                      className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-60"
+                      title="Créer directement une écriture En attente dans Encaissements Réels avec ce client et ce montant"
                     >
-                      Abonnement Mensuel
+                      {creatingSale ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Receipt className="w-3.5 h-3.5" />
+                      )}
+                      <span>Enregistrer en vente En attente</span>
                     </button>
+
                     <button
-                      onClick={() => setCashInType('oneoff')}
-                      className={`cursor-pointer px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
-                        cashInType === 'oneoff'
-                          ? 'bg-blue-700 dark:bg-blue-600 text-white'
-                          : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
-                      }`}
+                      type="button"
+                      onClick={handleSaveCompanyProfile}
+                      disabled={savingProfile}
+                      className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-500/30 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-60"
+                      title="Enregistrer durablement vos coordonnées entreprise, RIB, Mobile Money et lien de paiement"
                     >
-                      Forfait Unique
+                      {savingProfile ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : profileSaveStatus === 'saved' ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                      ) : (
+                        <Save className="w-3.5 h-3.5" />
+                      )}
+                      <span>
+                        {profileSaveStatus === 'saved'
+                          ? 'Profil sauvegardé'
+                          : profileSaveStatus === 'error'
+                          ? 'Erreur sauvegarde'
+                          : 'Sauvegarder mon profil'}
+                      </span>
                     </button>
+
+                    <div className="flex items-center gap-1 p-1 bg-[#F2EFE9] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.08] rounded-xl">
+                      <button
+                        onClick={() => setCashInType('recurring')}
+                        className={`cursor-pointer px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
+                          cashInType === 'recurring'
+                            ? 'bg-blue-700 dark:bg-blue-600 text-white'
+                            : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
+                        }`}
+                      >
+                        Abonnement Mensuel
+                      </button>
+                      <button
+                        onClick={() => setCashInType('oneoff')}
+                        className={`cursor-pointer px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
+                          cashInType === 'oneoff'
+                            ? 'bg-blue-700 dark:bg-blue-600 text-white'
+                            : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
+                        }`}
+                      >
+                        Forfait Unique
+                      </button>
+                    </div>
                   </div>
                 </div>
+
+                {saleCreatedNotice && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/35 border border-emerald-200 dark:border-emerald-500/30 text-emerald-900 dark:text-emerald-200 text-xs flex flex-wrap items-center justify-between gap-3 print:hidden">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
+                      <span>{saleCreatedNotice}</span>
+                    </div>
+                    {onNavigateTab && (
+                      <button
+                        type="button"
+                        onClick={() => onNavigateTab('sales')}
+                        className="cursor-pointer text-xs font-semibold text-emerald-800 dark:text-emerald-300 underline hover:text-emerald-950 dark:hover:text-emerald-100 shrink-0"
+                      >
+                        Ouvrir Encaissements Réels →
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Rail Selection Buttons */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -1075,7 +1341,7 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                 </div>
 
                 {/* Common client & amount parameters */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
                   <div>
                     <label className="text-xs font-medium text-stone-700 dark:text-stone-300 block mb-1.5">
                       Montant ({currentGeoProfile.currencySymbol})
@@ -1119,6 +1385,19 @@ export const LaunchpadView: React.FC<LaunchpadViewProps> = ({
                       value={userCompanyName}
                       onChange={(e) => setUserCompanyName(e.target.value)}
                       className="w-full bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.08] text-stone-900 dark:text-stone-100 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:bg-white dark:focus:bg-[#161A24] focus:border-emerald-600 dark:focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-stone-700 dark:text-stone-300 block mb-1.5">
+                      Identifiant Légal (NIF / RCCM / SIRET)
+                    </label>
+                    <input
+                      type="text"
+                      value={userNif}
+                      onChange={(e) => setUserNif(e.target.value)}
+                      placeholder="Ex: NIF 48219/R · RCCM..."
+                      className="w-full bg-[#F6F4EF] dark:bg-[#0D1017] border border-stone-200 dark:border-white/[0.08] text-stone-900 dark:text-stone-100 font-mono text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:bg-white dark:focus:bg-[#161A24] focus:border-emerald-600 dark:focus:border-emerald-500"
                     />
                   </div>
                 </div>
@@ -1231,34 +1510,46 @@ ${userCompanyName}`}
                           Recommandé pour les PME, institutions, ONG et grands comptes. 0% de frais d'intermédiaire.
                         </div>
                       </div>
-                      <button
-                        onClick={() => {
-                          const invoiceText = `=== FACTURE PRO-FORMA B2B N° FAC-${new Date().getFullYear()}-${Date.now().toString().slice(-3)} ===\n` +
-                            `ÉMETTEUR :\n` +
-                            `Raison Sociale : ${userCompanyName}\n` +
-                            `Identifiant Légal : ${userNif}\n` +
-                            `Localisation : Niamey, Niger (Zone UEMOA)\n\n` +
-                            `CLIENT :\n` +
-                            `Raison Sociale : ${clientCompanyName}\n` +
-                            `Email Contact : ${clientContactEmail}\n` +
-                            `Date d'émission : ${new Date().toLocaleDateString('fr-FR')}\n\n` +
-                            `DÉSIGNATION DE LA PRESTATION :\n` +
-                            `- Service : ${opportunityTitle}\n` +
-                            `- Nature : ${cashInType === 'recurring' ? 'Prestation mensuelle récurrente' : 'Déploiement opérationnel clé en main'}\n` +
-                            `- Montant Net à Régler : ${cashInAmount.toLocaleString('fr-FR')} ${currentGeoProfile.currencySymbol}\n\n` +
-                            `COORDONNÉES BANCAIRES POUR LE VIREMENT :\n` +
-                            `Banque Domiciliataire : ${selectedBank}\n` +
-                            `Titulaire : ${userCompanyName}\n` +
-                            `RIB / IBAN UEMOA : ${userIban}\n` +
-                            `Référence à inscrire impérativement : FAC-${new Date().getFullYear()}-${Date.now().toString().slice(-3)}\n\n` +
-                            `Dispositions légales : Facture conforme aux règles de l'OHADA et du Code Général des Impôts.`;
-                          copyToClipboard(invoiceText, 'bankInvoice');
-                        }}
-                        className="cursor-pointer px-3.5 py-1.5 text-xs font-medium text-stone-800 dark:text-stone-200 bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.06] border border-stone-200 dark:border-white/[0.08] rounded-xl transition-colors flex items-center gap-1.5 shrink-0"
-                      >
-                        <Receipt className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
-                        <span>{copiedSection === 'bankInvoice' ? 'Facture Copiée !' : 'Copier la Facture & RIB'}</span>
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0 print:hidden">
+                        <button
+                          type="button"
+                          onClick={() => window.print()}
+                          className="cursor-pointer px-3 py-1.5 text-xs font-medium text-stone-800 dark:text-stone-200 bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.06] border border-stone-200 dark:border-white/[0.08] rounded-xl transition-colors flex items-center gap-1.5"
+                          title="Imprimer ou exporter la facture pro-forma en PDF"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
+                          <span>Imprimer / PDF</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const invoiceText = `=== FACTURE PRO-FORMA B2B N° FAC-${new Date().getFullYear()}-${Date.now().toString().slice(-3)} ===\n` +
+                              `ÉMETTEUR :\n` +
+                              `Raison Sociale : ${userCompanyName}\n` +
+                              `Identifiant Légal : ${userNif}\n` +
+                              `Pays / Zone : ${currentGeoProfile.countryName} (${currentGeoProfile.currency})\n\n` +
+                              `CLIENT :\n` +
+                              `Raison Sociale : ${clientCompanyName}\n` +
+                              `Email Contact : ${clientContactEmail}\n` +
+                              `Date d'émission : ${new Date().toLocaleDateString('fr-FR')}\n\n` +
+                              `DÉSIGNATION DE LA PRESTATION :\n` +
+                              `- Service : ${opportunityTitle}\n` +
+                              `- Nature : ${cashInType === 'recurring' ? 'Prestation mensuelle récurrente' : 'Déploiement opérationnel clé en main'}\n` +
+                              `- Montant Net à Régler : ${cashInAmount.toLocaleString('fr-FR')} ${currentGeoProfile.currencySymbol}\n\n` +
+                              `COORDONNÉES BANCAIRES POUR LE VIREMENT :\n` +
+                              `Banque Domiciliataire : ${selectedBank}\n` +
+                              `Titulaire : ${userCompanyName}\n` +
+                              `RIB / IBAN UEMOA : ${userIban}\n` +
+                              `Référence à inscrire impérativement : FAC-${new Date().getFullYear()}-${Date.now().toString().slice(-3)}\n\n` +
+                              `Dispositions légales : Facture conforme aux règles de l'OHADA et du Code Général des Impôts.`;
+                            copyToClipboard(invoiceText, 'bankInvoice');
+                          }}
+                          className="cursor-pointer px-3.5 py-1.5 text-xs font-medium text-stone-800 dark:text-stone-200 bg-white dark:bg-[#141720] hover:bg-stone-50 dark:hover:bg-white/[0.06] border border-stone-200 dark:border-white/[0.08] rounded-xl transition-colors flex items-center gap-1.5"
+                        >
+                          <Receipt className="w-3.5 h-3.5 text-blue-700 dark:text-blue-400" />
+                          <span>{copiedSection === 'bankInvoice' ? 'Facture Copiée !' : 'Copier la Facture & RIB'}</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

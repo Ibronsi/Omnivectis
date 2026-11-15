@@ -347,6 +347,7 @@ export default function App() {
           onQuickAction={() => {
             setActiveTab('sales');
           }}
+          onNavigateTab={setActiveTab}
           countryCode={countryCode}
           isProtected={isAuthRequired}
           onLock={() => {
@@ -489,6 +490,7 @@ export default function App() {
             initialOpportunityTitle={launchpadTitle}
             countryCode={countryCode}
             liveRates={liveRates}
+            onNavigateTab={setActiveTab}
             onAddToPipeline={(title, sectorId, targetMrr) => {
               const secObj = ECONOMIC_SECTORS.find((s) => s.id === sectorId) || ECONOMIC_SECTORS[0];
               const newItem: PipelineItem = {
@@ -523,6 +525,8 @@ export default function App() {
           <PipelineView
             items={pipelineItems}
             onUpdateItems={setPipelineItems}
+            countryCode={countryCode}
+            liveRates={liveRates}
             onNavigateToBlueprint={(sectorId) => {
               setBlueprintSectorId(sectorId);
               setActiveTab('blueprint');
@@ -534,7 +538,7 @@ export default function App() {
         </main>
 
         {/* Quiet Editorial Footer */}
-        <footer className="border-t border-stone-200/80 dark:border-white/[0.08] bg-[#F8F7F4] dark:bg-[#0B0D13] py-5 px-4 sm:px-6 lg:px-10 text-xs text-stone-500 dark:text-stone-400 transition-colors duration-150">
+        <footer className="border-t border-stone-200/80 dark:border-white/[0.08] bg-[#F8F7F4] dark:bg-[#0B0D13] py-5 px-4 sm:px-6 lg:px-10 text-xs text-stone-500 dark:text-stone-400 transition-colors duration-150 print:hidden">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="font-display font-semibold text-stone-800 dark:text-stone-100 text-sm">OmniVectis</span>

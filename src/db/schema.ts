@@ -176,6 +176,22 @@ export const realSales = pgTable('real_sales', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Persisted company & payment billing profile per user
+export const companyProfiles = pgTable('company_profiles', {
+  userUid: text('user_uid')
+    .primaryKey()
+    .references(() => users.uid),
+  companyName: text('company_name').notNull().default(''),
+  nif: text('nif').notNull().default(''),
+  phone: text('phone').notNull().default(''),
+  iban: text('iban').notNull().default(''),
+  selectedBank: text('selected_bank').notNull().default(''),
+  selectedMobileOperator: text('selected_mobile_operator').notNull().default(''),
+  selectedAgency: text('selected_agency').notNull().default(''),
+  customPaymentLink: text('custom_payment_link').notNull().default(''),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Key-value state table for shared/global operational snapshots (signals, source_health, fx_rates, usage_stats)
 export const appState = pgTable('app_state', {
   key: text('key').primaryKey(),
@@ -193,4 +209,5 @@ export const usersRelations = relations(users, ({ many }) => ({
   validationQueue: many(validationQueue),
   auditLog: many(auditLog),
   realSales: many(realSales),
+  companyProfiles: many(companyProfiles),
 }));

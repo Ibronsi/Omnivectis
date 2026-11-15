@@ -140,3 +140,17 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+@media print {
+  html,
+  html.dark,
+  body,
+  html.dark body {
+    background: #ffffff !important;
+    color: #1c1917 !important;
+  }
+
+  * {
+    box-shadow: none !important;
+  }
+}

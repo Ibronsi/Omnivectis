@@ -21,6 +21,7 @@ import {
   ArrowRight,
   ExternalLink,
   ShieldCheck,
+  Printer,
 } from 'lucide-react';
 import {
   StrictOpportunity,
@@ -336,7 +337,18 @@ export const KitsView: React.FC<KitsViewProps> = ({
             <p className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed">{selectedOpportunity.description}</p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 print:hidden">
+            {(digitalKit || physicalPlan) && (
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="cursor-pointer px-3.5 py-2.5 text-xs font-medium text-stone-700 dark:text-stone-200 bg-[#F6F4EF] dark:bg-[#0D1017] hover:bg-[#EAE5DC] dark:hover:bg-white/[0.08] border border-stone-200 dark:border-white/[0.1] rounded-xl transition-colors flex items-center gap-1.5"
+                title="Imprimer ou enregistrer ce dossier en PDF"
+              >
+                <Printer className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
+                <span>Imprimer / PDF</span>
+              </button>
+            )}
             {selectedOpportunity.type === 'numérique' ? (
               <button
                 onClick={handleGenerateDigitalKit}
