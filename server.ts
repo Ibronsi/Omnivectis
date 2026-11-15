@@ -177,6 +177,15 @@ app.use('/api', async (req, res, next) => {
     return next();
   }
 
+  // Allow scheduled Vercel / external cron calls when CRON_SECRET is configured
+  if (req.path === '/cron/harvest') {
+    const cronSecret = process.env.CRON_SECRET?.trim();
+    const authHeader = req.headers.authorization;
+    if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+      return next();
+    }
+  }
+
   const configuredPassword = process.env.APP_PASSWORD ? process.env.APP_PASSWORD.trim() : '';
   if (configuredPassword && configuredPassword !== 'MY_APP_PASSWORD') {
     const provided =
@@ -193,6 +202,19 @@ app.use('/api', async (req, res, next) => {
   }
 
   return requireAuth(req as AuthRequest, res, next);
+});
+
+app.get('/api/cron/harvest', async (req, res) => {
+  try {
+    const signals = await harvestRealTimeSignals();
+    res.json({
+      status: 'ok',
+      harvested: signals.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || 'Erreur lors de la collecte planifiée.' });
+  }
 });
 
 app.get('/api/auth/session', async (req, res) => {
@@ -224,8 +246,12 @@ app.get('/api/signals/live', async (req, res) => {
     loadRatesFromDbIfNeeded(),
   ]);
   let signals = getCachedSignals();
+  const latestSignalMs = signals[0]?.timestamp ? Date.parse(signals[0].timestamp) : 0;
+  const isStaleOnServerless =
+    Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) &&
+    (!latestSignalMs || Date.now() - latestSignalMs > 30 * 60 * 1000);
 
-  if (signals.length === 0) {
+  if (signals.length === 0 || isStaleOnServerless) {
     try {
       signals = await harvestRealTimeSignals(authReq.userUid);
     } catch (e) {
@@ -271,6 +297,24 @@ app.get('/api/signals/stream', async (req, res) => {
   const now = new Date();
   const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
   const currentSignals = getCachedSignals();
+
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  if (isServerless) {
+    res.write(
+      `retry: 30000\nevent: signals_snapshot\ndata: ${JSON.stringify({
+        status: 'ok',
+        lastSync: timeStr,
+        timestamp: now.toISOString(),
+        totalSignals: currentSignals.length,
+        signals: currentSignals,
+        sourceHealth: getSourceHealth(),
+        rates: getCachedRates(),
+      })}\n\n`
+    );
+    sseClients.delete(res);
+    res.end();
+    return;
+  }
 
   res.write(
     `event: signals_snapshot\ndata: ${JSON.stringify({
@@ -1958,4 +2002,13 @@ async function startServer() {
   });
 }
 
-startServer();
+const isServerlessRuntime = Boolean(
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+);
+
+if (!isServerlessRuntime) {
+  startServer();
+}
+
+export { app };
+export default app;

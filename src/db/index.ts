@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { Pool, PoolConfig } from 'pg';
 import * as schema from './schema.ts';
 
 declare global {
@@ -8,14 +8,28 @@ declare global {
 
 export const createPool = () => {
   if (!global._postgresPool) {
-    global._postgresPool = new Pool({
-      host: process.env.SQL_HOST,
-      user: process.env.SQL_USER,
-      password: process.env.SQL_PASSWORD,
-      database: process.env.SQL_DB_NAME,
-      max: 10,
-      connectionTimeoutMillis: 15000,
-    });
+    const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    const databaseUrl = process.env.DATABASE_URL?.trim();
+
+    const poolConfig: PoolConfig = databaseUrl
+      ? {
+          connectionString: databaseUrl,
+          ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
+          max: isServerless ? 3 : 10,
+          connectionTimeoutMillis: 15000,
+        }
+      : {
+          host: process.env.SQL_HOST,
+          port: process.env.SQL_PORT ? Number(process.env.SQL_PORT) : undefined,
+          user: process.env.SQL_USER,
+          password: process.env.SQL_PASSWORD,
+          database: process.env.SQL_DB_NAME,
+          ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+          max: isServerless ? 3 : 10,
+          connectionTimeoutMillis: 15000,
+        };
+
+    global._postgresPool = new Pool(poolConfig);
 
     global._postgresPool.on('error', (err) => {
       console.error('Unexpected error on idle SQL pool client:', err);
